@@ -124,7 +124,7 @@ export default function Symptoms() {
             </Text>
           ))}
         </Card>
-        {result.assessment && <AssessmentView a={result.assessment} compact />}
+        {result.assessment && <AssessmentView a={result.assessment} compact hideEmergency={r.danger_signs.length > 0} />}
         <Button title={t('reportSymptoms')} variant="ghost" onPress={() => setResult(null)} />
       </Screen>
     );

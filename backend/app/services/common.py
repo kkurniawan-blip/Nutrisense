@@ -8,8 +8,18 @@ def audit(db: Session, user: User | None, action: str, entity: str, entity_id: i
     db.add(AuditLog(user_id=user.id if user else None, action=action, entity=entity, entity_id=entity_id, detail=detail))
 
 
-def notify(db: Session, user_id: int, kind: str, title: str, body: str, **data) -> None:
-    db.add(Notification(user_id=user_id, kind=kind, title=title, body=body, data=data))
+Text = str | dict[str, str]
+
+
+def _in_language(text: Text, lang: str) -> str:
+    return text if isinstance(text, str) else text.get(lang) or text["id"]
+
+
+def notify(db: Session, user_id: int, kind: str, title: Text, body: Text, **data) -> None:
+    """Store a notification in the recipient's own language. title/body may be {"id": ..., "en": ...}."""
+    user = db.get(User, user_id)
+    lang = user.language if user and user.language in ("id", "en") else "id"
+    db.add(Notification(user_id=user_id, kind=kind, title=_in_language(title, lang), body=_in_language(body, lang), data=data))
 
 
 def has_consent(db: Session, user_id: int, scope: str) -> bool:
@@ -19,7 +29,7 @@ def has_consent(db: Session, user_id: int, scope: str) -> bool:
     return bool(c and c.granted)
 
 
-def notify_roles(db: Session, roles: list[str], region_id: int | None, kind: str, title: str, body: str, **data) -> None:
+def notify_roles(db: Session, roles: list[str], region_id: int | None, kind: str, title: Text, body: Text, **data) -> None:
     """Notify staff with the given roles. Officers/doctors/admins see all regions; Kaders only their own."""
     users = db.scalars(select(User).where(User.role.in_(roles), User.is_active.is_(True))).all()
     for u in users:

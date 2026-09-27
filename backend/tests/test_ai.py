@@ -189,3 +189,10 @@ def test_menu_suggester_fills_missing_groups():
     assert nutrition.suggest_menus(4, [], [], "en", use_ai=False)["suggestions"] == []
     baby = nutrition.suggest_menus(7, [], [], "en", use_ai=False)
     assert all(s["min_age_months"] <= 7 for s in baby["suggestions"])
+
+
+def test_eta_text_reads_as_hours():
+    from app.services.logistics import eta_text
+    assert eta_text(45.4) == "45 menit"
+    assert eta_text(755) == "12 jam 35 menit"
+    assert eta_text(120) == "2 jam"

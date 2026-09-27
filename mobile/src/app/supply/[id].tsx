@@ -6,6 +6,7 @@ import { View } from 'react-native';
 import { Badge, Button, Card, ErrorBox, H2, Loading, P, Row, Screen } from '../../components/ui';
 import { api, errorText } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
+import { formatDuration } from '../../lib/fun';
 import type { LogisticsOption, SupplyRequest } from '../../lib/types';
 import { useApi } from '../../lib/useApi';
 import { colors } from '../../theme';
@@ -15,7 +16,7 @@ const ICON = { locker_stock: 'file-tray-stacked-outline', drone: 'airplane-outli
 
 export default function SupplyDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { t } = useAuth();
+  const { t, lang } = useAuth();
   const list = useApi<SupplyRequest[]>('/api/supply-requests');
   const req = list.data?.find((r) => String(r.id) === id) ?? null;
   const pending = req && ['pending_approval', 'awaiting_stock'].includes(req.status);
@@ -50,7 +51,7 @@ export default function SupplyDetail() {
         {req.items.map((i) => (
           <P key={i.item_key}>
             • {i.quantity}× {i.name}
-            {i.needs_doctor ? ' (dokter / doctor)' : ''}
+            {i.needs_doctor ? ` (${t('needsDoctor')})` : ''}
           </P>
         ))}
         <P muted>
@@ -88,15 +89,17 @@ export default function SupplyDetail() {
                 {o.hub_name ? `${o.hub_name} → ` : ''}
                 {o.locker_name}
                 {o.distance_km !== undefined ? ` · ${o.distance_km} km` : ''}
-                {o.distance_to_family_km !== undefined ? ` · ${o.distance_to_family_km} km` : ''}
-                {` · ${t('eta')} ${Math.round(o.eta_minutes)} ${t('minutes')}`}
+                {o.type === 'locker_stock'
+                  ? ` · ${o.distance_to_family_km} km ${t('fromFamily')}`
+                  : ` · ${t('eta')} ${formatDuration(o.eta_minutes, lang)}`}
               </P>
               {o.type === 'drone' && (
                 <P muted style={{ fontSize: 12 }}>
-                  {o.drone_code ?? '–'} · battery {o.battery_needed_pct}% · weather risk {o.weather_risk}
+                  🚁 {o.drone_code ?? t('noDroneFree')} · 🔋 {t('batteryNeeded')} {Math.round(o.battery_needed_pct ?? 0)}% ({t('batteryRoundTrip')}) · 🌦️{' '}
+                  {t('weatherRisk')} {t(`weather_${(o.weather_risk ?? 0) > 0.5 ? 'high' : (o.weather_risk ?? 0) >= 0.3 ? 'medium' : 'low'}`)}
                 </P>
               )}
-              {!o.feasible && <P muted style={{ fontSize: 12 }}>{o.reason.replace(/_/g, ' ')}</P>}
+              {!o.feasible && <P muted style={{ fontSize: 12 }}>⚠️ {t(`why_${o.reason}`)}</P>}
               {pending && o.feasible && !isChosen && (
                 <Button small variant="ghost" title={`${t('approve')} (${t(`via_${o.type}`)})`} onPress={() => act('approve', { option_index: i })} />
               )}

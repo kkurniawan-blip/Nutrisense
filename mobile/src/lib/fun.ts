@@ -146,6 +146,16 @@ const MONTHS = {
   en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
 };
 
+/** "45 mnt" or "12 jam 35 mnt" / "12 h 35 min": long trips read as hours, not thousands of minutes. */
+export function formatDuration(minutes: number, lang: Lang): string {
+  const m = Math.max(0, Math.round(minutes));
+  const [h, min] = lang === 'id' ? ['jam', 'mnt'] : ['h', 'min'];
+  if (m < 90) return `${m} ${min}`;
+  const hours = Math.floor(m / 60);
+  const rest = m % 60;
+  return rest ? `${hours} ${h} ${rest} ${min}` : `${hours} ${h}`;
+}
+
 /** "27 Sep 2026" (optionally with time), independent of the phone's Intl support. */
 export function formatDate(iso: string | null | undefined, lang: Lang, withTime = false): string {
   if (!iso) return '–';

@@ -3,13 +3,14 @@ import React from 'react';
 import { Button, Card, Empty, ErrorBox, Loading, P, Row, Screen } from '../components/ui';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
+import { formatDate } from '../lib/fun';
 import type { Notification } from '../lib/types';
 import { useApi } from '../lib/useApi';
 import { colors } from '../theme';
 import { Text } from '../components/Text';
 
 export default function Notifications() {
-  const { t, user } = useAuth();
+  const { t, lang, user } = useAuth();
   const list = useApi<Notification[]>('/api/notifications');
 
   const open = async (n: Notification) => {
@@ -39,7 +40,7 @@ export default function Notifications() {
         <Card key={n.id} onPress={() => open(n)} style={!n.read ? { borderColor: colors.primary } : undefined}>
           <Row style={{ justifyContent: 'space-between' }}>
             <Text style={{ fontWeight: n.read ? '500' : '800', color: colors.text, flex: 1 }}>{n.title}</Text>
-            <Text style={{ fontSize: 12, color: colors.muted }}>{new Date(n.created_at).toLocaleString()}</Text>
+            <Text style={{ fontSize: 12, color: colors.muted }}>{formatDate(n.created_at, lang, true)}</Text>
           </Row>
           <P muted>{n.body}</P>
         </Card>

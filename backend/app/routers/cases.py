@@ -61,13 +61,13 @@ def update_case(case_id: int, body: CaseUpdateIn, user: User = Depends(require_r
     if note:
         db.add(CaseNote(case_id=case.id, author_id=user.id, text=note, visible_to_caregiver=bool(share)))
         if share:
-            notify(db, case.child.caregiver_id, "care_note", "Pesan dari tenaga kesehatan / Message from your health worker",
+            notify(db, case.child.caregiver_id, "care_note", {"id": "Pesan dari tenaga kesehatan", "en": "Message from your health worker"},
                    note[:200], child_id=case.child_id)
     if data.get("status") == "referred":
-        notify(db, case.child.caregiver_id, "referral", "Rujukan / Referral",
-               f"{case.child.name} dirujuk ke dokter/Puskesmas. / {case.child.name} has been referred to a doctor.", case_id=case.id)
+        notify(db, case.child.caregiver_id, "referral", {"id": "Rujukan", "en": "Referral"},
+               {"id": f"{case.child.name} dirujuk ke dokter/Puskesmas.", "en": f"{case.child.name} has been referred to a doctor."}, case_id=case.id)
     if "assigned_to_id" in data and data["assigned_to_id"]:
-        notify(db, data["assigned_to_id"], "case_assigned", "Kasus baru / New case assigned", case.child.name, case_id=case.id)
+        notify(db, data["assigned_to_id"], "case_assigned", {"id": "Kasus baru", "en": "New case assigned"}, case.child.name, case_id=case.id)
     audit(db, user, "update_case", "case", case.id, **{k: v for k, v in data.items()}, note_added=bool(note))
     db.commit()
     db.refresh(case)
@@ -92,8 +92,13 @@ def review_assessment(assessment_id: int, body: ReviewIn, user: User = Depends(r
     a.reviewed_at = datetime.now(timezone.utc)
     child = db.get(Child, a.child_id)
     if body.reviewed_level != a.risk_level:
-        notify(db, child.caregiver_id, "assessment_reviewed", "Hasil ditinjau tenaga kesehatan / Result reviewed",
-               f"{child.name}: {a.risk_level} -> {body.reviewed_level}. {body.note}", assessment_id=a.id)
+        # Mothers get plain words, never raw risk codes.
+        plain = {"low": ("tumbuh baik", "growing well"), "medium": ("perlu dipantau", "needs monitoring"),
+                 "high": ("perlu perhatian", "needs attention")}[body.reviewed_level]
+        note = f" {body.note}" if body.note else ""
+        notify(db, child.caregiver_id, "assessment_reviewed", {"id": "Hasil ditinjau tenaga kesehatan", "en": "Result reviewed"},
+               {"id": f"{user.full_name} sudah mengecek hasil {child.name}: {plain[0]}.{note}",
+                "en": f"{user.full_name} checked {child.name}'s result: {plain[1]}.{note}"}, assessment_id=a.id)
     audit(db, user, "review_assessment", "risk_assessment", a.id, model_level=a.risk_level, reviewed_level=body.reviewed_level)
     db.commit()
     db.refresh(a)

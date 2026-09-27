@@ -28,6 +28,16 @@ CHARGE_MINUTES = 30
 COURIER_SPEED_KMH = 30.0
 
 
+def eta_text(minutes: float, lang: str = "id") -> str:
+    """"45 menit" or "12 jam 35 menit": long trips read as hours, not hundreds of minutes."""
+    m = max(0, round(minutes))
+    h_word, m_word = ("jam", "menit") if lang == "id" else ("h", "min")
+    if m < 90:
+        return f"{m} {m_word}"
+    h, rest = divmod(m, 60)
+    return f"{h} {h_word} {rest} {m_word}" if rest else f"{h} {h_word}"
+
+
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -179,8 +189,9 @@ def _move_stock(db: Session, src: Locker, dst: Locker, items: list[dict]) -> Non
 def _notify_ready(db: Session, req: SupplyRequest) -> None:
     locker = req.locker
     notify(db, req.child.caregiver_id, "pickup_ready",
-           "Paket gizi siap diambil / Nutrition package ready",
-           f"Loker {locker.name} ({locker.code}). Kode: {req.pickup_code}. Berlaku {PICKUP_VALID_DAYS} hari.",
+           {"id": "Paket gizi siap diambil", "en": "Nutrition package ready"},
+           {"id": f"Loker {locker.name} ({locker.code}). Kode: {req.pickup_code}. Berlaku {PICKUP_VALID_DAYS} hari.",
+            "en": f"Locker {locker.name} ({locker.code}). Code: {req.pickup_code}. Valid for {PICKUP_VALID_DAYS} days."},
            supply_request_id=req.id, locker_code=locker.code)
 
 
@@ -203,8 +214,9 @@ def approve(db: Session, req: SupplyRequest, approver: User, override_option: in
 
     if chosen is None:
         req.status = "awaiting_stock"
-        notify_roles(db, ["officer", "admin"], None, "stock_shortage", "Stok tidak cukup / Stock shortage",
-                     f"Supply request #{req.id} cannot be fulfilled from any locker or hub.", supply_request_id=req.id)
+        notify_roles(db, ["officer", "admin"], None, "stock_shortage", {"id": "Stok tidak cukup", "en": "Stock shortage"},
+                     {"id": f"Permintaan #{req.id} tidak bisa dipenuhi dari loker atau gudang mana pun.",
+                      "en": f"Supply request #{req.id} cannot be fulfilled from any locker or hub."}, supply_request_id=req.id)
         audit(db, approver, "approve_supply", "supply_request", req.id, outcome="awaiting_stock")
         return req
 
@@ -233,8 +245,9 @@ def approve(db: Session, req: SupplyRequest, approver: User, override_option: in
                 payload_kg=chosen["payload_kg"], status="launched", launched_at=_now(),
                 route=[[hub.lat, hub.lng], [dst.lat, dst.lng]],
             ))
-        notify(db, req.child.caregiver_id, "supply_in_transit", "Paket gizi sedang dikirim / Package on the way",
-               f"ETA ~{int(chosen['eta_minutes'])} menit ke loker {chosen['locker_name']}.", supply_request_id=req.id)
+        notify(db, req.child.caregiver_id, "supply_in_transit", {"id": "Paket gizi sedang dikirim", "en": "Package on the way"},
+               {"id": f"Perkiraan tiba ~{eta_text(chosen['eta_minutes'])} di {chosen['locker_name']}.",
+                "en": f"Arrives in about {eta_text(chosen['eta_minutes'], 'en')} at {chosen['locker_name']}."}, supply_request_id=req.id)
     audit(db, approver, "approve_supply", "supply_request", req.id, fulfillment=chosen["type"], locker=chosen.get("locker_code"))
     return req
 
@@ -281,8 +294,8 @@ def tick(db: Session, fast_forward_minutes: float = 0) -> dict:
             for it in req.items:
                 inv[it["item_key"]].reserved -= it["quantity"]
             req.status = "expired"
-            notify(db, req.child.caregiver_id, "pickup_expired", "Kode kedaluwarsa / Pickup expired",
-                   "Hubungi Kader untuk menjadwalkan ulang. / Contact your Kader to reschedule.", supply_request_id=req.id)
+            notify(db, req.child.caregiver_id, "pickup_expired", {"id": "Kode kedaluwarsa", "en": "Pickup expired"},
+                   {"id": "Hubungi Kader untuk menjadwalkan ulang.", "en": "Contact your Kader to reschedule."}, supply_request_id=req.id)
     db.commit()
     return {"drones_landed": landed, "couriers_delivered": delivered, "drones_recharged": recharged}
 
@@ -322,8 +335,8 @@ def verify_pickup(db: Session, locker_code: str, pickup_code: str | None, qr_pay
     locker.last_heartbeat = _now()
     audit(db, actor, "locker_pickup", "supply_request", req.id, locker=locker.code)
     if low:
-        notify_roles(db, ["officer", "admin"], locker.region_id, "restock_needed", "Restok diperlukan / Restock needed",
-                     f"{locker.name}: {', '.join(low)} below threshold.", locker_id=locker.id, items=low)
+        notify_roles(db, ["officer", "admin"], locker.region_id, "restock_needed", {"id": "Restok diperlukan", "en": "Restock needed"},
+                     {"id": f"{locker.name}: {', '.join(low)} di bawah batas minimum.", "en": f"{locker.name}: {', '.join(low)} below threshold."}, locker_id=locker.id, items=low)
     db.commit()
     return req
 

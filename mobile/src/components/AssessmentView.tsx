@@ -51,7 +51,7 @@ function FactorRow({ name, value, status }: { name: string; value: string; statu
   );
 }
 
-function MotherResult({ a, compact }: { a: Assessment; compact?: boolean }) {
+function MotherResult({ a, compact, hideEmergency }: { a: Assessment; compact?: boolean; hideEmergency?: boolean }) {
   const { t, lang } = useAuth();
   const [details, setDetails] = useState(false);
   const st = motherStatus(a);
@@ -84,7 +84,8 @@ function MotherResult({ a, compact }: { a: Assessment; compact?: boolean }) {
 
   return (
     <>
-      {emergency && (
+      {/* One red warning per screen: skip it when the screen already shows its own (e.g. symptom checker with a call button). */}
+      {emergency && !hideEmergency && (
         <Card tint={statusColor.urgent.bg} style={{ borderColor: colors.danger, borderWidth: 2 }}>
           <Row>
             <Ionicons name="warning" size={28} color={colors.danger} />
@@ -99,8 +100,11 @@ function MotherResult({ a, compact }: { a: Assessment; compact?: boolean }) {
         <Row style={{ gap: 12 }}>
           <Mascot size={60} mood={st.key === 'ok' ? 'cheer' : st.key === 'urgent' ? 'caring' : 'thinking'} />
           <View style={{ flex: 1 }}>
-            <StatusPill status={st.key} label={txt(st.headline, lang)} large />
-            <Text style={{ marginTop: 6 }}>{st.key === 'ok' ? t('celebrate') : t('supportive')}</Text>
+            {/* In an emergency the red card already says what to do; the pill only names the state. */}
+            <StatusPill status={st.key} label={txt(emergency ? st.label : st.headline, lang)} large />
+            <Text style={{ marginTop: 6, fontWeight: emergency ? '800' : '400' }}>
+              {st.key === 'ok' ? t('celebrate') : emergency ? t('urgentSupportive') : t('supportive')}
+            </Text>
           </View>
         </Row>
       </Card>
@@ -182,12 +186,12 @@ function TechnicalDetails({ a }: { a: Assessment }) {
 }
 
 /** Staff keep the clinical view (level, urgency, confidence, factors), still labelled as AI output. */
-function StaffResult({ a, compact }: { a: Assessment; compact?: boolean }) {
+function StaffResult({ a, compact, hideEmergency }: { a: Assessment; compact?: boolean; hideEmergency?: boolean }) {
   const { t, lang } = useAuth();
   const emergency = a.triage.urgency === 'emergency';
   return (
     <>
-      {emergency && (
+      {emergency && !hideEmergency && (
         <Card tint={statusColor.urgent.bg} style={{ borderColor: colors.danger, borderWidth: 2 }}>
           <Text style={{ color: colors.danger, fontWeight: '900', fontSize: 17 }}>🚨 {t('dangerTitle')}</Text>
           <Text style={{ marginTop: 6 }}>{a.triage.actions[0]?.text}</Text>
@@ -233,7 +237,11 @@ function StaffResult({ a, compact }: { a: Assessment; compact?: boolean }) {
   );
 }
 
-export function AssessmentView({ a, compact }: { a: Assessment; compact?: boolean }) {
+export function AssessmentView({ a, compact, hideEmergency }: { a: Assessment; compact?: boolean; hideEmergency?: boolean }) {
   const { user } = useAuth();
-  return user?.role === 'caregiver' ? <MotherResult a={a} compact={compact} /> : <StaffResult a={a} compact={compact} />;
+  return user?.role === 'caregiver' ? (
+    <MotherResult a={a} compact={compact} hideEmergency={hideEmergency} />
+  ) : (
+    <StaffResult a={a} compact={compact} hideEmergency={hideEmergency} />
+  );
 }

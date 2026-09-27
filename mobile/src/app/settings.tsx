@@ -10,7 +10,7 @@ import { api, ApiError, errorText, getBaseUrl, setBaseUrl } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { TEXT_SCALE, type TextSize, usePrefs } from '../lib/prefs';
 import { useSync } from '../lib/sync';
-import type { Lang, Region } from '../lib/types';
+import type { Lang, Region, User } from '../lib/types';
 import { clearApiCache, useApi } from '../lib/useApi';
 import { passwordStrength } from '../lib/validate';
 import { colors, radius, statusColor } from '../theme';
@@ -28,10 +28,17 @@ function Notice({ ok, text }: { ok: boolean; text: string }) {
 
 /** Account details: name, phone and village. Email is the login and stays fixed. */
 function AccountCard() {
-  const { user, t, updateMe } = useAuth();
-  const [name, setName] = useState(user?.full_name ?? '');
-  const [phone, setPhone] = useState(user?.phone ?? '');
-  const [regionId, setRegionId] = useState<number | null>(user?.region_id ?? null);
+  const { user } = useAuth();
+  // Mount the form only once the account is loaded, so its fields start from the saved values
+  // (opening Settings straight after app start must not show, or save, empty fields).
+  return user ? <AccountForm key={user.id} user={user} /> : null;
+}
+
+function AccountForm({ user }: { user: User }) {
+  const { t, updateMe } = useAuth();
+  const [name, setName] = useState(user.full_name);
+  const [phone, setPhone] = useState(user.phone ?? '');
+  const [regionId, setRegionId] = useState<number | null>(user.region_id ?? null);
   const [regions, setRegions] = useState<Region[]>([]);
   const [showRegions, setShowRegions] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -43,7 +50,6 @@ function AccountCard() {
       .catch(() => setRegions([]));
   }, []);
 
-  if (!user) return null;
   const changed = name.trim() !== user.full_name || (phone.trim() || null) !== (user.phone ?? null) || regionId !== user.region_id;
   const region = regions.find((r) => r.id === regionId);
 

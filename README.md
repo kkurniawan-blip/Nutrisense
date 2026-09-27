@@ -183,7 +183,7 @@ This is the overfitting risk Appendix B already flags as future work.
 ## Tests and checks
 
 ```bash
-cd backend && pytest -q            # 112 tests: WHO z-scores vs published tables, model quality, triage,
+cd backend && pytest -q            # 114 tests: WHO z-scores vs published tables, model quality, triage,
                                    # symptom lexicon, the full caregiver→Kader→officer→locker workflow,
                                    # RBAC, consent, encryption at rest, FHIR, offline sync
 cd mobile && npx tsc --noEmit && npx eslint src

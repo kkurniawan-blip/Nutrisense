@@ -7,7 +7,7 @@ import { Text } from '../../../components/Text';
 import { Badge, Bar, Bubble, Button, Card, ErrorBox, H2, Loading, Row, Screen } from '../../../components/ui';
 import { api, errorText } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
-import { FOOD_EMOJI, NUTRIENT_EMOJI } from '../../../lib/fun';
+import { FOOD_EMOJI, formatDate, NUTRIENT_EMOJI } from '../../../lib/fun';
 import { NUTRIENT_LABELS } from '../../../lib/i18n';
 import type { NutritionPlan } from '../../../lib/types';
 import { useApi } from '../../../lib/useApi';
@@ -45,7 +45,7 @@ export default function Nutrition() {
           <Text style={{ fontSize: 20, fontWeight: '900', color: colors.ok, flex: 1 }}>🥗 {p.headline}</Text>
           <Badge text={t(p.generated_by.startsWith('claude') ? 'aiBy_claude' : 'aiBy_rules')} fg={colors.info} bg="#fff" />
         </Row>
-        <Text style={{ color: colors.muted }}>{new Date(p.created_at).toLocaleDateString()}</Text>
+        <Text style={{ color: colors.muted }}>{formatDate(p.created_at, lang)}</Text>
       </Card>
       {error && <ErrorBox message={error} />}
 

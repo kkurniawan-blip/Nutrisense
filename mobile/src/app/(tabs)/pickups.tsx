@@ -6,6 +6,7 @@ import QRCode from 'react-native-qrcode-svg';
 import { Text } from '../../components/Text';
 import { Bubble, Card, ErrorBox, H2, ListRow, Loading, Row, Screen, StatusPill } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
+import { formatDate, formatDuration } from '../../lib/fun';
 import { motherStatus, txt } from '../../lib/status';
 import type { Child, SupplyRequest } from '../../lib/types';
 import { useApi } from '../../lib/useApi';
@@ -133,7 +134,7 @@ export default function Pickups() {
             <Text style={{ color: colors.muted }}>{t('pickupCode')}</Text>
             {r.expires_at && (
               <Text style={{ fontSize: 12, color: colors.muted, marginTop: 6 }}>
-                ⏰ {t('expires')}: {new Date(r.expires_at).toLocaleString()}
+                ⏰ {t('expires')}: {formatDate(r.expires_at, lang, true)}
               </Text>
             )}
           </View>
@@ -153,7 +154,7 @@ export default function Pickups() {
             )}
             {r.status === 'in_transit' && chosen && (
               <Text style={{ fontSize: 13, marginTop: 8, fontWeight: '700', color: colors.info }}>
-                {t(`via_${chosen.type}`)} → {chosen.locker_name} · {t('eta')} ~{Math.round(chosen.eta_minutes)} {t('minutes')}
+                {t(`via_${chosen.type}`)} → {chosen.locker_name} · {t('eta')} ~{formatDuration(chosen.eta_minutes, lang)}
               </Text>
             )}
           </Card>

@@ -5,6 +5,7 @@ import { View } from 'react-native';
 import { Badge, Bar, Button, Card, ErrorBox, H2, P, Row, Screen, Segmented } from '../../components/ui';
 import { api, errorText } from '../../lib/api';
 import { isOversight, useAuth } from '../../lib/auth';
+import { formatDate, formatDuration } from '../../lib/fun';
 import type { Locker, SupplyRequest } from '../../lib/types';
 import { useApi } from '../../lib/useApi';
 import { colors } from '../../theme';
@@ -32,7 +33,7 @@ interface Dispatch {
 type Tab = 'requests' | 'lockers' | 'drones';
 
 export default function Logistics() {
-  const { t, user } = useAuth();
+  const { t, lang, user } = useAuth();
   const [tab, setTab] = useState<Tab>('requests');
   const requests = useApi<SupplyRequest[]>('/api/supply-requests');
   const lockers = useApi<Locker[]>(tab === 'lockers' ? '/api/lockers' : null);
@@ -70,7 +71,7 @@ export default function Logistics() {
         options={[
           { value: 'requests', label: t('supplyRequests') },
           { value: 'lockers', label: t('lockers') },
-          { value: 'drones', label: 'Drone' },
+          { value: 'drones', label: t('drones') },
         ]}
       />
       <Row style={{ flexWrap: 'wrap' }}>
@@ -115,7 +116,7 @@ export default function Logistics() {
                   <Text style={{ color: i.low ? colors.danger : colors.text, flex: 1, fontSize: 13 }}>{i.name}</Text>
                   <Text style={{ color: colors.muted, fontSize: 13 }}>
                     {i.available}/{i.quantity}
-                    {i.reserved ? ` (${i.reserved} res.)` : ''}
+                    {i.reserved ? ` (${i.reserved} ${t('reserved')})` : ''}
                   </Text>
                   {i.low && isOversight(user) && <Button small variant="ghost" title={`${t('restock')} +10`} onPress={() => restock(lk.id, i.item_key)} />}
                 </Row>
@@ -133,22 +134,22 @@ export default function Logistics() {
                 <Text style={{ fontWeight: '700', color: colors.text }}>
                   {d.code} · {d.hub_name}
                 </Text>
-                <Badge text={d.status} fg={d.status === 'in_flight' ? colors.info : colors.muted} bg={d.status === 'in_flight' ? colors.infoSoft : '#EEF1F0'} />
+                <Badge text={t(`drone_${d.status}`)} fg={d.status === 'in_flight' ? colors.info : colors.muted} bg={d.status === 'in_flight' ? colors.infoSoft : '#EEF1F0'} />
               </Row>
               <Row style={{ marginTop: 6 }}>
                 <Text style={{ color: colors.muted, width: 90, fontSize: 12 }}>🔋 {Math.round(d.battery_pct)}%</Text>
                 <Bar pct={d.battery_pct} />
               </Row>
-              <P muted style={{ fontSize: 12 }}>range {d.max_range_km} km</P>
+              <P muted style={{ fontSize: 12 }}>{t('droneRange')} {d.max_range_km} km</P>
             </Card>
           ))}
-          <H2>Dispatches</H2>
+          <H2>{t('dispatches')}</H2>
           {(dispatches.data ?? []).map((d) => (
             <Card key={d.id} onPress={() => router.push(`/supply/${d.supply_request_id}`)}>
               <Text style={{ color: colors.text }}>
-                {d.drone_code} · {d.distance_km} km · {t('eta')} {Math.round(d.eta_minutes)} {t('minutes')} · {d.status}
+                {d.drone_code} · {d.distance_km} km · {t('eta')} {formatDuration(d.eta_minutes, lang)} · {t(`dispatch_${d.status}`)}
               </Text>
-              {d.launched_at && <P muted style={{ fontSize: 12 }}>{new Date(d.launched_at).toLocaleString()}</P>}
+              {d.launched_at && <P muted style={{ fontSize: 12 }}>{formatDate(d.launched_at, lang, true)}</P>}
             </Card>
           ))}
         </>

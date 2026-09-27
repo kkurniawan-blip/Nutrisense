@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..ai import nutrition, trend
+from ..ai.symptoms import symptom_label
 from ..ai.growth import age_in_months, classify_haz, classify_whz
 from ..ai.triage import triage
 from ..config import get_settings
@@ -117,7 +118,7 @@ def _reason(key: str, lang: str, v=None) -> dict:
 def reasons(ctx: dict, lang: str) -> list[dict]:
     f, out = ctx["features"], []
     if ctx["danger_signs"]:
-        out.append(_reason("danger", lang, ", ".join(ctx["danger_signs"])))
+        out.append(_reason("danger", lang, ", ".join(symptom_label(k, lang) for k in ctx["danger_signs"])))
     haz, whz, waz = f["haz"], f["whz"], f["waz"]
     if haz is not None:
         if haz < -3:
@@ -216,11 +217,11 @@ def run_assessment(db: Session, child: Child, actor: User, lang: str = "id", mea
             order = ["low", "medium", "high", "emergency"]
             case.priority = max(case.priority, priority, key=order.index)
         db.flush()
-        title = {"emergency": "DARURAT / EMERGENCY", "high": "Risiko tinggi / High risk", "medium": "Perlu kunjungan / Visit needed",
-                 "low": "Perlu tinjauan / Review needed"}[case.priority]
+        title = {"emergency": ("DARURAT", "EMERGENCY"), "high": ("Risiko tinggi", "High risk"), "medium": ("Perlu kunjungan", "Visit needed"),
+                 "low": ("Perlu tinjauan", "Review needed")}[case.priority]
         notify_roles(db, ["kader", "officer", "doctor"] if case.priority in ("high", "emergency") else ["kader", "officer"],
-                     child.region_id, "case_escalated", f"{title}: {child.name}",
-                     "; ".join(r["text"] for r in assessment.reasons[:3]), case_id=case.id, child_id=child.id)
+                     child.region_id, "case_escalated", {"id": f"{title[0]}: {child.name}", "en": f"{title[1]}: {child.name}"},
+                     {code: "; ".join(r["text"] for r in reasons(ctx, code)[:3]) for code in ("id", "en")}, case_id=case.id, child_id=child.id)
 
     if tri["supplies"] and tri["urgency"] != "emergency":
         open_req = db.scalar(select(SupplyRequest).where(
@@ -231,9 +232,10 @@ def run_assessment(db: Session, child: Child, actor: User, lang: str = "id", mea
                                  items=[{"item_key": s["item_key"], "quantity": s["quantity"]} for s in tri["supplies"]],
                                  urgency=tri["urgency"], status="pending_approval"))
 
-    notify(db, child.caregiver_id, "assessment",
-           {"id": f"Hasil pemeriksaan {child.name}", "en": f"{child.name}'s assessment"}["id" if lang == "id" else "en"],
-           tri["actions"][0]["text"], assessment_id=assessment.id, child_id=child.id, risk_level=pred.risk_level)
+    first_step = {code: triage(pred.risk_level, ctx["danger_signs"], ctx["recent_symptoms"], z, ctx["trend"], ctx["age_now"],
+                               ctx["intake"], code)["actions"][0]["text"] for code in ("id", "en")}
+    notify(db, child.caregiver_id, "assessment", {"id": f"Hasil pemeriksaan {child.name}", "en": f"{child.name}'s assessment"},
+           first_step, assessment_id=assessment.id, child_id=child.id, risk_level=pred.risk_level)
     audit(db, actor, "risk_assessment", "child", child.id, assessment_id=assessment.id, risk=pred.risk_level,
           confidence=pred.confidence, guardrail=pred.guardrail, model_run_id=model.model_run_id)
     db.commit()

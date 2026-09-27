@@ -18,6 +18,24 @@ SYMPTOM_KEYS = [
 # WHO IMCI general danger signs + signs that need same-day facility care.
 DANGER_SIGNS = {"unable_to_drink", "vomits_everything", "convulsions", "lethargy", "fast_breathing", "bloody_stool", "oedema"}
 
+# Plain words for reasons and notifications (the app has its own copy for the symptom tiles).
+LABELS: dict[str, tuple[str, str]] = {
+    "diarrhea": ("diare", "diarrhoea"), "bloody_stool": ("BAB berdarah", "blood in stool"), "fever": ("demam", "fever"),
+    "high_fever": ("demam tinggi", "high fever"), "cough": ("batuk", "cough"), "runny_nose": ("pilek", "runny nose"),
+    "fast_breathing": ("napas cepat / sesak", "fast or difficult breathing"), "vomiting": ("muntah", "vomiting"),
+    "vomits_everything": ("muntah terus", "vomits everything"), "convulsions": ("kejang", "convulsions"),
+    "lethargy": ("sangat lemas / sulit dibangunkan", "very weak or hard to wake"),
+    "unable_to_drink": ("tidak bisa minum / menyusu", "unable to drink or breastfeed"), "poor_appetite": ("tidak mau makan", "poor appetite"),
+    "oedema": ("bengkak kedua kaki", "swelling of both feet"), "weight_loss": ("berat badan turun", "weight loss"),
+    "sunken_eyes": ("mata cekung", "sunken eyes"), "rash": ("ruam", "rash"), "worms": ("cacingan", "worms"),
+    "repeated_illness": ("sering sakit", "repeated illness"),
+}
+
+
+def symptom_label(key: str, lang: str = "id") -> str:
+    pair = LABELS.get(key)
+    return (pair[0] if lang == "id" else pair[1]) if pair else key.replace("_", " ")
+
 # ---------------------------------------------------------------------------------------------
 # Rule layer. Text is normalised first (lower case, "-nya" and hyphens removed, slang and spelling
 # variants unified), then matched two ways:

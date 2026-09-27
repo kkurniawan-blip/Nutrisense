@@ -85,6 +85,13 @@ def test_danger_signs_trigger_emergency(client, auth):
     assert a["triage"]["urgency"] == "emergency" and a["risk_level"] == "high"
     assert a["guardrail"] == "danger_signs_present"
     assert a["triage"]["actions"][0]["code"] == "go_facility_now"
+    # Reasons and notifications use plain words, never internal codes, in the reader's language.
+    assert a["reasons"][0]["text"].startswith("Ada tanda bahaya: ") and "_" not in a["reasons"][0]["text"]
+    kader = auth("kader.oesapa@nutrisense.id")
+    staff_notes = client.get("/api/notifications", headers=kader).json()
+    mom_notes = client.get("/api/notifications", headers=h).json()
+    for n in staff_notes + mom_notes:
+        assert " / " not in n["title"] and "_" not in n["body"], n
 
 
 def test_implausible_measurement_rejected(client, auth):
@@ -363,3 +370,17 @@ def test_account_settings_and_password_change(client):
     assert client.post("/api/auth/login", json={"email": body["email"], "password": "Awal12345"}).status_code == 401
     assert client.post("/api/auth/login", json={"email": body["email"], "password": "Baru12345"}).status_code == 200
     assert client.post("/api/auth/change-password", json={"current_password": "x", "new_password": "Baru12345"}).status_code == 401
+
+
+def test_notifications_follow_recipient_language(client, auth):
+    kader = auth("kader.oesapa@nutrisense.id")
+    mom = auth("ibu.maria@nutrisense.id")
+    child_ids = {c["id"] for c in client.get("/api/children", headers=mom).json()}
+    case = next(c for c in client.get("/api/cases", headers=kader).json() if c["child_id"] in child_ids)
+    client.patch("/api/auth/me", json={"language": "en"}, headers=mom)
+    try:
+        client.patch(f"/api/cases/{case['id']}", headers=kader, json={"note": "Please give an egg every day.", "share_with_family": True})
+        latest = client.get("/api/notifications", headers=mom).json()[0]
+        assert latest["title"] == "Message from your health worker" and latest["body"] == "Please give an egg every day."
+    finally:
+        client.patch("/api/auth/me", json={"language": "id"}, headers=mom)

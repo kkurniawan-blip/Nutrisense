@@ -63,8 +63,9 @@ def pickup(locker_code: str, body: PickupIn, user: User = Depends(get_current_us
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(e))
     except PermissionError as e:
         raise HTTPException(status.HTTP_403_FORBIDDEN, str(e))
-    notify(db, req.child.caregiver_id, "picked_up", "Paket diambil / Package collected",
-           f"Paket untuk {req.child.name} telah diambil dari loker {locker_code}.", supply_request_id=req.id)
+    notify(db, req.child.caregiver_id, "picked_up", {"id": "Paket diambil", "en": "Package collected"},
+           {"id": f"Paket untuk {req.child.name} telah diambil dari loker {locker_code}.",
+            "en": f"The package for {req.child.name} was collected from locker {locker_code}."}, supply_request_id=req.id)
     db.commit()
     return {"ok": True, "supply_request": S.supply_request(req, lang_of(user), include_code=False)}
 
