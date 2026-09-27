@@ -234,7 +234,7 @@ export default function Dashboard() {
             <P muted style={{ fontSize: 12 }}>
               Poly degree {proj.data.selected_degree} · LOOCV RMSE {Object.entries(proj.data.cv_rmse).map(([k, v]) => `${k.replace('degree_', 'd')}=${v}`).join(', ')}
             </P>
-            <P muted style={{ fontSize: 11 }}>{proj.data.source}</P>
+            <P muted style={{ fontSize: 12 }}>{proj.data.source}</P>
           </>
         ) : (
           <Loading />

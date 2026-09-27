@@ -36,7 +36,7 @@ export function ChildPicker({ items, value, onChange }: { items: Child[]; value:
             </View>
             <View>
               <Text style={{ fontWeight: '800', color: on ? '#fff' : colors.text }}>{c.name.split(' ')[0]}</Text>
-              <Text style={{ fontSize: 11, color: on ? '#ffffffcc' : colors.muted }}>{formatAge(c.age_months, lang)}</Text>
+              <Text style={{ fontSize: 12, color: on ? '#ffffffcc' : colors.muted }}>{formatAge(c.age_months, lang)}</Text>
             </View>
           </PressScale>
         );

@@ -36,6 +36,8 @@ def assessment(a: RiskAssessment | None) -> dict | None:
             "guardrail": a.guardrail, "explanation": a.explanation, "reasons": a.reasons, "triage": a.triage, "trend": a.trend,
             "features": a.features, "model_run_id": a.model_run_id, "reviewed_level": a.reviewed_level,
             "review_note": a.review_note, "reviewed_at": a.reviewed_at.isoformat() if a.reviewed_at else None,
+            "reviewed_by_name": a.reviewed_by.full_name if a.reviewed_by else None,
+            "reviewed_by_role": a.reviewed_by.role if a.reviewed_by else None,
             "created_at": a.created_at.isoformat()}
 
 
@@ -68,7 +70,7 @@ def case(c: Case, a: RiskAssessment | None = None) -> dict:
             "doctor_id": c.doctor_id, "assessment": assessment(a), "created_at": c.created_at.isoformat(),
             "updated_at": c.updated_at.isoformat(), "resolved_at": c.resolved_at.isoformat() if c.resolved_at else None,
             "notes": [{"id": n.id, "author": n.author.full_name, "author_role": n.author.role, "text": n.text,
-                       "created_at": n.created_at.isoformat()} for n in c.notes]}
+                       "visible_to_caregiver": bool(n.visible_to_caregiver), "created_at": n.created_at.isoformat()} for n in c.notes]}
 
 
 def item_name(key: str, lang: str) -> str:

@@ -99,6 +99,8 @@ export interface Assessment {
   reviewed_level: RiskLevel | null;
   review_note: string | null;
   reviewed_at: string | null;
+  reviewed_by_name?: string | null;
+  reviewed_by_role?: Role | null;
   created_at: string;
   child_name?: string;
 }
@@ -120,6 +122,48 @@ export interface Child {
   latest_measurement: Measurement | null;
   measurement_count: number;
   latest_assessment: Assessment | null;
+  care_team?: CareMember[];
+  professional_recommendations?: ProRecommendation[];
+  last_reviewed?: ProRecommendation | null;
+}
+
+export interface CareMember {
+  role: 'caregiver' | 'kader' | 'facility';
+  emoji: string;
+  name: string;
+  label: string;
+  phone?: string | null;
+}
+
+export interface ProRecommendation {
+  kind: 'review' | 'note';
+  author: string;
+  role: Role;
+  role_label?: string;
+  text: string;
+  reviewed_level?: RiskLevel | null;
+  at: string;
+}
+
+export type ChecklistStatus = 'ok' | 'monitor' | 'action' | 'urgent' | 'info';
+
+export interface TodayChecklist {
+  child_id: number;
+  items: { key: string; status: ChecklistStatus; text: string; action: 'measure' | 'meal' | 'symptoms' | 'pickups'; count?: number }[];
+  groups_today: string[];
+}
+
+export interface Development {
+  band_months: number | null;
+  domains: {
+    key: 'motor' | 'language' | 'social' | 'cognitive';
+    label: string;
+    emoji: string;
+    status: 'on_track' | 'monitor' | 'unknown';
+    items: { key: string; text: string; achieved: boolean | null }[];
+  }[];
+  activities: { emoji: string; text: string }[];
+  note: string;
 }
 
 export interface SymptomReport {
@@ -242,7 +286,7 @@ export interface CaseItem {
   assigned_to_id: number | null;
   assessment: Assessment | null;
   created_at: string;
-  notes: { id: number; author: string; author_role: string; text: string; created_at: string }[];
+  notes: { id: number; author: string; author_role: string; text: string; visible_to_caregiver?: boolean; created_at: string }[];
 }
 
 export interface Notification {
@@ -283,8 +327,37 @@ export interface MenuIdea {
 export interface MenuSuggestions {
   groups_today: string[];
   missing_groups: { key: string; label: string }[];
+  present_groups?: { key: string; label: string }[];
+  simple_idea?: { text: string; recipe_key: string | null } | null;
   suggestions: Recipe[];
   ai_ideas: MenuIdea[];
   generated_by: string;
   note?: string;
+}
+
+export type AreaGroup = 'followup' | 'attention' | 'monitored' | 'unassessed';
+export interface AreaChildRow {
+  child_id: number;
+  name: string;
+  age_months: number;
+  sex: 'male' | 'female';
+  region: string | null;
+  region_id: number | null;
+  group: AreaGroup;
+  risk_level: RiskLevel | null;
+  urgency: Assessment['triage']['urgency'] | null;
+  reason: string | null;
+  last_measured_at: string | null;
+  days_since_measured: number | null;
+  open_case: boolean;
+  needs_visit: boolean;
+  is_new: boolean;
+}
+export interface AreaChildren {
+  counts: Record<AreaGroup | 'total', number>;
+  matched: number;
+  rows: AreaChildRow[];
+  offset: number;
+  limit: number;
+  regions: { id: number; name: string }[];
 }

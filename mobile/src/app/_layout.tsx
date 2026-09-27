@@ -14,6 +14,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Mascot } from '../components/Mascot';
 import { AuthProvider, useAuth } from '../lib/auth';
+import { SyncProvider } from '../lib/sync';
 import { colors, fonts } from '../theme';
 
 const headerOptions = {
@@ -38,6 +39,11 @@ function RootStack() {
       <Stack.Screen name="child/[id]/symptoms" options={{ title: `🌡️ ${t('reportSymptoms')}` }} />
       <Stack.Screen name="child/[id]/nutrition" options={{ title: `🥗 ${t('nutritionPlan')}` }} />
       <Stack.Screen name="child/[id]/meal" options={{ title: '📸 NutriScan' }} />
+      <Stack.Screen name="child/[id]/history" options={{ title: `📏 ${t('growthHistory')}` }} />
+      <Stack.Screen name="child/[id]/development" options={{ title: `🧠 ${t('development')}` }} />
+      <Stack.Screen name="child/[id]/recipes" options={{ title: `👩‍🍳 ${t('recipes')}` }} />
+      <Stack.Screen name="privacy" options={{ title: `🔐 ${t('dataPrivacy')}` }} />
+      <Stack.Screen name="guide" options={{ title: `📖 ${t('healthGuide')}` }} />
       <Stack.Screen name="case/[id]" options={{ title: t('cases') }} />
       <Stack.Screen name="supply/[id]" options={{ title: t('supplyRequests') }} />
       <Stack.Screen name="scan" options={{ title: t('scanPickup') }} />
@@ -58,8 +64,10 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <StatusBar style="dark" />
-        <RootStack />
+        <SyncProvider>
+          <StatusBar style="dark" />
+          <RootStack />
+        </SyncProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

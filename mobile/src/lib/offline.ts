@@ -1,22 +1,22 @@
 /**
- * Offline-first measurement capture for Kaders working where there is no signal.
- * Measurements are queued on the device with a client UUID and uploaded to /api/sync later;
- * the server de-duplicates by UUID so retries are safe.
+ * Offline-first outbox. Measurements, meals and symptom reports recorded without a signal are
+ * kept on the phone with a client UUID and replayed when the connection returns; the server
+ * de-duplicates by UUID, so a retry can never create a double entry.
  */
-import { api, NetworkError } from './api';
+import { api, ApiError, NetworkError } from './api';
 import { getJSON, setJSON } from './storage';
 
 const QUEUE_KEY = 'nutrisense.offlineQueue';
 
-export interface QueuedMeasurement {
+export type OutboxKind = 'measurement' | 'meal' | 'symptom';
+
+export interface OutboxItem {
+  kind: OutboxKind;
   child_id: number;
   child_name: string;
-  weight_kg: number;
-  height_cm: number;
-  muac_cm?: number | null;
-  position: 'lying' | 'standing';
-  measured_at: string;
   client_uuid: string;
+  body: Record<string, unknown>;
+  queued_at: string;
 }
 
 export function uuid(): string {
@@ -26,31 +26,62 @@ export function uuid(): string {
   });
 }
 
-export async function queued(): Promise<QueuedMeasurement[]> {
-  return getJSON<QueuedMeasurement[]>(QUEUE_KEY, []);
+/** Reads the queue; items saved by older app versions (bare measurements) are upgraded in place. */
+export async function queued(): Promise<OutboxItem[]> {
+  const raw = await getJSON<any[]>(QUEUE_KEY, []);
+  return raw.map((x) =>
+    x.kind
+      ? x
+      : { kind: 'measurement', child_id: x.child_id, child_name: x.child_name, client_uuid: x.client_uuid, body: x, queued_at: new Date().toISOString() },
+  );
 }
 
-export async function enqueue(m: QueuedMeasurement): Promise<number> {
+export async function enqueue(kind: OutboxKind, childId: number, childName: string, body: Record<string, unknown>): Promise<number> {
   const q = await queued();
-  q.push(m);
+  const client_uuid = (body.client_uuid as string) ?? uuid();
+  q.push({ kind, child_id: childId, child_name: childName, client_uuid, body: { ...body, client_uuid }, queued_at: new Date().toISOString() });
   await setJSON(QUEUE_KEY, q);
   return q.length;
 }
 
-export async function flush(): Promise<{ sent: number; failed: number; remaining: number }> {
+export interface FlushResult {
+  sent: number;
+  failed: number;
+  remaining: number;
+}
+
+export async function flush(): Promise<FlushResult> {
   const q = await queued();
   if (!q.length) return { sent: 0, failed: 0, remaining: 0 };
-  try {
-    const res = await api<{ results: { client_uuid: string; status: string }[] }>('/api/sync', {
-      body: { measurements: q.map(({ child_name, ...rest }) => rest) },
-    });
-    const done = new Set(res.results.filter((r) => r.status !== 'error').map((r) => r.client_uuid));
-    const failed = res.results.filter((r) => r.status === 'error').length;
-    // Items the server rejected (e.g. implausible values) are dropped so they do not block the queue.
-    await setJSON(QUEUE_KEY, []);
-    return { sent: done.size, failed, remaining: 0 };
-  } catch (e) {
-    if (e instanceof NetworkError) return { sent: 0, failed: 0, remaining: q.length };
-    throw e;
+  let sent = 0;
+  let failed = 0;
+  const keep: OutboxItem[] = [];
+
+  const measurements = q.filter((i) => i.kind === 'measurement');
+  if (measurements.length) {
+    try {
+      const res = await api<{ results: { status: string }[] }>('/api/sync', {
+        body: { measurements: measurements.map((m) => ({ ...m.body, child_id: m.child_id })) },
+      });
+      sent += res.results.filter((r) => r.status !== 'error').length;
+      failed += res.results.filter((r) => r.status === 'error').length;
+    } catch (e) {
+      if (e instanceof NetworkError) return { sent: 0, failed: 0, remaining: q.length };
+      throw e;
+    }
   }
+
+  for (const item of q.filter((i) => i.kind !== 'measurement')) {
+    const path = item.kind === 'meal' ? `/api/children/${item.child_id}/meals` : `/api/children/${item.child_id}/symptoms`;
+    try {
+      await api(path, { body: item.body, timeoutMs: 120000 });
+      sent += 1;
+    } catch (e) {
+      if (e instanceof NetworkError) keep.push(item);
+      else if (e instanceof ApiError) failed += 1; // rejected by the server (e.g. invalid): drop so it cannot block the queue
+      else keep.push(item);
+    }
+  }
+  await setJSON(QUEUE_KEY, keep);
+  return { sent, failed, remaining: keep.length };
 }

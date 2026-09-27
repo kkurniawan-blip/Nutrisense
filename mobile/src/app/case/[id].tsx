@@ -3,22 +3,25 @@ import React, { useState } from 'react';
 import { View } from 'react-native';
 
 import { AssessmentView } from '../../components/AssessmentView';
-import { Badge, Button, Card, Chip, ErrorBox, Field, H2, Loading, P, Row, Screen, Segmented } from '../../components/ui';
+import { Badge, Button, Card, Chip, ErrorBox, Field, H2, Loading, P, Row, Screen, Segmented, StatusPill, Toggle } from '../../components/ui';
 import { api, errorText } from '../../lib/api';
-import { isOversight, useAuth } from '../../lib/auth';
+import { useAuth } from '../../lib/auth';
+import { formatDate } from '../../lib/fun';
+import { PRIORITY_STATUS } from '../../lib/status';
 import type { CaseItem, RiskLevel, SupplyRequest } from '../../lib/types';
 import { useApi } from '../../lib/useApi';
-import { colors } from '../../theme';
+import { colors, statusColor } from '../../theme';
 import { Text } from '../../components/Text';
 
 const STATUSES = ['open', 'in_progress', 'referred', 'resolved', 'closed'] as const;
 
 export default function CaseDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { t, user } = useAuth();
+  const { t, lang, user } = useAuth();
   const kase = useApi<CaseItem>(`/api/cases/${id}`);
   const supplies = useApi<SupplyRequest[]>(kase.data ? `/api/supply-requests?child_id=${kase.data.child_id}` : null);
   const [note, setNote] = useState('');
+  const [share, setShare] = useState(false);
   const [reviewLevel, setReviewLevel] = useState<RiskLevel | null>(null);
   const [reviewNote, setReviewNote] = useState('');
   const [busy, setBusy] = useState(false);
@@ -27,6 +30,10 @@ export default function CaseDetail() {
   const c = kase.data;
   if (!c) return <Screen>{kase.error ? <ErrorBox message={kase.error} /> : <Loading />}</Screen>;
   const a = c.assessment;
+  const staff = !!user && user.role !== 'caregiver';
+  // Kaders can confirm or raise a result; only a doctor/officer can lower a high one.
+  const kaderLocked = user?.role === 'kader' && a?.risk_level === 'high';
+  const levels: RiskLevel[] = kaderLocked ? ['high'] : ['low', 'medium', 'high'];
 
   const update = async (body: Record<string, unknown>) => {
     setBusy(true);
@@ -34,6 +41,7 @@ export default function CaseDetail() {
     try {
       kase.setData(await api<CaseItem>(`/api/cases/${id}`, { method: 'PATCH', body }));
       setNote('');
+      setShare(false);
     } catch (e) {
       setError(errorText(e));
     } finally {
@@ -61,28 +69,30 @@ export default function CaseDetail() {
       <Card>
         <Row style={{ justifyContent: 'space-between' }}>
           <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text, flex: 1 }}>{c.child_name}</Text>
-          <Badge text={c.priority.toUpperCase()} fg="#fff" bg={c.priority === 'low' ? colors.muted : c.priority === 'medium' ? colors.warn : colors.danger} />
+          <StatusPill status={PRIORITY_STATUS[c.priority]} label={t(`prio_${c.priority}`)} />
         </Row>
         <P muted>
-          {c.region?.name} · {new Date(c.created_at).toLocaleString()}
+          {c.region?.name} · {formatDate(c.created_at, lang)}
         </P>
         <Button small variant="ghost" title={t('open')} icon="person-outline" onPress={() => router.push(`/child/${c.child_id}`)} />
       </Card>
 
       {a && <AssessmentView a={a} />}
 
-      {a && isOversight(user) && (
+      {a && staff && (
         <Card style={{ borderColor: colors.accent }}>
-          <H2>{t('review')}</H2>
+          <H2 emoji="🔎">{t('review')}</H2>
+          {a.reviewed_at && (
+            <P muted style={{ fontSize: 13 }}>
+              ✓ {t('lastReviewed')}: {a.reviewed_by_name ?? ''} · {formatDate(a.reviewed_at, lang)}
+            </P>
+          )}
           <Segmented<RiskLevel>
             value={reviewLevel ?? a.risk_level}
             onChange={setReviewLevel}
-            options={[
-              { value: 'low', label: t('risk_low') },
-              { value: 'medium', label: t('risk_medium') },
-              { value: 'high', label: t('risk_high') },
-            ]}
+            options={levels.map((l) => ({ value: l, label: t(`risk_${l}`) }))}
           />
+          {kaderLocked && <P muted style={{ fontSize: 13 }}>ℹ️ {t('kaderCannotLower')}</P>}
           <Field label={t('reviewNote')} value={reviewNote} onChangeText={setReviewNote} multiline />
           <Button title={t('save')} onPress={review} loading={busy} />
         </Card>
@@ -92,19 +102,22 @@ export default function CaseDetail() {
         <H2>{t('caseStatus')}</H2>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
           {STATUSES.map((s) => (
-            <Chip key={s} label={s} selected={c.status === s} onPress={() => update({ status: s })} />
+            <Chip key={s} label={t(`cstatus_${s}`)} selected={c.status === s} onPress={() => update({ status: s })} />
           ))}
         </View>
         {c.notes.map((n) => (
           <View key={n.id} style={{ borderTopWidth: 1, borderColor: colors.border, paddingVertical: 6 }}>
             <Text style={{ fontWeight: '600', color: colors.text }}>
-              {n.author} <Text style={{ color: colors.muted, fontWeight: '400' }}>({n.author_role}) · {new Date(n.created_at).toLocaleString()}</Text>
+              {n.author} <Text style={{ color: colors.muted, fontWeight: '400' }}>({n.author_role}) · {formatDate(n.created_at, lang)}</Text>
             </Text>
             <P>{n.text}</P>
+            {n.visible_to_caregiver && <StatusPill status="info" label={`👪 ${t('sharedWithFamily')}`} />}
           </View>
         ))}
         <Field label={t('addNote')} value={note} onChangeText={setNote} multiline />
-        <Button small title={t('addNote')} onPress={() => update({ note })} disabled={!note.trim()} loading={busy} />
+        <Toggle label={`👪 ${t('shareWithFamily')}`} value={share} onChange={setShare} />
+        {share && <Text style={{ color: statusColor.info.fg, fontSize: 13, marginBottom: 6 }}>{t('shareWithFamilyHint')}</Text>}
+        <Button small title={t('addNote')} onPress={() => update({ note, share_with_family: share })} disabled={!note.trim()} loading={busy} />
       </Card>
 
       <Card>

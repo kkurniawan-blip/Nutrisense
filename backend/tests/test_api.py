@@ -240,3 +240,106 @@ def test_menu_suggestions_after_nutriscan(client, auth):
     assert len(after["missing_groups"]) <= len(before["missing_groups"])
     s = after["suggestions"][0]
     assert s["ingredients"] and s["steps"] and s["minutes"] and s["cost_label"] and s["why"]
+
+
+def test_today_checklist(client, auth):
+    h = auth("ibu.maria@nutrisense.id")
+    kids = client.get("/api/children", headers=h).json()
+    r = client.get(f"/api/children/{kids[1]['id']}/today", headers=h).json()
+    keys = {i["key"] for i in r["items"]}
+    assert {"measure", "symptoms"} <= keys
+    assert all(i["status"] in ("ok", "monitor", "action", "urgent", "info") and i["text"] for i in r["items"])
+    # Logging a meal flips the meal item to done.
+    client.post(f"/api/children/{kids[0]['id']}/meals", headers=h, json={"items": [{"food_key": "telur"}]})
+    r = client.get(f"/api/children/{kids[0]['id']}/today", headers=h).json()
+    assert next(i for i in r["items"] if i["key"] == "meals")["status"] == "ok"
+    assert "eggs" in r["groups_today"]
+
+
+def test_development_tracker(client, auth):
+    h = auth("ibu.maria@nutrisense.id")
+    cid = client.get("/api/children", headers=h).json()[1]["id"]  # Budi, 30 months
+    d = client.get(f"/api/children/{cid}/development", headers=h).json()
+    assert d["band_months"] == 30 and len(d["domains"]) == 4 and d["activities"]
+    assert all(dom["status"] == "unknown" for dom in d["domains"])
+    motor = next(x for x in d["domains"] if x["key"] == "motor")["items"][0]["key"]
+    lang = next(x for x in d["domains"] if x["key"] == "language")["items"][0]["key"]
+    d = client.post(f"/api/children/{cid}/development", headers=h, json={"answers": {motor: True, lang: False, "bogus": True}}).json()
+    status_of = {x["key"]: x["status"] for x in d["domains"]}
+    assert status_of["motor"] == "on_track" and status_of["language"] == "monitor"
+
+
+def test_child_detail_has_care_team_and_shared_notes(client, auth):
+    kader = auth("kader.oesapa@nutrisense.id")
+    maria = auth("ibu.maria@nutrisense.id")
+    budi = client.get("/api/children", headers=maria).json()[1]
+    case = next(c for c in client.get("/api/cases", headers=kader).json() if c["child_id"] == budi["id"])
+    client.patch(f"/api/cases/{case['id']}", headers=kader, json={"note": "Internal: check house", "share_with_family": False})
+    client.patch(f"/api/cases/{case['id']}", headers=kader, json={"note": "Berikan telur setiap hari", "share_with_family": True})
+    d = client.get(f"/api/children/{budi['id']}", headers=maria).json()
+    roles = [m["role"] for m in d["care_team"]]
+    assert roles[:2] == ["caregiver", "kader"] and "facility" in roles
+    texts = [r["text"] for r in d["professional_recommendations"]]
+    assert "Berikan telur setiap hari" in texts and "Internal: check house" not in texts
+    assert d["last_reviewed"]["author"].startswith("Kader")
+
+
+def test_kader_review_cannot_downgrade_high(client, auth):
+    kader = auth("kader.soe@nutrisense.id")
+    kids = client.get("/api/children", headers=kader).json()
+    high = next(c for c in kids if c["latest_assessment"] and c["latest_assessment"]["model_risk_level"] == "high")
+    aid = high["latest_assessment"]["id"]
+    assert client.post(f"/api/assessments/{aid}/review", headers=kader, json={"reviewed_level": "low"}).status_code == 403
+    r = client.post(f"/api/assessments/{aid}/review", headers=kader, json={"reviewed_level": "high", "note": "Confirmed at home visit"})
+    assert r.status_code == 200 and r.json()["reviewed_by_name"].startswith("Kader")
+
+
+def test_growth_chart_indicators_and_meaning(client, auth):
+    h = auth("ibu.maria@nutrisense.id")
+    cid = client.get("/api/children", headers=h).json()[1]["id"]
+    for ind in ("hfa", "wfa", "wfh"):
+        r = client.get(f"/api/children/{cid}/growth-chart?indicator={ind}", headers=h).json()
+        assert r["points"] and r["meaning"] and r["details"]["label"]
+        assert set(r["reference"]) == {"-3", "-2", "0", "2"}
+    wfh = client.get(f"/api/children/{cid}/growth-chart?indicator=wfh", headers=h).json()
+    assert wfh["x_unit"] == "cm" and wfh["points"][0]["x"] > 60  # x is height, not age
+
+
+def test_area_children_filters(client, auth):
+    kader = auth("kader.oesapa@nutrisense.id")
+    r = client.get("/api/dashboard/children", headers=kader).json()
+    c = r["counts"]
+    assert c["total"] == c["followup"] + c["attention"] + c["monitored"] + c["unassessed"]
+    pr = client.get("/api/dashboard/children?filter=priority", headers=kader).json()
+    assert all(x["group"] in ("followup", "attention") for x in pr["rows"])
+    page = client.get("/api/dashboard/children?limit=2&offset=0", headers=kader).json()
+    assert len(page["rows"]) <= 2 and page["matched"] == c["total"]
+    region = r["rows"][0]["region_id"]
+    assert region in {x["id"] for x in r["regions"]}
+    p2 = client.get("/api/dashboard/children?limit=2&offset=2", headers=kader).json()
+    assert not {x["child_id"] for x in page["rows"]} & {x["child_id"] for x in p2["rows"]}
+    assert all(x["region_id"] == region for x in client.get(f"/api/dashboard/children?region_id={region}", headers=kader).json()["rows"])
+    assert all(x["risk_level"] == "high" for x in client.get("/api/dashboard/children?risk=high", headers=kader).json()["rows"])
+    assert client.get("/api/dashboard/children", headers=auth("ibu.maria@nutrisense.id")).status_code == 403
+
+
+def test_offline_replay_is_idempotent_for_meals_and_symptoms(client, auth):
+    h = auth("ibu.maria@nutrisense.id")
+    cid = client.get("/api/children", headers=h).json()[0]["id"]
+    body = {"items": [{"food_key": "pisang"}], "client_uuid": f"meal-{uuid.uuid4()}"}
+    a = client.post(f"/api/children/{cid}/meals", headers=h, json=body).json()
+    b = client.post(f"/api/children/{cid}/meals", headers=h, json=body).json()
+    assert a["id"] == b["id"]
+    sb = {"description": "batuk", "client_uuid": f"sym-{uuid.uuid4()}"}
+    a = client.post(f"/api/children/{cid}/symptoms", headers=h, json=sb).json()
+    b = client.post(f"/api/children/{cid}/symptoms", headers=h, json=sb).json()
+    assert a["report"]["id"] == b["report"]["id"] and b["duplicate"] is True
+
+
+def test_simple_menu_idea_and_recipe_list(client, auth):
+    h = auth("ibu.maria@nutrisense.id")
+    cid = client.get("/api/children", headers=h).json()[1]["id"]
+    r = client.post(f"/api/children/{cid}/menu-suggestions", headers=h, json={"items": [{"food_key": "nasi"}]}).json()
+    assert r["simple_idea"]["text"].startswith("Tambahkan") and any(g["key"] == "grains_roots" for g in r["present_groups"])
+    recipes = client.get(f"/api/children/{cid}/recipes", headers=h).json()
+    assert len(recipes) >= 10 and recipes[0]["minutes"] <= recipes[-1]["minutes"]

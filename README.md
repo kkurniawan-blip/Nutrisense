@@ -94,6 +94,24 @@ The caregiver experience is designed to feel warm and playful rather than clinic
 - Gentle status wording: "🌱 Growing well", "👀 Keep an eye on it", "💛 Needs attention". Emergencies stay unmistakably red. Staff screens keep the clinical labels.
 - Small rewards: a **rainbow plate** (the 8 WHO food groups eaten today), meal-logging streaks, collectable stickers, and a "height vs. peers" bar.
 
+### Simpler, action-first UX
+
+Every screen answers "what should I do next?" and follows the journey **PANTAU → PAHAMI → PERBAIKI → IKUTI → TINDAK LANJUT** (monitor → understand → improve → follow → follow-up).
+
+- **Semantic status colours, never colour alone.** Each status has an icon, a text label and a colour: 🟢 on track, 🟡 monitor, 🟠 action, 🔴 urgent, 🔵 info, 🟣 AI (`mobile/src/theme.ts` `statusColor`, `mobile/src/lib/status.ts`). Touch targets are at least 44 px and selected tabs get a filled icon on a pill.
+- **Mother home:** starts with a "Hari ini untuk {anak}" checklist (`GET /api/children/{id}/today`) and four big actions. Secondary features sit in three collapsible groups.
+- **Child profile:** status, latest numbers and a growth trend chart (Tinggi / Berat / BB-TB) with "Apa artinya?" and "Pelajari lebih lanjut". It also shows growth history, simple development milestones with this week's activities (`/development`), and the care team "Tim {anak}" with the last review.
+- **AI vs. professionals:** AI output is labelled "🤖 Nuri — panduan AI" and states that it is not a medical diagnosis. The model confidence stays behind "Lihat detail analisis AI". Notes a Kader or doctor shares with the family appear separately as "👩‍⚕️ Rekomendasi tenaga kesehatan", with name and time.
+- **Guided 4-step measurement:** method, how-to, entry with plausibility warnings, then the result.
+- **Symptoms:** "Gejala umum" are kept apart from "Tanda yang perlu perhatian segera". Picking a danger sign immediately shows "🚨 Segera cari pertolongan medis" with a call button.
+- **NutriScan result:** "Yang sudah ada", "Yang bisa dilengkapi", one "💡 Ide sederhana", and a "5 / 8 kelompok hari ini" diversity card with a next target.
+- **Tanya Nuri:** topic tabs (Pertumbuhan / Makan / Gejala / Perkembangan), each with suggested questions that use the child's name.
+- **Paket:** health information, recommended home actions and available packages are three separate sections. A note says packages are optional support.
+- **🔐 Data & privasi:** consent is grouped as Wajib / Untuk fitur AI / Untuk layanan kesehatan / Opsional. Each group has "Apa yang dibagikan?", who it is shared with, and "Lihat detail".
+- **Offline-first:** measurements, meals and symptoms are queued on the phone with idempotent client UUIDs, and GET responses are cached. A banner always shows the sync state ("📶 3 data menunggu dikirim", "✓ Data berhasil disinkronkan").
+- **Kader home:** "📊 Wilayah saya" shows counts for 🔴 Butuh tindak lanjut / 🟠 Perlu perhatian / 🟢 Terpantau. Below it is a prioritised visit list (`GET /api/dashboard/children`) with search, filters (Semua / Prioritas / Baru / Tindak lanjut, plus Wilayah, Status risiko, Terakhir diukur, Perlu kunjungan) and paging, so it scales to many children.
+- **Kader review:** Kaders can confirm or raise an AI result, but only a doctor or officer can lower a high one. They can also share a case note with the family.
+
 ### NutriScan menu suggester
 
 After a meal is snapped or logged, `POST /api/children/{id}/menu-suggestions` works out which food groups are still missing today and which nutrients were short this week. It then picks easy dishes that fill those gaps, each adding something the previous one didn't.
@@ -141,7 +159,7 @@ This is the overfitting risk Appendix B already flags as future work.
 ## Tests and checks
 
 ```bash
-cd backend && pytest -q            # 56 tests: WHO z-scores vs published tables, model quality, triage,
+cd backend && pytest -q            # 64 tests: WHO z-scores vs published tables, model quality, triage,
                                    # symptom lexicon, the full caregiver→Kader→officer→locker workflow,
                                    # RBAC, consent, encryption at rest, FHIR, offline sync
 cd mobile && npx tsc --noEmit && npx eslint src

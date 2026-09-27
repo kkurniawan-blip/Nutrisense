@@ -240,6 +240,30 @@ _MENU_SCHEMA = {
 }
 
 
+SHORT_NAME = {
+    "telur": ("telur", "egg"), "bayam": ("bayam", "spinach"), "daun_kelor": ("daun kelor", "moringa leaves"),
+    "ikan": ("ikan", "fish"), "ikan_teri": ("ikan teri", "anchovies"), "tempe": ("tempe", "tempeh"), "tahu": ("tahu", "tofu"),
+    "kacang_hijau": ("kacang hijau", "mung beans"), "kacang_tanah": ("kacang halus", "ground peanut"), "wortel": ("wortel", "carrot"),
+    "labu": ("labu kuning", "pumpkin"), "pepaya": ("pepaya", "papaya"), "pisang": ("pisang", "banana"), "ubi_jalar": ("ubi oranye", "orange sweet potato"),
+    "hati_ayam": ("hati ayam", "chicken liver"), "jagung": ("jagung", "corn"), "nasi": ("nasi", "rice"), "daun_singkong": ("daun singkong", "cassava leaves"),
+    "susu": ("susu", "milk"), "bubur_beras": ("bubur nasi", "rice porridge"),
+}
+
+
+def _simple_idea(suggestions: list[dict], missing: list[str], L: str) -> dict | None:
+    """One short, concrete sentence: which 1-2 everyday foods to add at the next meal."""
+    if not suggestions:
+        return None
+    if not missing:
+        return {"text": {"id": "Piring hari ini sudah beragam. Pertahankan menu seperti ini!",
+                         "en": "Today's plate is already varied. Keep it up!"}[L], "recipe_key": None}
+    top = suggestions[0]
+    picks = [f for f in top["foods"] if FOODS.get(f, {}).get("group") in missing][:2] or top["foods"][:2]
+    names = [SHORT_NAME.get(f, (FOODS[f]["name_id"], FOODS[f]["name_en"]))[0 if L == "id" else 1] for f in picks]
+    return {"text": {"id": f"Tambahkan {' + '.join(names)} pada menu berikutnya.",
+                     "en": f"Add {' + '.join(names)} to the next meal."}[L], "recipe_key": top["key"]}
+
+
 def suggest_menus(age_months: float, groups_today: list[str], gaps: list[str], lang: str = "id", limit: int = 3,
                   use_ai: bool = True) -> dict:
     """Menu suggester used after NutriScan: easy, cheap dishes that add the food groups still missing
@@ -274,6 +298,7 @@ def suggest_menus(age_months: float, groups_today: list[str], gaps: list[str], l
         suggestions.append({**recipe_view(r, L), "why": "; ".join(why) or {"id": "Menu seimbang dan mudah", "en": "Balanced and easy"}[L],
                             "adds_groups": adds})
 
+    simple_idea = _simple_idea(suggestions, missing, L)
     ai_ideas, source = [], "rules"
     if use_ai:
         foods = "; ".join(f["name_id"] for f in FOODS.values() if f["key"] not in ("mie", "biskuit", "pmt_biskuit", "asi"))
@@ -295,7 +320,8 @@ def suggest_menus(age_months: float, groups_today: list[str], gaps: list[str], l
             ai_ideas = [i for i in ai.get("ideas", []) if i.get("minutes", 99) <= 25][:2]
             source = "claude+rules" if ai_ideas else "rules"
     return {"missing_groups": [{"key": g, "label": FOOD_GROUPS[g][L]} for g in missing],
-            "suggestions": suggestions, "ai_ideas": ai_ideas, "generated_by": source}
+            "present_groups": [{"key": g, "label": FOOD_GROUPS[g][L]} for g in groups_today if g in FOOD_GROUPS],
+            "simple_idea": simple_idea, "suggestions": suggestions, "ai_ideas": ai_ideas, "generated_by": source}
 
 
 def recommend(child_ctx: dict, intake: dict, risk_level: str | None, lang: str = "id", use_ai: bool = True) -> dict:

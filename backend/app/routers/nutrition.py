@@ -27,6 +27,10 @@ def foods(lang: str = "id"):
 @router.post("/children/{child_id}/meals", status_code=201)
 def log_meal(child_id: int, body: MealIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     child = get_child(child_id, db, user)
+    if body.client_uuid:
+        dup = db.scalar(select(MealLog).where(MealLog.client_uuid == body.client_uuid, MealLog.child_id == child.id))
+        if dup:
+            return S.meal(dup)
     items, totals, groups = nutrition.compute_meal([i.model_dump() for i in body.items])
     try:
         eaten = datetime.fromisoformat(body.eaten_at) if body.eaten_at else datetime.now(timezone.utc)
@@ -34,7 +38,7 @@ def log_meal(child_id: int, body: MealIn, user: User = Depends(get_current_user)
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "eaten_at must be an ISO 8601 date-time")
     meal = MealLog(child_id=child.id, logged_by_id=user.id, eaten_at=eaten, meal_type=body.meal_type, items=items,
                    nutrients=totals, food_groups=groups, source=body.source if body.source in ("manual", "nutriscan") else "manual",
-                   ai_notes=body.ai_notes)
+                   ai_notes=body.ai_notes, client_uuid=body.client_uuid)
     db.add(meal)
     audit(db, user, "log_meal", "child", child.id)
     db.commit()

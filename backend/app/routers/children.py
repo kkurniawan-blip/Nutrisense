@@ -74,7 +74,9 @@ def get_child_detail(child_id: int, user: User = Depends(get_current_user), db: 
     child = get_child(child_id, db, user)
     audit(db, user, "view_child", "child", child.id)
     db.commit()
-    return S.child(child, _latest_assessment(db, child.id))
+    from .family import care_info
+
+    return {**S.child(child, _latest_assessment(db, child.id)), **care_info(db, child, lang_of(user))}
 
 
 @router.patch("/children/{child_id}")
@@ -97,9 +99,10 @@ def delete_child(child_id: int, user: User = Depends(get_current_user), db: Sess
     child = get_child(child_id, db, user)
     if user.role not in ("caregiver", "admin"):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Only the caregiver or an admin can delete a record")
-    from ..models import Case, ChatMessage, Consent, DroneDispatch, FhirSyncLog, MealLog, NutritionRecommendation, SupplyRequest
+    from ..models import (Case, ChatMessage, Consent, DevelopmentCheck, DroneDispatch, FhirSyncLog, MealLog, NutritionRecommendation,
+                          SupplyRequest)
 
-    for model in (NutritionRecommendation, MealLog, ChatMessage, FhirSyncLog, Consent):
+    for model in (NutritionRecommendation, MealLog, ChatMessage, FhirSyncLog, Consent, DevelopmentCheck):
         for row in db.scalars(select(model).where(model.child_id == child.id)).all():
             db.delete(row)
     for req in db.scalars(select(SupplyRequest).where(SupplyRequest.child_id == child.id)).all():
@@ -200,21 +203,94 @@ def sync_offline(body: SyncBatchIn, lang: str | None = None, user: User = Depend
     return {"results": results, "assessed": assessed}
 
 
+_INDICATOR = {
+    "hfa": {"id": "Tinggi menurut umur (TB/U)", "en": "Height-for-age (HAZ)"},
+    "wfa": {"id": "Berat menurut umur (BB/U)", "en": "Weight-for-age (WAZ)"},
+    "wfh": {"id": "Berat menurut tinggi (BB/TB)", "en": "Weight-for-height (WHZ)"},
+}
+
+
+def _meaning(indicator: str, z: float | None, trend_status: str | None, name: str, lang: str) -> str:
+    """Plain-language explanation of a z-score for parents (no jargon, no diagnosis)."""
+    L = lang == "id"
+    if z is None:
+        return "Belum ada data." if L else "No data yet."
+    if indicator == "hfa":
+        if z < -3:
+            t = (f"Tinggi {name} jauh di bawah anak seusianya. Sebaiknya segera diperiksa oleh tenaga kesehatan."
+                 if L else f"{name}'s height is far below other children the same age. Please see a health worker soon.")
+        elif z < -2:
+            t = (f"Tinggi {name} berada di bawah batas normal anak seusianya. Diskusikan dengan Kader dan terus pantau setiap bulan."
+                 if L else f"{name}'s height is below the normal range for their age. Talk with your Kader and keep measuring every month.")
+        elif z < 0:
+            t = (f"Tinggi {name} saat ini berada di bawah rata-rata anak seusianya. Yang penting adalah memantau perubahan dari waktu ke waktu."
+                 if L else f"{name}'s height is currently below the average for their age. What matters most is how it changes over time.")
+        else:
+            t = f"Tinggi {name} sesuai dengan anak seusianya. Pertahankan ya!" if L else f"{name}'s height is on track for their age. Keep it up!"
+        if trend_status in ("declining", "projected_stunting"):
+            t += " Beberapa bulan terakhir pertambahan tingginya melambat." if L else " Height gain has slowed over recent months."
+        elif trend_status == "catching_up":
+            t += " Kabar baik: pertumbuhannya mulai mengejar." if L else " Good news: growth is catching up."
+        return t
+    if indicator == "wfa":
+        if z < -2:
+            return (f"Berat {name} di bawah batas normal anak seusianya. Perhatikan porsi dan protein hewani setiap hari."
+                    if L else f"{name}'s weight is below the normal range for their age. Focus on portions and animal protein daily.")
+        if z < 0:
+            return (f"Berat {name} sedikit di bawah rata-rata anak seusianya. Pantau terus kenaikan beratnya setiap bulan."
+                    if L else f"{name}'s weight is a little below average for their age. Keep checking that it goes up every month.")
+        return f"Berat {name} sesuai dengan anak seusianya." if L else f"{name}'s weight is on track for their age."
+    if z < -3:
+        return (f"{name} sangat kurus untuk tingginya. Segera periksakan ke Puskesmas."
+                if L else f"{name} is very thin for their height. Please go to the Puskesmas soon.")
+    if z < -2:
+        return (f"{name} kurus untuk tingginya. Diskusikan dengan Kader tentang tambahan makanan bergizi."
+                if L else f"{name} is thin for their height. Talk with your Kader about extra nutritious food.")
+    if z > 2:
+        return (f"Berat {name} lebih dari yang dianjurkan untuk tingginya. Kurangi makanan manis dan jajanan."
+                if L else f"{name} weighs more than recommended for their height. Cut back on sweet snacks.")
+    return f"Berat {name} seimbang dengan tingginya." if L else f"{name}'s weight is in balance with their height."
+
+
 @router.get("/children/{child_id}/growth-chart")
-def growth_chart(child_id: int, indicator: str = "hfa", user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Child's points plus WHO reference curves (-3, -2, 0, +2 SD) for plotting."""
+def growth_chart(child_id: int, indicator: str = "hfa", lang: str | None = None, user: User = Depends(get_current_user),
+                 db: Session = Depends(get_db)):
+    """Child's points plus WHO reference curves (-3, -2, 0, +2 SD), a plain-language meaning and technical details.
+
+    hfa / wfa: x = age in months. wfh: x = length/height in cm (weight-for-length below 24 months).
+    """
     child = get_child(child_id, db, user)
-    if indicator not in ("hfa", "wfa"):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "indicator must be hfa or wfa")
-    value = "height_cm" if indicator == "hfa" else "weight_kg"
+    if indicator not in ("hfa", "wfa", "wfh"):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "indicator must be hfa, wfa or wfh")
+    L = lang_of(user, lang)
+    ms = child.measurements
     latest = _latest_assessment(db, child.id)
+    last = ms[-1] if ms else None
+    if indicator == "wfh":
+        ref_key = "wfl" if (last and last.age_months < 24) else "wfh"
+        points = [{"x": m.height_cm, "age_months": m.age_months, "value": m.weight_kg, "z": m.whz,
+                   "measured_at": m.measured_at.isoformat()} for m in ms]
+        reference, z_key, cls = growth.reference_curve(child.sex, ref_key), "whz", growth.classify_whz
+    else:
+        value = "height_cm" if indicator == "hfa" else "weight_kg"
+        z_key = "haz" if indicator == "hfa" else "waz"
+        points = [{"x": m.age_months, "age_months": m.age_months, "value": getattr(m, value), "z": getattr(m, z_key),
+                   "measured_at": m.measured_at.isoformat()} for m in ms]
+        reference = growth.reference_curve(child.sex, indicator)
+        cls = growth.classify_haz if indicator == "hfa" else growth.classify_waz
+    z = getattr(last, z_key) if last else None
+    trend_status = latest.trend.get("status") if latest else None
     return {
         "indicator": indicator,
         "sex": child.sex,
-        "points": [{"age_months": m.age_months, "value": getattr(m, value), "z": m.haz if indicator == "hfa" else m.waz,
-                    "measured_at": m.measured_at.isoformat()} for m in child.measurements],
-        "reference": growth.reference_curve(child.sex, indicator),
+        "x_unit": "cm" if indicator == "wfh" else "months",
+        "y_unit": "cm" if indicator == "hfa" else "kg",
+        "points": points,
+        "reference": reference,
         "projection": (latest.trend.get("projections") if latest and indicator == "hfa" else None),
+        "meaning": _meaning(indicator, z, trend_status if indicator == "hfa" else None, child.name.split(" ")[0], L),
+        "details": {"label": _INDICATOR[indicator]["id" if L == "id" else "en"], "z": z, "class": cls(z),
+                    "reference": "WHO Child Growth Standards 2006"},
     }
 
 
@@ -241,6 +317,10 @@ def report_symptoms(child_id: int, body: SymptomIn, lang: str | None = None, use
                     db: Session = Depends(get_db)):
     """AI symptom checker: interprets free text (Bahasa/English/local terms), then re-runs risk triage."""
     child = get_child(child_id, db, user)
+    if body.client_uuid:
+        dup = db.scalar(select(SymptomReport).where(SymptomReport.client_uuid == body.client_uuid, SymptomReport.child_id == child.id))
+        if dup:
+            return {"report": S.symptom_report(dup), "other_concerns": [], "assessment": None, "duplicate": True}
     if not body.description.strip() and not body.symptoms:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Describe the symptoms or select at least one")
     L = lang_of(user, lang)
@@ -253,7 +333,7 @@ def report_symptoms(child_id: int, body: SymptomIn, lang: str | None = None, use
     report = SymptomReport(child_id=child.id, reported_by_id=user.id, description=body.description or None,
                            symptoms=parsed["symptoms"], danger_signs=parsed["danger_signs"],
                            appetite=body.appetite or parsed["appetite"], duration_days=body.duration_days or parsed["duration_days"],
-                           interpreted_by=parsed["interpreted_by"], summary=parsed.get("summary"))
+                           interpreted_by=parsed["interpreted_by"], summary=parsed.get("summary"), client_uuid=body.client_uuid)
     db.add(report)
     db.flush()
     audit(db, user, "report_symptoms", "child", child.id, report_id=report.id, danger=bool(parsed["danger_signs"]))

@@ -86,7 +86,7 @@ export default function Login() {
                 >
                   <Text style={{ fontSize: 22 }}>{emoji}</Text>
                   <Text style={{ fontWeight: '800', color: colors.lavender }}>{role}</Text>
-                  <Text style={{ color: colors.muted, fontSize: 11 }}>{e}</Text>
+                  <Text style={{ color: colors.muted, fontSize: 12 }}>{e}</Text>
                 </Pressable>
               ))}
             </View>

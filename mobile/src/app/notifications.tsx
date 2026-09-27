@@ -39,7 +39,7 @@ export default function Notifications() {
         <Card key={n.id} onPress={() => open(n)} style={!n.read ? { borderColor: colors.primary } : undefined}>
           <Row style={{ justifyContent: 'space-between' }}>
             <Text style={{ fontWeight: n.read ? '500' : '800', color: colors.text, flex: 1 }}>{n.title}</Text>
-            <Text style={{ fontSize: 11, color: colors.muted }}>{new Date(n.created_at).toLocaleString()}</Text>
+            <Text style={{ fontSize: 12, color: colors.muted }}>{new Date(n.created_at).toLocaleString()}</Text>
           </Row>
           <P muted>{n.body}</P>
         </Card>

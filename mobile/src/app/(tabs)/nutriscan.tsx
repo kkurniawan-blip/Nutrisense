@@ -1,11 +1,10 @@
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { View } from 'react-native';
-
 import { ChildPicker } from '../../components/ChildPicker';
 import { MenuSuggestionsView } from '../../components/Recipes';
+import { DiversityCard } from '../../components/Diversity';
 import { Text } from '../../components/Text';
-import { Bubble, Card, Empty, Loading, RainbowPlate, Row, Screen, Tile } from '../../components/ui';
+import { Bubble, Card, Empty, Loading, Row, Screen, Tile } from '../../components/ui';
 import { api } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { groupsToday, mealStreak } from '../../lib/fun';
@@ -16,8 +15,9 @@ import { colors } from '../../theme';
 export default function NutriScanTab() {
   const { t, lang } = useAuth();
   const children = useApi<Child[]>('/api/children');
+  const { child: childParam } = useLocalSearchParams<{ child?: string }>();
   const [picked, setPicked] = useState<number | null>(null);
-  const childId = picked ?? children.data?.[0]?.id ?? null;
+  const childId = picked ?? (childParam ? Number(childParam) : null) ?? children.data?.[0]?.id ?? null;
   const meals = useApi<Meal[]>(childId ? `/api/children/${childId}/meals?limit=100` : null);
   const [menus, setMenus] = useState<MenuSuggestions | null>(null);
 
@@ -57,18 +57,12 @@ export default function NutriScanTab() {
       </Row>
 
       <Card>
-        <Row style={{ gap: 14 }}>
-          <RainbowPlate groups={today} size={84} />
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontWeight: '900', fontSize: 17 }}>🌈 {t('rainbowToday')}</Text>
-            <Text style={{ color: colors.muted, marginTop: 2 }}>{t('rainbowHint')}</Text>
-            {streak > 0 && (
-              <Text style={{ marginTop: 6, fontWeight: '800', color: colors.warn }}>
-                🔥 {streak} {t('streak')}
-              </Text>
-            )}
-          </View>
-        </Row>
+        <DiversityCard groups={today} />
+        {streak > 0 && (
+          <Text style={{ marginTop: 10, fontWeight: '800', color: colors.warn }}>
+            🔥 {streak} {t('streak')}
+          </Text>
+        )}
       </Card>
 
       {menus ? <MenuSuggestionsView data={menus} /> : <Loading />}

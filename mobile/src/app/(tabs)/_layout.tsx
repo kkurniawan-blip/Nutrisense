@@ -14,7 +14,7 @@ const VISIBLE: Record<string, Role[]> = {
   dashboard: ['officer', 'doctor', 'admin'],
   cases: ['kader', 'officer', 'doctor', 'admin'],
   assistant: ['caregiver', 'kader'],
-  nutriscan: ['caregiver', 'kader'],
+  nutriscan: ['caregiver'],
   logistics: ['kader', 'officer', 'doctor', 'admin'],
   pickups: ['caregiver'],
   profile: ['caregiver', 'kader', 'officer', 'doctor', 'admin'],
@@ -42,7 +42,7 @@ function ScanButton({ onPress }: { onPress?: (e: any) => void }) {
       >
         <Ionicons name="camera" size={28} color="#fff" />
       </View>
-      <Text style={{ fontSize: 11, fontWeight: '800', color: colors.primaryDark, marginTop: 2 }}>NutriScan</Text>
+      <Text style={{ fontSize: 12, fontWeight: '800', color: colors.primaryDark, marginTop: 2 }}>NutriScan</Text>
     </Pressable>
   );
 }
@@ -59,7 +59,13 @@ export default function TabsLayout() {
       options={{
         title,
         href: shown(name) ? undefined : null,
-        tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? activeIcon : icon} color={color} size={24} />,
+        tabBarIcon: ({ color, focused }) => (
+          // Obvious selected state: filled icon on a soft pill, not colour alone.
+          <View style={{ backgroundColor: focused ? colors.primarySoft : 'transparent', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 3 }}>
+            <Ionicons name={focused ? activeIcon : icon} color={color} size={24} />
+          </View>
+        ),
+        tabBarAccessibilityLabel: title,
         ...extra,
       }}
     />
@@ -71,10 +77,10 @@ export default function TabsLayout() {
         headerStyle: { backgroundColor: colors.bg },
         headerShadowVisible: false,
         headerTitleStyle: { fontFamily: fonts.extrabold, fontSize: 20, color: colors.text },
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: '#B9A9B3',
-        tabBarLabelStyle: { fontFamily: fonts.bold, fontSize: 11 },
-        tabBarStyle: { height: 70, paddingTop: 6, paddingBottom: 10, borderTopWidth: 0, backgroundColor: '#fff', ...shadow },
+        tabBarActiveTintColor: colors.primaryDark,
+        tabBarInactiveTintColor: colors.muted,
+        tabBarLabelStyle: { fontFamily: fonts.extrabold, fontSize: 12 },
+        tabBarStyle: { height: 74, paddingTop: 6, paddingBottom: 10, borderTopWidth: 0, backgroundColor: '#fff', ...shadow },
         sceneStyle: { backgroundColor: colors.bg },
         headerRight: () => (
           <Pressable

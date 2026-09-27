@@ -158,3 +158,82 @@ def evaluation_metrics(_: User = Depends(require_roles("officer", "doctor", "adm
         "fulfillment_mix": dict(Counter(r.fulfillment for r in reqs if r.fulfillment)),
         "pickups_completed": sum(1 for r in reqs if r.status == "picked_up"),
     }
+
+
+GROUP_OF = {"high": "followup", "medium": "attention", "low": "monitored"}
+_GROUP_ORDER = {"followup": 0, "attention": 1, "monitored": 2, "unassessed": 3}
+_URGENCY_ORDER = {"emergency": 0, "doctor_48h": 1, "kader_7d": 2, "routine": 3}
+
+
+@router.get("/children")
+def area_children(
+    filter: str = "all",
+    region_id: int | None = None,
+    risk: str | None = None,
+    not_measured_days: int | None = None,
+    needs_visit: bool | None = None,
+    q: str | None = None,
+    limit: int = 30,
+    offset: int = 0,
+    user: User = Depends(require_roles(*STAFF)),
+    db: Session = Depends(get_db),
+):
+    """Scalable child list for Kaders/officers.
+
+    filter: all | priority (needs follow-up or attention) | new (registered < 30 days or never assessed) | followup (open case)
+    Extra filters: region_id, risk (low|medium|high), not_measured_days (last measured more than N days ago), needs_visit, q (name).
+    Groups: followup = high risk (red), attention = medium (orange), monitored = low (green), unassessed.
+    """
+    from datetime import date, datetime, timedelta, timezone
+
+    latest = _latest_assessments(db)
+    open_case_ids = {c.child_id for c in db.scalars(select(Case).where(Case.status.in_(["open", "in_progress", "referred"]))).all()}
+    now = datetime.now(timezone.utc)
+    rows = []
+    for c in _visible_children(db, user):
+        a = latest.get(c.id)
+        level = _level(a) if a else None
+        group = GROUP_OF.get(level, "unassessed")
+        last = c.measurements[-1] if c.measurements else None
+        days = (date.today() - last.measured_at).days if last else None
+        urgency = a.triage.get("urgency") if a else None
+        visit = urgency in ("emergency", "doctor_48h", "kader_7d") or days is None or days > 35
+        created = c.created_at if c.created_at.tzinfo else c.created_at.replace(tzinfo=timezone.utc)
+        is_new = a is None or created >= now - timedelta(days=30)
+        reason = None
+        if urgency == "emergency":
+            reason = a.reasons[0]["text"] if a and a.reasons else None
+        elif days is None or days > 35:
+            reason = "Belum diukur lebih dari sebulan" if user.language == "id" else "Not measured for over a month"
+        elif a and a.reasons:
+            reason = a.reasons[0]["text"]
+        rows.append({
+            "child_id": c.id, "name": c.name, "age_months": S.child(c)["age_months"], "sex": c.sex,
+            "region": c.region.name if c.region else None, "region_id": c.region_id, "group": group, "risk_level": level,
+            "urgency": urgency, "reason": reason, "last_measured_at": last.measured_at.isoformat() if last else None,
+            "days_since_measured": days, "open_case": c.id in open_case_ids, "needs_visit": visit, "is_new": is_new,
+        })
+
+    counts = {g: sum(1 for r in rows if r["group"] == g) for g in _GROUP_ORDER}
+    counts["total"] = len(rows)
+    regions = sorted({(r["region_id"], r["region"]) for r in rows if r["region_id"]}, key=lambda x: x[1] or "")
+    if filter == "priority":
+        rows = [r for r in rows if r["group"] in ("followup", "attention")]
+    elif filter == "new":
+        rows = [r for r in rows if r["is_new"]]
+    elif filter == "followup":
+        rows = [r for r in rows if r["open_case"]]
+    if region_id:
+        rows = [r for r in rows if r["region_id"] == region_id]
+    if risk:
+        rows = [r for r in rows if r["risk_level"] == risk]
+    if not_measured_days is not None:
+        rows = [r for r in rows if r["days_since_measured"] is None or r["days_since_measured"] > not_measured_days]
+    if needs_visit is not None:
+        rows = [r for r in rows if r["needs_visit"] == needs_visit]
+    if q:
+        rows = [r for r in rows if q.lower() in r["name"].lower()]
+    rows.sort(key=lambda r: (_URGENCY_ORDER.get(r["urgency"], 4), _GROUP_ORDER[r["group"]], -(999 if r["days_since_measured"] is None else r["days_since_measured"])))
+    limit = max(1, min(limit, 100))
+    return {"counts": counts, "matched": len(rows), "rows": rows[offset:offset + limit], "offset": offset, "limit": limit,
+            "regions": [{"id": i, "name": n} for i, n in regions]}

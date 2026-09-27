@@ -140,3 +140,29 @@ export function medianAt(reference: Record<string, [number, number][]> | undefin
   }
   return pts[pts.length - 1][1];
 }
+
+const MONTHS = {
+  id: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'],
+  en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+};
+
+/** "27 Sep 2026" (optionally with time), independent of the phone's Intl support. */
+export function formatDate(iso: string | null | undefined, lang: Lang, withTime = false): string {
+  if (!iso) return '–';
+  const d = new Date(iso.length === 10 ? `${iso}T00:00:00` : iso);
+  const base = `${d.getDate()} ${MONTHS[lang][d.getMonth()]} ${d.getFullYear()}`;
+  if (!withTime) return base;
+  return `${base} · ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/** Everyday names mothers use for the WHO food groups. */
+export const GROUP_PLAIN: Record<string, { id: string; en: string }> = {
+  breast_milk: { id: 'ASI', en: 'Breast milk' },
+  grains_roots: { id: 'Karbohidrat', en: 'Carbohydrates' },
+  pulses_nuts: { id: 'Kacang-kacangan', en: 'Beans & nuts' },
+  dairy: { id: 'Susu', en: 'Milk' },
+  flesh: { id: 'Protein hewani', en: 'Meat & fish' },
+  eggs: { id: 'Telur', en: 'Eggs' },
+  vita_fruit_veg: { id: 'Sayur hijau & oranye', en: 'Green & orange veg' },
+  other_fruit_veg: { id: 'Buah & sayur lain', en: 'Other fruit & veg' },
+};

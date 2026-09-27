@@ -1,182 +1,222 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import { router } from 'expo-router';
+import React, { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ChildCard } from '../../components/ChildCard';
-import { ChildPicker } from '../../components/ChildPicker';
+import { KaderHome } from '../../components/KaderHome';
 import { Mascot } from '../../components/Mascot';
+import { SyncBanner } from '../../components/SyncBanner';
 import { Text } from '../../components/Text';
-import { Bubble, Button, Card, Empty, ErrorBox, H2, Loading, P, RiskBadge, Row, Tile } from '../../components/ui';
+import { Button, Card, Empty, ErrorBox, H2, ListRow, Loading, PressScale, Row, StatusPill, Tile } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
-import { greeting, tipOfTheDay } from '../../lib/fun';
-import { flush, queued } from '../../lib/offline';
-import type { Child } from '../../lib/types';
+import { childEmoji, formatAge, formatDate, greeting, tipOfTheDay } from '../../lib/fun';
+import { motherStatus, txt } from '../../lib/status';
+import type { Child, TodayChecklist } from '../../lib/types';
 import { useApi } from '../../lib/useApi';
-import { colors, shadow } from '../../theme';
+import { colors, radius, statusColor } from '../../theme';
 
-interface PriorityRow {
-  child_id: number;
-  name: string;
-  age_months: number;
-  region: string;
-  risk_level: 'low' | 'medium' | 'high';
-  urgency: string;
-  needs_review: boolean;
-  top_reason: string | null;
+function Journey({ emoji, title, subtitle, children }: { emoji: string; title: string; subtitle: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Card>
+      <Pressable onPress={() => setOpen(!open)} accessibilityRole="button" accessibilityState={{ expanded: open }} style={{ minHeight: 48, justifyContent: 'center' }}>
+        <Row>
+          <Text style={{ fontSize: 26 }}>{emoji}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontWeight: '900', fontSize: 17 }}>{title}</Text>
+            <Text style={{ color: colors.muted, fontSize: 13 }}>{subtitle}</Text>
+          </View>
+          <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={22} color={colors.muted} />
+        </Row>
+      </Pressable>
+      {open && <View style={{ marginTop: 6 }}>{children}</View>}
+    </Card>
+  );
 }
 
-function Hero({ name, subtitle }: { name: string; subtitle: string }) {
+function MotherHome() {
+  const { user, t, lang } = useAuth();
   const insets = useSafeAreaInsets();
-  const { lang } = useAuth();
+  const children = useApi<Child[]>('/api/children');
+  const [picked, setPicked] = useState<number | null>(null);
+  const kids = children.data ?? [];
+  const child = kids.find((c) => c.id === picked) ?? kids[0] ?? null;
+  const today = useApi<TodayChecklist>(child ? `/api/children/${child.id}/today` : null);
+  const first = (user?.full_name ?? '').replace(/^(Ibu|Bapak)\s+/i, '').split(' ')[0];
+  const name = child?.name.split(' ')[0] ?? '';
+  const st = motherStatus(child?.latest_assessment);
+  const m = child?.latest_measurement;
+  const go = (action: string) => {
+    if (!child) return;
+    const routes: Record<string, string> = {
+      measure: `/child/${child.id}/measure`,
+      meal: `/child/${child.id}/meal?action=manual`,
+      symptoms: `/child/${child.id}/symptoms`,
+      pickups: '/pickups',
+    };
+    router.push(routes[action] as never);
+  };
+
+  const refresh = () => {
+    void children.reload();
+    void today.reload();
+  };
+
   return (
-    <View style={{ backgroundColor: colors.primary, paddingTop: insets.top + 14, paddingHorizontal: 20, paddingBottom: 34, borderBottomLeftRadius: 32, borderBottomRightRadius: 32, overflow: 'hidden' }}>
-      <View style={{ position: 'absolute', width: 180, height: 180, borderRadius: 90, backgroundColor: '#ffffff1f', top: -60, right: -40 }} />
-      <View style={{ position: 'absolute', width: 90, height: 90, borderRadius: 45, backgroundColor: '#FFB93855', bottom: -30, left: 30 }} />
-      <Row style={{ justifyContent: 'space-between' }}>
-        <View style={{ flex: 1 }}>
-          <Text style={{ color: '#ffffffd9', fontWeight: '700' }}>{greeting(lang)} ☀️</Text>
-          <Text style={{ color: '#fff', fontSize: 26, fontWeight: '900' }}>{name}</Text>
-          <Text style={{ color: '#fff', marginTop: 4 }}>{subtitle}</Text>
-        </View>
-        <Mascot size={86} mood="cheer" bounce />
-      </Row>
-      <Pressable
-        onPress={() => router.push('/notifications')}
-        style={{ position: 'absolute', top: insets.top + 8, right: 14, backgroundColor: '#fff', borderRadius: 18, padding: 7, ...shadow }}
-      >
-        <Ionicons name="notifications" size={18} color={colors.primary} />
-      </Pressable>
-    </View>
+    <ScrollView refreshControl={<RefreshControl refreshing={children.loading} onRefresh={refresh} tintColor={colors.primary} />} contentContainerStyle={{ paddingBottom: 40 }}>
+      {/* Greeting + child selector */}
+      <View style={{ backgroundColor: colors.primary, paddingTop: insets.top + 12, paddingHorizontal: 18, paddingBottom: 28, borderBottomLeftRadius: 28, borderBottomRightRadius: 28 }}>
+        <Row style={{ justifyContent: 'space-between' }}>
+          <Text style={{ color: '#fff', fontSize: 23, fontWeight: '900', flex: 1 }}>
+            {greeting(lang)}, {t('mom')} {first} 👋
+          </Text>
+          <Pressable onPress={() => router.push('/notifications')} accessibilityLabel={t('notifications')} style={{ backgroundColor: '#fff', borderRadius: 22, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="notifications" size={20} color={colors.primary} />
+          </Pressable>
+        </Row>
+        {kids.length > 0 && (
+          <Row style={{ marginTop: 12, flexWrap: 'wrap' }}>
+            {kids.map((c) => {
+              const on = c.id === child?.id;
+              return (
+                <PressScale
+                  key={c.id}
+                  onPress={() => setPicked(c.id)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: on ? '#fff' : '#ffffff33', borderRadius: radius.pill, paddingHorizontal: 14, minHeight: 44 }}
+                >
+                  <Text style={{ fontSize: 18 }}>{childEmoji(c.sex, c.age_months)}</Text>
+                  <Text style={{ fontWeight: '900', color: on ? colors.primaryDark : '#fff' }}>{c.name.split(' ')[0]}</Text>
+                  {on && <Ionicons name="checkmark-circle" size={16} color={colors.primaryDark} />}
+                </PressScale>
+              );
+            })}
+          </Row>
+        )}
+      </View>
+
+      <View style={{ padding: 16, marginTop: -18 }}>
+        <SyncBanner stale={children.stale || today.stale} />
+        {children.error && <ErrorBox message={children.error} onRetry={children.reload} />}
+        {!children.data && children.loading && <Loading />}
+        {children.data?.length === 0 && (
+          <Card>
+            <Empty text={t('addFirstChild')} />
+            <Button title={t('addChild')} icon="add" onPress={() => router.push('/child/new')} />
+          </Card>
+        )}
+
+        {child && (
+          <>
+            {/* Main status card */}
+            <Card onPress={() => router.push(`/child/${child.id}`)} style={st.key === 'urgent' ? { borderColor: colors.danger, borderWidth: 2 } : undefined}>
+              <Row style={{ gap: 12 }}>
+                <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: child.sex === 'female' ? colors.pinkSoft : colors.skySoft, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 30 }}>{childEmoji(child.sex, child.age_months)}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 19, fontWeight: '900' }}>
+                    {name} — {formatAge(child.age_months, lang)}
+                  </Text>
+                  <View style={{ marginTop: 4 }}>
+                    <StatusPill status={st.key} label={txt(st.headline, lang)} large />
+                  </View>
+                </View>
+              </Row>
+              {m ? (
+                <View style={{ marginTop: 10 }}>
+                  <Text style={{ fontSize: 17, fontWeight: '800' }}>
+                    📏 {m.height_cm} cm · ⚖️ {m.weight_kg} kg
+                  </Text>
+                  <Text style={{ color: colors.muted, fontSize: 13 }}>
+                    {t('lastMeasured')}: {formatDate(m.measured_at, lang)}
+                  </Text>
+                </View>
+              ) : null}
+              <Text style={{ color: colors.primaryDark, fontWeight: '800', marginTop: 8 }}>{t('seeProfile')} →</Text>
+            </Card>
+
+            {/* Today checklist */}
+            <Card>
+              <H2 emoji="🌱">
+                {t('todayFor')} {name}
+              </H2>
+              {!today.data && today.loading && <Loading />}
+              {today.data?.items.map((item) => {
+                const c = statusColor[item.status];
+                return (
+                  <Pressable key={item.key} onPress={() => go(item.action)} accessibilityRole="button" style={{ minHeight: 48, justifyContent: 'center', borderBottomWidth: 1, borderColor: colors.border }}>
+                    <Row>
+                      <Text style={{ fontSize: 14 }}>{c.dot}</Text>
+                      <Text style={{ flex: 1, fontWeight: item.status === 'ok' ? '600' : '800', color: item.status === 'ok' ? colors.text : c.fg }}>{item.text}</Text>
+                      {item.status !== 'ok' && <Ionicons name="chevron-forward" size={18} color={c.fg} />}
+                    </Row>
+                  </Pressable>
+                );
+              })}
+            </Card>
+
+            {/* Primary actions */}
+            <Row style={{ flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+              <Tile emoji="📸" title={t('actLogMeal')} color={0} onPress={() => router.push(`/child/${child.id}/meal?action=camera`)} />
+              <Tile emoji="📏" title={t('tileMeasure')} color={4} onPress={() => router.push(`/child/${child.id}/measure`)} />
+              <Tile emoji="🤒" title={t('actCheckSymptoms')} color={5} onPress={() => router.push(`/child/${child.id}/symptoms`)} />
+              <Tile emoji="💬" title={t('tileConsult')} color={3} onPress={() => router.push('/assistant')} />
+            </Row>
+
+            {/* Three journeys (secondary features) */}
+            <Journey emoji="📏" title={t('jMonitor')} subtitle={t('jMonitorSub')}>
+              <ListRow emoji="➕" title={t('tileMeasure')} onPress={() => router.push(`/child/${child.id}/measure`)} />
+              <ListRow emoji="📈" title={t('growthHistory')} onPress={() => router.push(`/child/${child.id}/history`)} />
+              <ListRow emoji="🧠" title={t('development')} onPress={() => router.push(`/child/${child.id}/development`)} />
+            </Journey>
+            <Journey emoji="🍽️" title={t('jNutrition')} subtitle={t('jNutritionSub')}>
+              <ListRow emoji="📸" title="NutriScan" onPress={() => router.push(`/child/${child.id}/meal?action=camera`)} />
+              <ListRow emoji="🥘" title={t('tileNutrition')} onPress={() => router.push(`/nutriscan?child=${child.id}`)} />
+              <ListRow emoji="🗓️" title={t('nutritionPlan')} onPress={() => router.push(`/child/${child.id}/nutrition`)} />
+              <ListRow emoji="👩‍🍳" title={t('recipes')} onPress={() => router.push(`/child/${child.id}/recipes`)} />
+            </Journey>
+            <Journey emoji="💬" title={t('jHelp')} subtitle={t('jHelpSub')}>
+              <ListRow emoji="🤒" title={t('actCheckSymptoms')} onPress={() => router.push(`/child/${child.id}/symptoms`)} />
+              <ListRow emoji="🌱" title={t('tileConsult')} onPress={() => router.push('/assistant')} />
+              <ListRow emoji="📖" title={t('healthGuide')} onPress={() => router.push('/guide')} />
+            </Journey>
+          </>
+        )}
+
+        {/* Secondary */}
+        {kids.length > 0 && (
+          <>
+            <Text style={{ fontWeight: '900', color: colors.muted, marginTop: 10, marginBottom: 8 }}>{t('more')}</Text>
+            <Card>
+              <ListRow emoji="🎁" title={t('packagesTitle')} subtitle={t('packagesSub')} onPress={() => router.push('/pickups')} />
+              <ListRow emoji="➕" title={t('addChild')} onPress={() => router.push('/child/new')} />
+            </Card>
+            <Card tint={colors.mintSoft}>
+              <Row style={{ alignItems: 'flex-start' }}>
+                <Mascot size={44} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontWeight: '900', color: colors.ok }}>💡 {t('tipTitle')}</Text>
+                  <Text>{tipOfTheDay(lang)}</Text>
+                </View>
+              </Row>
+            </Card>
+            <Text style={{ color: colors.muted, fontSize: 13, textAlign: 'center' }}>{t('disclaimer')}</Text>
+          </>
+        )}
+      </View>
+    </ScrollView>
   );
 }
 
 export default function Home() {
-  const { user, t } = useAuth();
-  const kader = user?.role === 'kader';
-  const children = useApi<Child[]>('/api/children');
-  const priority = useApi<PriorityRow[]>(kader ? '/api/dashboard/priority?limit=10' : null);
-  const [pending, setPending] = useState(0);
-  const [syncMsg, setSyncMsg] = useState<string | null>(null);
-  const [syncing, setSyncing] = useState(false);
-  const [picked, setPicked] = useState<number | null>(null);
-
-  const sync = useCallback(
-    async (silent = false) => {
-      const q = await queued();
-      setPending(q.length);
-      if (!q.length) return;
-      setSyncing(true);
-      try {
-        const r = await flush();
-        setPending(r.remaining);
-        if (!silent || r.sent) setSyncMsg(`${t('synced')}: ${r.sent}${r.failed ? ` · ${t('error')}: ${r.failed}` : ''}`);
-        if (r.sent) {
-          void children.reload();
-          void priority.reload();
-        }
-      } catch (e) {
-        setSyncMsg(String(e));
-      } finally {
-        setSyncing(false);
-      }
-    },
-    [children, priority, t],
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      void sync(true);
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []),
-  );
-
-  const refresh = () => {
-    void children.reload();
-    void priority.reload();
-    void sync(true);
-  };
-
-  const first = (user?.full_name ?? '').replace(/^(Ibu|Bapak|Kader|dr\.)\s+/i, '').split(' ')[0];
-  const kids = children.data ?? [];
-  const childId = picked ?? kids[0]?.id ?? null;
-
+  const { user } = useAuth();
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView refreshControl={<RefreshControl refreshing={children.loading} onRefresh={refresh} tintColor={colors.primary} />} contentContainerStyle={{ paddingBottom: 40 }}>
-        <Hero name={kader ? `Kader ${first}` : `${t('mom')} ${first}`} subtitle={t('howAreYou')} />
-        <View style={{ padding: 16, marginTop: -20 }}>
-          <Card>
-            <Text style={{ fontWeight: '900', color: colors.primaryDark, marginBottom: 4 }}>💡 {t('tipTitle')}</Text>
-            <P>{tipOfTheDay(user?.language ?? 'id')}</P>
-          </Card>
-
-          {pending > 0 && (
-            <Card tint={colors.accentSoft}>
-              <P>
-                📶 {pending} {t('pendingSync')}
-              </P>
-              <Button small title={t('syncNow')} onPress={() => sync()} loading={syncing} icon="cloud-upload" />
-            </Card>
-          )}
-          {syncMsg && <P muted>{syncMsg}</P>}
-
-          {!kader && kids.length > 0 && (
-            <>
-              <H2 emoji="✨">{t('whatToday')}</H2>
-              {kids.length > 1 && <ChildPicker items={kids} value={childId} onChange={setPicked} />}
-              <Row style={{ flexWrap: 'wrap', gap: 10, marginBottom: 18 }}>
-                <Tile emoji="📸" title={t('tileScan')} subtitle={t('tileScanSub')} color={0} onPress={() => router.push(`/child/${childId}/meal?action=camera`)} />
-                <Tile emoji="🤖" title={t('tileConsult')} subtitle={t('tileConsultSub')} color={3} onPress={() => router.push('/assistant')} />
-                <Tile emoji="📏" title={t('tileMeasure')} subtitle={t('tileMeasureSub')} color={4} onPress={() => router.push(`/child/${childId}/measure`)} />
-                <Tile emoji="🌡️" title={t('tileSymptom')} subtitle={t('tileSymptomSub')} color={5} onPress={() => router.push(`/child/${childId}/symptoms`)} />
-                <Tile emoji="🥗" title={t('tileNutrition')} subtitle={t('tileNutritionSub')} color={1} onPress={() => router.push(`/child/${childId}/nutrition`)} />
-                <Tile emoji="🎁" title={t('tilePickup')} subtitle={t('tilePickupSub')} color={2} onPress={() => router.push('/pickups')} />
-              </Row>
-            </>
-          )}
-
-          {kader && (
-            <>
-              <Row style={{ gap: 10, marginBottom: 14 }}>
-                <Tile emoji="🔓" title={t('scanPickup')} subtitle={t('scanQR')} color={2} onPress={() => router.push('/scan')} />
-                <Tile emoji="➕" title={t('addChild')} subtitle={t('areaChildren')} color={1} onPress={() => router.push('/child/new')} />
-              </Row>
-              <H2 emoji="📋">{t('priorityList')}</H2>
-              {priority.error && <ErrorBox message={priority.error} onRetry={priority.reload} />}
-              {(priority.data ?? [])
-                .filter((p) => p.urgency !== 'routine')
-                .slice(0, 6)
-                .map((p) => (
-                  <Card key={p.child_id} onPress={() => router.push(`/child/${p.child_id}`)}>
-                    <Row style={{ justifyContent: 'space-between' }}>
-                      <Text style={{ fontWeight: '900', fontSize: 16, flex: 1 }}>{p.name}</Text>
-                      <RiskBadge level={p.risk_level} />
-                    </Row>
-                    <Text style={{ color: p.urgency === 'emergency' ? colors.danger : colors.warn, fontWeight: '800', marginTop: 4 }}>
-                      {p.urgency === 'emergency' ? '🚨' : '🏠'} {t(`urgency_${p.urgency}`)} · {p.region}
-                    </Text>
-                    {p.top_reason && <P muted>{p.top_reason}</P>}
-                  </Card>
-                ))}
-            </>
-          )}
-
-          <H2 emoji={kader ? '👶' : '💕'} right={!kader ? <Button small variant="secondary" title={t('addChild')} icon="add" onPress={() => router.push('/child/new')} /> : undefined}>
-            {kader ? t('areaChildren') : t('myChildren')}
-          </H2>
-          {children.error && <ErrorBox message={children.error} onRetry={children.reload} />}
-          {!children.data && children.loading && <Loading />}
-          {children.data?.length === 0 && <Empty text={t('addFirstChild')} />}
-          {kids.map((c) => (
-            <ChildCard key={c.id} child={c} />
-          ))}
-          <Bubble mood="happy" tint="#fff">
-            <Text style={{ color: colors.muted, fontSize: 13 }}>{t('disclaimer')}</Text>
-          </Bubble>
-        </View>
-      </ScrollView>
+      {user?.role === 'kader' ? <KaderHome /> : <MotherHome />}
     </View>
   );
 }
+

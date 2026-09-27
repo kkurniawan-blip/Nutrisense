@@ -18,22 +18,38 @@ export const colors = {
   bg: '#FFF8F2',
   card: '#FFFFFF',
   text: '#3B2F3A',
-  muted: '#8C7E89',
+  muted: '#6E606B', // >= 4.5:1 on white and cream (WCAG AA)
   border: '#F2E3DC',
-  danger: '#DC3545',
+  danger: '#C62833',
   dangerSoft: '#FDE8EA',
-  warn: '#D97A0B',
+  warn: '#B45309',
   warnSoft: '#FFF1DC',
-  ok: '#1F9D74',
+  ok: '#157A58',
   okSoft: '#DDF5EC',
   info: '#5B5BD6',
   infoSoft: '#ECEBFD',
 };
 
+/**
+ * Semantic status colours. Every status is ALWAYS rendered with an icon and a text label too,
+ * never colour alone: green on track, yellow monitor, orange action recommended, red urgent,
+ * blue information, purple AI.
+ */
+export const statusColor = {
+  ok: { fg: '#146C4E', bg: '#DDF5EC', dot: '🟢' },
+  monitor: { fg: '#7A5600', bg: '#FFF4CC', dot: '🟡' },
+  action: { fg: '#A94306', bg: '#FFEAD5', dot: '🟠' },
+  urgent: { fg: '#B42318', bg: '#FDE8EA', dot: '🔴' },
+  info: { fg: '#1D5FAF', bg: '#E2F0FE', dot: 'ℹ️' },
+  ai: { fg: '#5B45D6', bg: '#EEEAFF', dot: '🤖' },
+  unknown: { fg: '#6E606B', bg: '#F3ECE8', dot: '⚪' },
+} as const;
+export type StatusKey = keyof typeof statusColor;
+
 export const riskColor = {
-  low: { fg: colors.ok, bg: colors.okSoft },
-  medium: { fg: colors.warn, bg: colors.warnSoft },
-  high: { fg: colors.danger, bg: colors.dangerSoft },
+  low: { fg: '#146C4E', bg: '#DDF5EC' },
+  medium: { fg: '#7A5600', bg: '#FFF4CC' },
+  high: { fg: '#B42318', bg: '#FDE8EA' },
 } as const;
 
 /** Cheerful tile colours used for feature buttons, recipe cards and avatars. */
@@ -62,3 +78,6 @@ export const shadow: ViewStyle =
     : { shadowColor: '#B8433A', shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } };
 
 export const space = (n: number) => n * 4;
+
+/** Minimum comfortable touch target (WCAG 2.5.5 / platform guidelines). */
+export const TOUCH = 44;

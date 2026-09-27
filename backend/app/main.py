@@ -6,8 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .ai import llm
 from .config import get_settings
-from .database import Base, SessionLocal, engine
-from .routers import auth, cases, children, dashboard, governance, logistics, nutrition
+from .database import Base, SessionLocal, engine, ensure_columns
+from .routers import auth, cases, children, dashboard, family, governance, logistics, nutrition
 from .services import model_registry
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -20,6 +20,7 @@ async def lifespan(app: FastAPI):
         raise RuntimeError("Set NUTRISENSE_JWT_SECRET and NUTRISENSE_ENCRYPTION_KEY before running in production")
     settings.model_dir.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(engine)
+    ensure_columns()
     with SessionLocal() as db:
         if settings.seed_demo_data:
             from .seed import seed_if_empty
@@ -39,7 +40,7 @@ app = FastAPI(
 app.add_middleware(CORSMiddleware, allow_origins=[o.strip() for o in settings.cors_origins.split(",")], allow_credentials=False,
                    allow_methods=["*"], allow_headers=["*"])
 
-for r in (auth.router, children.router, nutrition.router, cases.router, logistics.router, dashboard.router, governance.router):
+for r in (auth.router, children.router, family.router, nutrition.router, cases.router, logistics.router, dashboard.router, governance.router):
     app.include_router(r)
 
 

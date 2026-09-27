@@ -136,6 +136,7 @@ class SymptomReport(Base):
     duration_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
     interpreted_by: Mapped[str] = mapped_column(String(20), default="rules")
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    client_uuid: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)  # offline sync idempotency
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
 
 
@@ -151,6 +152,7 @@ class MealLog(Base):
     food_groups: Mapped[list] = mapped_column(JSON, default=list)
     source: Mapped[str] = mapped_column(String(20), default="manual")
     ai_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    client_uuid: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)  # offline sync idempotency
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
 
 
@@ -191,6 +193,8 @@ class RiskAssessment(Base):
     reviewed_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
 
+    reviewed_by: Mapped[User | None] = relationship(foreign_keys=[reviewed_by_id])
+
 
 class NutritionRecommendation(Base):
     __tablename__ = "nutrition_recommendations"
@@ -226,6 +230,8 @@ class CaseNote(Base):
     case_id: Mapped[int] = mapped_column(ForeignKey("cases.id"), index=True)
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     text: Mapped[str] = mapped_column(EncryptedText())
+    # Staff can share a note with the family; it then appears as a health-worker recommendation in the app.
+    visible_to_caregiver: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
 
     author: Mapped[User] = relationship()
@@ -377,3 +383,16 @@ class FhirSyncLog(Base):
     resource_count: Mapped[int] = mapped_column(Integer, default=0)
     message: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+
+
+class DevelopmentCheck(Base):
+    """A caregiver's or Kader's answer to an age-appropriate developmental milestone (not a diagnostic screening)."""
+
+    __tablename__ = "development_checks"
+    __table_args__ = (UniqueConstraint("child_id", "milestone_key"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    child_id: Mapped[int] = mapped_column(ForeignKey("children.id"), index=True)
+    milestone_key: Mapped[str] = mapped_column(String(40))
+    achieved: Mapped[bool] = mapped_column(Boolean, default=False)
+    recorded_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, onupdate=utcnow)

@@ -6,10 +6,27 @@ import { colors } from '../theme';
 import { Text } from './Text';
 
 export interface ChartData {
-  points: { age_months: number; value: number; z: number | null }[];
+  indicator?: 'hfa' | 'wfa' | 'wfh';
+  x_unit?: 'months' | 'cm';
+  y_unit?: 'cm' | 'kg';
+  /** x = age in months (hfa/wfa) or height in cm (wfh); older responses only carry age_months. */
+  points: { x?: number; age_months: number; value: number; z: number | null; measured_at?: string }[];
   reference: Record<string, [number, number][]>;
   projection: { age_months: number; expected_height_cm: number | null }[] | null;
+  meaning?: string;
+  details?: { label: string; z: number | null; class: string; reference: string };
 }
+
+export interface ChartLabels {
+  child: string;
+  average: string;
+  lowerLimit: string;
+  farBelow: string;
+  projection: string;
+  xAxis: string;
+}
+
+const xOf = (p: ChartData['points'][number]) => p.x ?? p.age_months;
 
 const BAND_STYLE: Record<string, { color: string; dash?: string; label: string }> = {
   '2': { color: '#9CA3AF', dash: '4 4', label: '+2' },
@@ -18,25 +35,26 @@ const BAND_STYLE: Record<string, { color: string; dash?: string; label: string }
   '-3': { color: colors.danger, label: '-3' },
 };
 
-export function GrowthChart({ data, unit = 'cm' }: { data: ChartData; unit?: string }) {
+export function GrowthChart({ data, labels }: { data: ChartData; labels?: ChartLabels }) {
+  const byHeight = data.x_unit === 'cm';
   const [width, setWidth] = useState(320);
   const height = 240;
   const pad = { l: 38, r: 22, t: 12, b: 28 };
 
   const { xMin, xMax, yMin, yMax } = useMemo(() => {
-    const ages = data.points.map((p) => p.age_months);
-    const proj = (data.projection ?? []).map((p) => p.age_months);
+    const ages = data.points.map(xOf);
+    const proj = byHeight ? [] : (data.projection ?? []).map((p) => p.age_months);
     const lo = Math.max(0, Math.floor(Math.min(...ages, ...(proj.length ? proj : ages)) - 3));
-    const hi = Math.min(60, Math.ceil(Math.max(...ages, ...proj) + 3));
+    const hi = byHeight ? Math.ceil(Math.max(...ages) + 3) : Math.min(60, Math.ceil(Math.max(...ages, ...proj) + 3));
     const inRange = (arr: [number, number][]) => arr.filter(([x]) => x >= lo && x <= hi).map(([, y]) => y);
     const ys = [
       ...inRange(data.reference['-3'] ?? []),
       ...inRange(data.reference['2'] ?? []),
       ...data.points.map((p) => p.value),
-      ...(data.projection ?? []).map((p) => p.expected_height_cm ?? 0).filter(Boolean),
+      ...(byHeight ? [] : (data.projection ?? []).map((p) => p.expected_height_cm ?? 0).filter(Boolean)),
     ];
     return { xMin: lo, xMax: Math.max(hi, lo + 6), yMin: Math.floor(Math.min(...ys) - 1), yMax: Math.ceil(Math.max(...ys) + 1) };
-  }, [data]);
+  }, [data, byHeight]);
 
   if (!data.points.length) return null;
 
@@ -45,8 +63,8 @@ export function GrowthChart({ data, unit = 'cm' }: { data: ChartData; unit?: str
   const path = (pts: [number, number][]) => pts.map(([x, y], i) => `${i ? 'L' : 'M'}${sx(x).toFixed(1)},${sy(y).toFixed(1)}`).join(' ');
 
   const last = data.points[data.points.length - 1];
-  const projPts: [number, number][] = [[last.age_months, last.value]];
-  (data.projection ?? []).forEach((p) => p.expected_height_cm && projPts.push([p.age_months, p.expected_height_cm]));
+  const projPts: [number, number][] = [[xOf(last), last.value]];
+  if (!byHeight) (data.projection ?? []).forEach((p) => p.expected_height_cm && projPts.push([p.age_months, p.expected_height_cm]));
 
   const xTicks: number[] = [];
   const step = xMax - xMin > 24 ? 6 : 3;
@@ -85,11 +103,11 @@ export function GrowthChart({ data, unit = 'cm' }: { data: ChartData; unit?: str
           );
         })}
         {projPts.length > 1 && <Path d={path(projPts)} stroke={colors.info} strokeWidth={2} strokeDasharray="6 4" fill="none" />}
-        <Path d={path(data.points.map((p) => [p.age_months, p.value]))} stroke={colors.primaryDark} strokeWidth={2.5} fill="none" />
+        <Path d={path(data.points.map((p) => [xOf(p), p.value]))} stroke={colors.primaryDark} strokeWidth={2.5} fill="none" />
         {data.points.map((p, i) => (
           <Circle
             key={i}
-            cx={sx(p.age_months)}
+            cx={sx(xOf(p))}
             cy={sy(p.value)}
             r={4}
             fill={p.z !== null && p.z < -2 ? colors.danger : colors.primary}
@@ -98,11 +116,13 @@ export function GrowthChart({ data, unit = 'cm' }: { data: ChartData; unit?: str
           />
         ))}
       </Svg>
+      {labels?.xAxis ? <Text style={{ textAlign: 'center', color: colors.muted, fontSize: 12 }}>{labels.xAxis}</Text> : null}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 4 }}>
-        <Legend color={colors.primaryDark} text={`Anak / Child (${unit})`} />
-        <Legend color={colors.info} text="Proyeksi / Projection" dashed />
-        <Legend color={colors.warn} text="-2 SD" />
-        <Legend color={colors.danger} text="-3 SD" />
+        <Legend color={colors.primaryDark} text={labels?.child ?? 'Anak / Child'} />
+        <Legend color={colors.ok} text={labels?.average ?? '0 SD'} />
+        <Legend color={colors.warn} text={labels?.lowerLimit ?? '-2 SD'} />
+        <Legend color={colors.danger} text={labels?.farBelow ?? '-3 SD'} />
+        {!byHeight && data.projection?.length ? <Legend color={colors.info} text={labels?.projection ?? 'Proyeksi / Projection'} dashed /> : null}
       </View>
     </View>
   );
@@ -112,7 +132,7 @@ function Legend({ color, text, dashed }: { color: string; text: string; dashed?:
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
       <View style={{ width: 16, height: 0, borderTopWidth: 2, borderColor: color, borderStyle: dashed ? 'dashed' : 'solid' }} />
-      <Text style={{ fontSize: 11, color: colors.muted }}>{text}</Text>
+      <Text style={{ fontSize: 12, color: colors.muted }}>{text}</Text>
     </View>
   );
 }

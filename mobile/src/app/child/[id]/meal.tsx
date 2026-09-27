@@ -7,11 +7,15 @@ import { Mascot } from '../../../components/Mascot';
 import { MenuSuggestionsView } from '../../../components/Recipes';
 import { Text, TextInput } from '../../../components/Text';
 import { Bubble, Button, Card, Chip, ErrorBox, H2, Loading, PressScale, RainbowPlate, Row, Screen, Segmented } from '../../../components/ui';
-import { api, errorText } from '../../../lib/api';
+import { DiversityCard } from '../../../components/Diversity';
+import { api, errorText, NetworkError } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
-import { FOOD_EMOJI, groupsToday, mealStreak } from '../../../lib/fun';
-import type { Food, Meal, MealItem, MenuSuggestions } from '../../../lib/types';
-import { colors, radius } from '../../../theme';
+import { FOOD_EMOJI, FOOD_GROUPS, GROUP_PLAIN, groupsToday, mealStreak } from '../../../lib/fun';
+import { enqueue, uuid } from '../../../lib/offline';
+import { useSync } from '../../../lib/sync';
+import { useApi } from '../../../lib/useApi';
+import type { Child, Food, Meal, MealItem, MenuSuggestions } from '../../../lib/types';
+import { colors, radius, statusColor } from '../../../theme';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
@@ -54,7 +58,12 @@ export default function MealScreen() {
   const [scanNote, setScanNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState<null | 'online' | 'offline'>(null);
+  const [savedGroups, setSavedGroups] = useState<string[]>([]);
+  const [showIdeas, setShowIdeas] = useState(false);
+  const sync = useSync();
+  const child = useApi<Child>(`/api/children/${id}`);
+  const childName = child.data?.name.split(' ')[0] ?? '';
   const [filter, setFilter] = useState('');
   const [menus, setMenus] = useState<MenuSuggestions | null>(null);
   const [menusLoading, setMenusLoading] = useState(false);
@@ -137,22 +146,27 @@ export default function MealScreen() {
   const remove = (i: number) => setItems((xs) => xs.filter((_, j) => j !== i));
 
   const save = async () => {
+    const body = {
+      items: items.map((i) => ({ food_key: i.food_key, grams: i.grams || null })),
+      meal_type: mealType,
+      source: photo ? 'nutriscan' : 'manual',
+      ai_notes: scanNote,
+      client_uuid: uuid(),
+    };
     setBusy(true);
     setError(null);
+    setSavedGroups(mealGroups);
     try {
-      await api(`/api/children/${id}/meals`, {
-        body: {
-          items: items.map((i) => ({ food_key: i.food_key, grams: i.grams || null })),
-          meal_type: mealType,
-          source: photo ? 'nutriscan' : 'manual',
-          ai_notes: scanNote,
-        },
-      });
-      setSaved(true);
+      await api(`/api/children/${id}/meals`, { body });
+      setSaved('online');
       setTodayMeals(await api<Meal[]>(`/api/children/${id}/meals?limit=100`));
       void loadMenus([]);
     } catch (e) {
-      setError(errorText(e));
+      if (e instanceof NetworkError) {
+        await enqueue('meal', Number(id), child.data?.name ?? '', body);
+        await sync.refresh();
+        setSaved('offline');
+      } else setError(errorText(e));
     } finally {
       setBusy(false);
     }
@@ -162,35 +176,72 @@ export default function MealScreen() {
 
   if (saved) {
     const streak = mealStreak(todayMeals);
+    const present = FOOD_GROUPS.filter((g) => savedGroups.includes(g.key));
+    const reset = () => {
+      setSaved(null);
+      setItems([]);
+      setPhoto(null);
+      setScanNote(null);
+      setMenus(null);
+      setShowIdeas(false);
+    };
     return (
       <Screen>
-        <View style={{ alignItems: 'center', marginVertical: 8 }}>
-          <Mascot size={110} mood="cheer" bounce />
-          <Text style={{ fontSize: 22, fontWeight: '900', color: colors.primaryDark, marginTop: 6 }}>{t('celebrate')}</Text>
-          <Text style={{ color: colors.muted }}>{t('greatJob')}</Text>
-        </View>
+        <Row style={{ marginBottom: 8 }}>
+          <Mascot size={64} mood="cheer" bounce />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 20, fontWeight: '900', color: colors.primaryDark }}>
+              🍽️ {t(mealType)} {childName}
+            </Text>
+            <Text style={{ color: colors.muted }}>{saved === 'offline' ? t('savedOnPhone') : t('greatJob')}</Text>
+            {streak > 1 && <Text style={{ fontWeight: '800', color: colors.warn }}>🔥 {streak} {t('streak')}</Text>}
+          </View>
+        </Row>
+
         <Card>
-          <Row style={{ gap: 14 }}>
-            <RainbowPlate groups={groupsToday(todayMeals)} size={84} />
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontWeight: '900', fontSize: 17 }}>🌈 {t('rainbowToday')}</Text>
-              <Text style={{ color: colors.muted }}>{t('rainbowHint')}</Text>
-              {streak > 0 && (
-                <Text style={{ marginTop: 6, fontWeight: '800', color: colors.warn }}>
-                  🔥 {streak} {t('streak')}
+          <Text style={{ fontWeight: '900', fontSize: 16, marginBottom: 6 }}>✓ {t('alreadyThere')}</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+            {present.map((g) => (
+              <View key={g.key} style={{ backgroundColor: statusColor.ok.bg, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 }}>
+                <Text style={{ color: statusColor.ok.fg, fontWeight: '800' }}>
+                  ✓ {g.emoji} {GROUP_PLAIN[g.key][lang]}
                 </Text>
-              )}
-            </View>
-          </Row>
+              </View>
+            ))}
+          </View>
+          {menus && menus.missing_groups.length > 0 && (
+            <>
+              <Text style={{ fontWeight: '900', fontSize: 16, marginTop: 14, marginBottom: 6 }}>➕ {t('couldAdd')}</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                {menus.missing_groups.map((mg) => {
+                  const g = FOOD_GROUPS.find((x) => x.key === mg.key);
+                  return (
+                    <View key={mg.key} style={{ backgroundColor: '#fff', borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 2, borderColor: g?.color ?? colors.border }}>
+                      <Text style={{ fontWeight: '700' }}>
+                        {g?.emoji} {GROUP_PLAIN[mg.key]?.[lang] ?? mg.label}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </>
+          )}
         </Card>
-        {menus ? <MenuSuggestionsView data={menus} /> : menusLoading ? <Loading /> : null}
-        <Button title={t('scanAgain')} icon="camera" onPress={() => {
-          setSaved(false);
-          setItems([]);
-          setPhoto(null);
-          setScanNote(null);
-          setMenus(null);
-        }} />
+
+        {menus?.simple_idea && (
+          <Card tint={colors.accentSoft}>
+            <Text style={{ fontWeight: '900', fontSize: 16 }}>💡 {t('simpleIdea')}</Text>
+            <Text style={{ fontSize: 17, marginTop: 4, lineHeight: 24 }}>{menus.simple_idea.text}</Text>
+            <Button small variant="ghost" title={showIdeas ? t('hideIdeas') : t('seeMenuIdeas')} onPress={() => setShowIdeas(!showIdeas)} />
+          </Card>
+        )}
+        {menusLoading && !menus && <Loading />}
+        {showIdeas && menus && <MenuSuggestionsView data={menus} />}
+
+        <Card>
+          <DiversityCard groups={groupsToday(todayMeals)} compact />
+        </Card>
+        <Button title={t('scanAgain')} icon="camera" onPress={reset} />
         <Button title={t('nutritionPlan')} variant="secondary" icon="nutrition" onPress={() => router.replace(`/child/${id}/nutrition`)} />
       </Screen>
     );
@@ -241,7 +292,7 @@ export default function MealScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontWeight: '700' }}>{foodName(it.food_key)}</Text>
-              {it.confidence !== undefined && <Text style={{ fontSize: 11, color: colors.muted }}>AI {Math.round(it.confidence * 100)}%</Text>}
+              {it.confidence !== undefined && <Text style={{ fontSize: 12, color: colors.muted }}>AI {Math.round(it.confidence * 100)}%</Text>}
             </View>
             <Stepper value={Math.round(it.grams)} onChange={(g) => setGrams(i, g)} />
             <Text onPress={() => remove(i)} style={{ color: colors.danger, fontSize: 18, paddingHorizontal: 4 }}>

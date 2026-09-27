@@ -51,6 +51,7 @@ def update_case(case_id: int, body: CaseUpdateIn, user: User = Depends(require_r
     case = _case_or_404(db, case_id, user)
     data = body.model_dump(exclude_unset=True)
     note = data.pop("note", None)
+    share = data.pop("share_with_family", False)
     if data.get("status") in ("resolved", "closed") and user.role == "kader" and case.priority in ("high", "emergency"):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "High-priority cases must be closed by a doctor or officer")
     for field, value in data.items():
@@ -58,7 +59,10 @@ def update_case(case_id: int, body: CaseUpdateIn, user: User = Depends(require_r
     if data.get("status") in ("resolved", "closed"):
         case.resolved_at = datetime.now(timezone.utc)
     if note:
-        db.add(CaseNote(case_id=case.id, author_id=user.id, text=note))
+        db.add(CaseNote(case_id=case.id, author_id=user.id, text=note, visible_to_caregiver=bool(share)))
+        if share:
+            notify(db, case.child.caregiver_id, "care_note", "Pesan dari tenaga kesehatan / Message from your health worker",
+                   note[:200], child_id=case.child_id)
     if data.get("status") == "referred":
         notify(db, case.child.caregiver_id, "referral", "Rujukan / Referral",
                f"{case.child.name} dirujuk ke dokter/Puskesmas. / {case.child.name} has been referred to a doctor.", case_id=case.id)
@@ -71,12 +75,19 @@ def update_case(case_id: int, body: CaseUpdateIn, user: User = Depends(require_r
 
 
 @router.post("/assessments/{assessment_id}/review")
-def review_assessment(assessment_id: int, body: ReviewIn, user: User = Depends(require_roles("doctor", "officer", "admin")),
+def review_assessment(assessment_id: int, body: ReviewIn, user: User = Depends(require_roles("kader", "doctor", "officer", "admin")),
                       db: Session = Depends(get_db)):
-    """Human-in-the-loop: a professional confirms or overrides the AI risk level."""
+    """Human-in-the-loop: a health worker confirms or overrides the AI risk level.
+
+    Kaders may confirm a result or raise concern after a home visit, but only a doctor or health officer
+    can lower a result the AI flagged as high risk.
+    """
     a = db.get(RiskAssessment, assessment_id)
-    if a is None:
+    if a is None or not can_access_child(user, db.get(Child, a.child_id)):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Assessment not found")
+    order = ["low", "medium", "high"]
+    if user.role == "kader" and a.risk_level == "high" and order.index(body.reviewed_level) < order.index("high"):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only a doctor or health officer can lower a high-risk result")
     a.reviewed_level, a.review_note, a.reviewed_by_id = body.reviewed_level, body.note, user.id
     a.reviewed_at = datetime.now(timezone.utc)
     child = db.get(Child, a.child_id)
@@ -90,10 +101,11 @@ def review_assessment(assessment_id: int, body: ReviewIn, user: User = Depends(r
 
 
 @router.get("/reviews/pending")
-def pending_reviews(user: User = Depends(require_roles("doctor", "officer", "admin")), db: Session = Depends(get_db)):
+def pending_reviews(user: User = Depends(require_roles("kader", "doctor", "officer", "admin")), db: Session = Depends(get_db)):
     rows = db.scalars(select(RiskAssessment).where(RiskAssessment.needs_review.is_(True), RiskAssessment.reviewed_at.is_(None))
                       .order_by(RiskAssessment.id.desc())).all()
     latest_ids = {}
     for a in rows:
-        latest_ids.setdefault(a.child_id, a)
+        if can_access_child(user, db.get(Child, a.child_id)):
+            latest_ids.setdefault(a.child_id, a)
     return [{**S.assessment(a), "child_name": db.get(Child, a.child_id).name} for a in latest_ids.values()]

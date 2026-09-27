@@ -10,7 +10,7 @@ import sys
 from sqlalchemy import select
 
 from .config import get_settings
-from .database import Base, SessionLocal, engine
+from .database import Base, SessionLocal, engine, ensure_columns
 from .models import ModelRun
 
 
@@ -18,6 +18,7 @@ def main(argv: list[str]) -> int:
     cmd = argv[1] if len(argv) > 1 else "help"
     get_settings().model_dir.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(engine)
+    ensure_columns()
     with SessionLocal() as db:
         if cmd == "train":
             from .services.model_registry import train_and_register

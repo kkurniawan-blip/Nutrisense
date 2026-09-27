@@ -61,7 +61,7 @@ export default function Nutrition() {
                 <Text style={{ color: (pct[k] ?? 0) < 70 ? colors.warn : colors.ok, fontWeight: '800' }}>{pct[k] ?? 0}%</Text>
               </Row>
               <Bar pct={pct[k] ?? 0} />
-              <Text style={{ fontSize: 11, color: colors.muted, marginTop: 2 }}>
+              <Text style={{ fontSize: 12, color: colors.muted, marginTop: 2 }}>
                 {p.intake.average?.[k] ?? 0} / {target} {NUTRIENT_LABELS[k]?.unit}
               </Text>
             </View>

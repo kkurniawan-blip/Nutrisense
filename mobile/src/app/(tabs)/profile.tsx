@@ -1,10 +1,11 @@
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React from 'react';
 import { View } from 'react-native';
 
 import { Mascot } from '../../components/Mascot';
-import { Button, Card, ErrorBox, H2, P, Row, Screen, Segmented, Toggle } from '../../components/ui';
-import { api, errorText, getBaseUrl } from '../../lib/api';
+import { SyncBanner } from '../../components/SyncBanner';
+import { Button, Card, H2, ListRow, P, Row, Screen, Segmented } from '../../components/ui';
+import { getBaseUrl } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import type { Lang } from '../../lib/types';
 import { useApi } from '../../lib/useApi';
@@ -13,18 +14,9 @@ type Consents = Record<'data_processing' | 'ai_analysis' | 'satusehat_sharing' |
 
 export default function Profile() {
   const { user, t, lang, setLang, logout } = useAuth();
-  const consents = useApi<Consents>('/api/consents');
+  const consents = useApi<Consents>(user?.role === 'caregiver' ? '/api/consents' : null);
   const health = useApi<{ ai: { claude_enabled: boolean; model: string | null } }>('/api/health');
-  const [error, setError] = useState<string | null>(null);
-
-  const setConsent = async (scope: keyof Consents, granted: boolean) => {
-    setError(null);
-    try {
-      consents.setData(await api<Consents>('/api/consents', { body: { scope, granted } }));
-    } catch (e) {
-      setError(errorText(e));
-    }
-  };
+  const on = consents.data ? Object.values(consents.data).filter(Boolean).length : 0;
 
   return (
     <Screen>
@@ -34,7 +26,7 @@ export default function Profile() {
           <View style={{ flex: 1 }}>
             <H2>{user?.full_name}</H2>
             <P muted>
-              {user?.email} · {user?.role}
+              {user?.email} · {user ? t(`role_${user.role}`) : ''}
             </P>
             {user?.region && <P muted>{`📍 ${user.region.name}, ${user.region.district}`}</P>}
           </View>
@@ -51,16 +43,14 @@ export default function Profile() {
           ]}
         />
       </Card>
-      {user?.role === 'caregiver' && consents.data && (
-        <Card>
-          <H2 emoji="🔒">{t('consents')}</H2>
-          <Toggle label={t('consentData')} value={consents.data.data_processing} onChange={() => undefined} />
-          <Toggle label={t('consentAI')} value={consents.data.ai_analysis} onChange={(v) => setConsent('ai_analysis', v)} />
-          <Toggle label={t('consentSatusehat')} value={consents.data.satusehat_sharing} onChange={(v) => setConsent('satusehat_sharing', v)} />
-          <Toggle label={t('consentResearch')} value={consents.data.research_use} onChange={(v) => setConsent('research_use', v)} />
-        </Card>
-      )}
-      {error && <ErrorBox message={error} />}
+      <SyncBanner />
+      <Card>
+        {user?.role === 'caregiver' && (
+          <ListRow emoji="🔐" title={t('dataPrivacy')} subtitle={consents.data ? `${on}/4 ${t('consentsOn')}` : t('dataPrivacySub')} onPress={() => router.push('/privacy')} />
+        )}
+        <ListRow emoji="🔔" title={t('notifications')} onPress={() => router.push('/notifications')} />
+        <ListRow emoji="📖" title={t('healthGuide')} subtitle={t('worksOffline')} onPress={() => router.push('/guide')} />
+      </Card>
       <Card>
         <P muted style={{ fontSize: 12 }}>
           {t('serverUrl')}: {getBaseUrl()}
@@ -69,7 +59,6 @@ export default function Profile() {
           AI: {health.data?.ai.claude_enabled ? `Claude (${health.data.ai.model})` : t('aiBy_rules')}
         </P>
       </Card>
-      <Button title={t('notifications')} variant="secondary" icon="notifications-outline" onPress={() => router.push('/notifications')} />
       <Button
         title={t('logout')}
         variant="ghost"

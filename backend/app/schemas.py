@@ -78,6 +78,7 @@ class SymptomIn(BaseModel):
     symptoms: list[str] = []
     appetite: str | None = Field(default=None, pattern="^(good|reduced|poor)$")
     duration_days: int | None = Field(default=None, ge=0, le=365)
+    client_uuid: str | None = Field(default=None, max_length=64, description="Idempotency key for offline sync")
 
 
 class MealItemIn(BaseModel):
@@ -92,6 +93,7 @@ class MealIn(BaseModel):
     eaten_at: str | None = None
     source: str = "manual"
     ai_notes: str | None = None
+    client_uuid: str | None = Field(default=None, max_length=64, description="Idempotency key for offline sync")
 
 
 class MenuSuggestIn(BaseModel):
@@ -114,6 +116,7 @@ class CaseUpdateIn(BaseModel):
     assigned_to_id: int | None = None
     doctor_id: int | None = None
     note: str | None = Field(default=None, max_length=4000)
+    share_with_family: bool = Field(default=False, description="Show this note to the caregiver as a health-worker recommendation")
 
 
 class SupplyRequestIn(BaseModel):

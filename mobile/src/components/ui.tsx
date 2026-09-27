@@ -18,8 +18,9 @@ import Svg, { Circle, Path } from 'react-native-svg';
 
 import { useAuth } from '../lib/auth';
 import { FOOD_GROUPS, FRIENDLY_RISK } from '../lib/fun';
+import { clinicalStatus } from '../lib/status';
 import type { RiskLevel } from '../lib/types';
-import { colors, radius, riskColor, shadow, tilePalette } from '../theme';
+import { colors, radius, shadow, StatusKey, statusColor, tilePalette, TOUCH } from '../theme';
 import { Mascot, Mood } from './Mascot';
 import { Text, TextInput } from './Text';
 
@@ -152,11 +153,11 @@ export function Field({ label, ...props }: TextInputProps & { label: string }) {
   );
 }
 
-export function Toggle({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
+export function Toggle({ label, value, onChange, disabled }: { label: string; value: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
     <View style={styles.toggleRow}>
       <Text style={[styles.p, { flex: 1, marginRight: 8 }]}>{label}</Text>
-      <Switch value={value} onValueChange={onChange} trackColor={{ true: colors.mint, false: '#E6D9D2' }} thumbColor="#fff" />
+      <Switch value={value} onValueChange={onChange} disabled={disabled} accessibilityLabel={label} trackColor={{ true: colors.mint, false: '#E6D9D2' }} thumbColor="#fff" />
     </View>
   );
 }
@@ -180,22 +181,83 @@ export function Segmented<T extends string>({ options, value, onChange }: { opti
   return (
     <View style={styles.segment}>
       {options.map((o) => (
-        <Pressable key={o.value} onPress={() => onChange(o.value)} style={[styles.segmentItem, value === o.value && styles.segmentActive]}>
-          <Text style={{ color: value === o.value ? '#fff' : colors.muted, fontWeight: '700' }}>{o.label}</Text>
+        <Pressable
+          key={o.value}
+          onPress={() => onChange(o.value)}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: value === o.value }}
+          style={[styles.segmentItem, value === o.value && styles.segmentActive]}
+        >
+          <Text style={{ color: value === o.value ? '#fff' : colors.text, fontWeight: value === o.value ? '900' : '700' }}>{o.label}</Text>
         </Pressable>
       ))}
     </View>
   );
 }
 
-/** Caregivers see warm wording ("Growing well 🌱"); staff see the clinical risk label. */
+/** Caregivers see warm wording ("🟢 Tumbuh baik"); staff see the clinical risk label. Icon + text + colour. */
 export function RiskBadge({ level, large, clinical }: { level: RiskLevel | null | undefined; large?: boolean; clinical?: boolean }) {
   const { t, lang, user } = useAuth();
-  if (!level) return <Badge text={t('notAssessed')} fg={colors.muted} bg="#F3ECE8" />;
-  const c = riskColor[level];
+  if (!level) return <StatusPill status="unknown" label={t('notAssessed')} large={large} />;
   const friendly = !clinical && user?.role === 'caregiver';
-  const text = friendly ? `${FRIENDLY_RISK[level].emoji} ${FRIENDLY_RISK[level][lang]}` : t(`risk_${level}`);
-  return <Badge text={text} fg={c.fg} bg={c.bg} large={large} />;
+  if (friendly) {
+    const key = level === 'low' ? 'ok' : level === 'medium' ? 'monitor' : 'action';
+    return <StatusPill status={key} label={FRIENDLY_RISK[level][lang]} large={large} />;
+  }
+  return <StatusPill status={clinicalStatus(level)} label={t(`risk_${level}`)} large={large} />;
+}
+
+/** Semantic status: coloured dot + text label, never colour alone. */
+export function StatusPill({ status, label, large }: { status: StatusKey; label: string; large?: boolean }) {
+  const c = statusColor[status];
+  return (
+    <View
+      accessibilityLabel={label}
+      style={[styles.badge, { backgroundColor: c.bg, flexDirection: 'row', alignItems: 'center', gap: 6 }, large && { paddingHorizontal: 14, paddingVertical: 8 }]}
+    >
+      <Text style={{ fontSize: large ? 14 : 11 }}>{c.dot}</Text>
+      <Text style={{ color: c.fg, fontWeight: '800', fontSize: large ? 17 : 13 }}>{label}</Text>
+    </View>
+  );
+}
+
+/** Makes clear who is speaking: AI guidance (purple) vs a real health worker (blue). */
+export function SourceTag({ kind }: { kind: 'ai' | 'pro' }) {
+  const { t } = useAuth();
+  const c = kind === 'ai' ? statusColor.ai : statusColor.info;
+  return (
+    <View style={[styles.badge, { backgroundColor: c.bg, marginBottom: 8 }]}>
+      <Text style={{ color: c.fg, fontWeight: '800', fontSize: 13 }}>{kind === 'ai' ? `🤖 ${t('aiGuidance')}` : `👩‍⚕️ ${t('proRecommendation')}`}</Text>
+    </View>
+  );
+}
+
+/** A tappable list row (min 56 px tall) used for secondary features inside journeys. */
+export function ListRow({ emoji, title, subtitle, onPress, right }: { emoji: string; title: string; subtitle?: string; onPress?: () => void; right?: React.ReactNode }) {
+  return (
+    <PressScale onPress={onPress} accessibilityRole="button" style={styles.listRow}>
+      <View style={styles.listIcon}>
+        <Text style={{ fontSize: 20 }}>{emoji}</Text>
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontWeight: '800', fontSize: 16 }}>{title}</Text>
+        {subtitle ? <Text style={{ color: colors.muted, fontSize: 13 }}>{subtitle}</Text> : null}
+      </View>
+      {right ?? <Ionicons name="chevron-forward" size={20} color={colors.muted} />}
+    </PressScale>
+  );
+}
+
+/** Section header that shows where the user is in the Pantau → Pahami → Perbaiki → Ikuti → Tindak lanjut journey. */
+export function JourneyHeader({ step, emoji, title }: { step: string; emoji: string; title: string }) {
+  return (
+    <View style={{ marginTop: 10, marginBottom: 8 }}>
+      <Text style={{ fontSize: 12, fontWeight: '900', color: colors.primaryDark, letterSpacing: 1.2 }}>
+        {emoji} {step.toUpperCase()}
+      </Text>
+      <Text style={{ fontSize: 19, fontWeight: '900' }}>{title}</Text>
+    </View>
+  );
 }
 
 export function Badge({ text, fg, bg, large }: { text: string; fg: string; bg: string; large?: boolean }) {
@@ -236,12 +298,14 @@ export function Tile({ emoji, title, subtitle, onPress, color = 0, wide }: { emo
 
 /** Nuri talking to the mother. */
 export function Bubble({ children, mood = 'happy', tint = colors.mintSoft }: { children: React.ReactNode; mood?: Mood; tint?: string }) {
+  // Plain text (including "Hi {name}!" style mixes of strings) gets the app font; elements render as given.
+  const plain = React.Children.toArray(children).every((c) => typeof c === 'string' || typeof c === 'number');
   return (
     <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginBottom: 12 }}>
       <Mascot size={56} mood={mood} />
       <View style={[styles.bubble, { backgroundColor: tint }]}>
         <View style={[styles.bubbleTail, { borderRightColor: tint }]} />
-        {typeof children === 'string' ? <Text style={[styles.p, { fontWeight: '600' }]}>{children}</Text> : children}
+        {plain ? <Text style={[styles.p, { fontWeight: '600' }]}>{children}</Text> : children}
       </View>
     </View>
   );
@@ -320,13 +384,15 @@ export const styles = StyleSheet.create({
   label: { fontSize: 13, fontWeight: '700', color: colors.muted, marginBottom: 6, marginLeft: 4 },
   input: { borderWidth: 2, borderColor: '#F4E6DF', borderRadius: radius.md, paddingHorizontal: 16, paddingVertical: 12, fontSize: 17, backgroundColor: '#FFFCFA', color: colors.text },
   button: { borderRadius: radius.pill, paddingVertical: 15, paddingHorizontal: 20, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginVertical: 5 },
-  buttonSmall: { paddingVertical: 9, paddingHorizontal: 14 },
+  buttonSmall: { paddingVertical: 9, paddingHorizontal: 14, minHeight: TOUCH },
   buttonInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   buttonText: { fontSize: 16, fontWeight: '800' },
-  toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8 },
-  chip: { borderWidth: 2, borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 8, marginRight: 8, marginBottom: 8 },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, minHeight: TOUCH },
+  chip: { borderWidth: 2, borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 8, marginRight: 8, marginBottom: 8, minHeight: TOUCH, justifyContent: 'center' },
+  listRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, minHeight: 56 },
+  listIcon: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
   segment: { flexDirection: 'row', backgroundColor: '#F6EAE4', borderRadius: radius.pill, padding: 4, marginBottom: 14 },
-  segmentItem: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: radius.pill },
+  segmentItem: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 8, minHeight: TOUCH, borderRadius: radius.pill },
   segmentActive: { backgroundColor: colors.primary },
   badge: { borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4, alignSelf: 'flex-start' },
   stat: { flex: 1, minWidth: 96, backgroundColor: colors.card, borderRadius: radius.md, padding: 14, ...shadow },
