@@ -141,7 +141,15 @@ With Claude enabled, Nuri adds two extra ideas under the same rules.
 
 ### Claude AI and the offline fallback
 
-Every AI feature works without internet or an API key: rules, WHO tables and the scikit-learn model always run.
+Without internet or an API key, the rules, WHO tables and the scikit-learn model always run. The exceptions are NutriScan photo recognition and open-ended Nuri answers. Without a key, mothers pick foods from a list instead, and Nuri answers from its built-in FAQ.
+
+**Offline symptom reading** (`backend/app/ai/symptoms.py`) handles how mothers actually write:
+- It first normalises the text: "-nya" suffixes, hyphens, slang such as *gak*, *bgt*, *lemes* and *cepet*, spelling variants such as *nafas* → *napas*, and stretched words such as *panaaas*.
+- It then matches fixed phrases, plus body words and state words that appear close together in either order. So "napasnya cepat sekali", "cepat sekali napasnya" and "BAB-nya cair" are all understood.
+- Negated statements ("tidak sesak", "no fever") are ignored.
+- Resolved symptoms ("demamnya sudah turun") are ignored. Danger signs are the exception: "kejangnya sudah berhenti" still counts.
+- "sudah tidak menyusu" is read as weaned, not as unable to drink.
+- `tests/test_ai.py` covers these cases with real phrasings and with statements that must not raise an alarm.
 
 When `NUTRISENSE_ANTHROPIC_API_KEY` is set, Claude (`claude-opus-5` by default) adds:
 - **Symptom understanding** of free text in any language. Results are merged with the rule layer by union, so an AI miss can never hide a danger sign.
@@ -175,7 +183,7 @@ This is the overfitting risk Appendix B already flags as future work.
 ## Tests and checks
 
 ```bash
-cd backend && pytest -q            # 65 tests: WHO z-scores vs published tables, model quality, triage,
+cd backend && pytest -q            # 112 tests: WHO z-scores vs published tables, model quality, triage,
                                    # symptom lexicon, the full caregiver→Kader→officer→locker workflow,
                                    # RBAC, consent, encryption at rest, FHIR, offline sync
 cd mobile && npx tsc --noEmit && npx eslint src

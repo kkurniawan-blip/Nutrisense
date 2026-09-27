@@ -54,6 +54,73 @@ def test_symptom_lexicon(text, expected):
     assert expected <= set(symptoms.interpret_rules(text)["symptoms"])
 
 
+# How mothers actually write: "-nya" suffixes, slang, word order, hyphens, English.
+@pytest.mark.parametrize("text,expected", [
+    ("badannya panas sejak kemarin dan napasnya cepat sekali", {"fever", "fast_breathing"}),
+    ("napasnya cepet bgt", {"fast_breathing"}),
+    ("cepat sekali napasnya dari tadi", {"fast_breathing"}),
+    ("nafasnya berat dan ngos-ngosan", {"fast_breathing"}),
+    ("anak saya susah bernafas", {"fast_breathing"}),
+    ("tidak demam tapi sesak", {"fast_breathing"}),
+    ("he is breathing very fast", {"fast_breathing"}),
+    ("my daughter struggles to breathe", {"fast_breathing"}),
+    ("dia rewel terus dan BAB-nya cair", {"diarrhea"}),
+    ("pupnya encer 5x sehari", {"diarrhea"}),
+    ("buang air besar terus dari pagi", {"diarrhea"}),
+    ("pupnya encer dan ada darahnya", {"diarrhea", "bloody_stool"}),
+    ("his poop is watery", {"diarrhea"}),
+    ("kejangnya sudah berhenti tapi tadi lama", {"convulsions"}),
+    ("tadi malam badannya kaku dan matanya mendelik", {"convulsions"}),
+    ("anaknya lemas sekali dan susah dibangunkan", {"lethargy"}),
+    ("dia gak mau makan, lemes bgt", {"poor_appetite", "lethargy"}),
+    ("tidak mau makan dan minum sejak kemarin", {"poor_appetite", "unable_to_drink"}),
+    ("sudah tidak mau menyusu", {"unable_to_drink"}),
+    ("dia tidak mau ASI", {"unable_to_drink"}),
+    ("muntah terus setiap habis minum", {"vomiting", "vomits_everything"}),
+    ("kakinya bengkak dua-duanya", {"oedema"}),
+    ("mukanya sembab", {"oedema"}),
+    ("suhu 39,5 derajat", {"fever", "high_fever"}),
+    ("demamnya tinggi sekali", {"fever", "high_fever"}),
+    ("anak GTM seminggu ini", {"poor_appetite"}),
+    ("panaaas badannya", {"fever"}),
+])
+def test_symptom_real_phrasings(text, expected):
+    assert expected <= set(symptoms.interpret_rules(text)["symptoms"])
+
+
+# Negated, resolved or unrelated statements must not raise a finding (least of all a danger sign).
+@pytest.mark.parametrize("text,absent", [
+    ("tidak demam, tidak sesak", {"fever", "fast_breathing"}),
+    ("napasnya tidak cepat", {"fast_breathing"}),
+    ("anak tidak napas cepat", {"fast_breathing"}),
+    ("tidak pernah kejang", {"convulsions"}),
+    ("no fever, eating well", {"fever", "poor_appetite"}),
+    ("he is not breathing fast", {"fast_breathing"}),
+    ("sudah tidak ASI lagi, sekarang minum susu sapi", {"unable_to_drink"}),
+    ("sudah tidak menyusu, makannya banyak", {"unable_to_drink", "poor_appetite"}),
+    ("susah minum obat", {"unable_to_drink"}),
+    ("tidak rewel dan makan lahap", {"poor_appetite"}),
+    ("demamnya sudah turun", {"fever"}),
+    ("diarenya sudah sembuh", {"diarrhea"}),
+    ("tidak ada batuk pilek", {"cough", "runny_nose"}),
+    ("berat badannya naik, tidak kurus", {"weight_loss"}),
+])
+def test_symptom_negation_and_resolution(text, absent):
+    assert not absent & set(symptoms.interpret_rules(text)["symptoms"])
+
+
+@pytest.mark.parametrize("text,days", [
+    ("mencret sejak kemarin", 1), ("demam dua hari", 2), ("batuk seminggu", 7), ("fever for 3 days", 3), ("diare dari kemarin lusa", 2),
+])
+def test_symptom_duration(text, days):
+    assert symptoms.interpret_rules(text)["duration_days"] == days
+
+
+def test_danger_sign_from_free_text_reaches_the_report():
+    r = symptoms.interpret("badannya panas sejak kemarin dan napasnya cepat sekali")
+    assert "fast_breathing" in r["danger_signs"] and r["interpreted_by"] == "rules"
+
+
 def test_symptom_duration_and_danger():
     r = symptoms.interpret("BAB cair sudah dua hari, anak lemas sekali", lang="id")
     assert r["duration_days"] == 2

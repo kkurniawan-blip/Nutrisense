@@ -18,28 +18,168 @@ SYMPTOM_KEYS = [
 # WHO IMCI general danger signs + signs that need same-day facility care.
 DANGER_SIGNS = {"unable_to_drink", "vomits_everything", "convulsions", "lethargy", "fast_breathing", "bloody_stool", "oedema"}
 
-LEXICON: dict[str, list[str]] = {
-    "diarrhea": [r"diare", r"mencret", r"menceret", r"\bbab cair", r"berak (air|cair|encer)", r"buang air besar (cair|terus)", r"diarr?h?oea", r"diarrhea", r"loose stool", r"watery stool"],
-    "bloody_stool": [r"(bab|berak|feses|tinja)\s*(ber)?darah", r"blood(y)? (in )?stool", r"darah (di|pada) (bab|tinja|feses)"],
-    "fever": [r"demam", r"\bpanas\b", r"badan panas", r"meriang", r"fever", r"\bhot\b"],
-    "high_fever": [r"panas tinggi", r"demam tinggi", r"high fever", r"\b(39|40|41)([.,]\d)?\s*(°|derajat|c\b)"],
+# ---------------------------------------------------------------------------------------------
+# Rule layer. Text is normalised first (lower case, "-nya" and hyphens removed, slang and spelling
+# variants unified), then matched two ways:
+#   * PHRASES: fixed expressions ("mencret", "tidak sadar", "can't breathe");
+#   * NEAR: a body word and a state word close together in either order, so "napasnya cepat
+#     sekali", "cepat sekali napasnya" and "BAB-nya cair" are all understood.
+# A finding is dropped when it is negated just before it ("tidak sesak", "no fever") or, for
+# non-danger symptoms only, reported as resolved just after it ("diarenya sudah sembuh").
+# A convulsion that has stopped is still a danger sign, so danger signs are never "resolved".
+# ---------------------------------------------------------------------------------------------
+
+_STOOL = r"bab|berak|pup|pups|poop|poo|eek|beol|feses|tinja|stools?|bowel|poos"
+_NEG = r"tidak|bukan|tanpa|belum|no|not|without|never|isn't|doesn't|didn't|hasn't|don't|aren't|wasn't"
+
+PHRASES: dict[str, list[str]] = {
+    "diarrhea": [r"diare", r"mencret", r"menceret", r"diarr?h?oea", r"diarrh?ea", r"the runs"],
+    "bloody_stool": [r"darah (di|pada|dalam) (bab|tinja|feses)"],
+    "fever": [r"demam", r"\bpanas\b", r"meriang", r"sumeng", r"badan (terasa )?hangat", r"suhu (tinggi|naik)", r"fever", r"feverish", r"\bhot\b",
+              r"temperature"],
+    "high_fever": [r"high fever"],
     "cough": [r"batuk", r"cough"],
-    "runny_nose": [r"pilek", r"ingus", r"hidung meler", r"runny nose", r"flu\b"],
-    "fast_breathing": [r"sesak", r"napas cepat", r"nafas cepat", r"susah (bernapas|bernafas)", r"tarikan dinding dada", r"fast breathing", r"difficult(y)? breathing", r"short(ness)? of breath"],
-    "vomiting": [r"muntah", r"vomit", r"throwing up"],
-    "vomits_everything": [r"muntah (terus|semua|setiap)", r"semua (yang )?(dimakan|diminum) (dimuntahkan|keluar)", r"vomits everything", r"can'?t keep (anything|food) down"],
-    "convulsions": [r"kejang", r"\bstep\b", r"stuip", r"convulsion", r"seizure", r"fits?\b"],
-    "lethargy": [r"lemas sekali", r"sangat lemas", r"tidak sadar", r"susah dibangunkan", r"lemah sekali", r"letargi", r"letharg", r"unconscious", r"hard to wake", r"very weak"],
-    "unable_to_drink": [r"tidak (mau|bisa) (minum|menyusu|netek)", r"tidak mau (asi|nyusu)", r"unable to (drink|breastfeed)", r"won'?t (drink|breastfeed)", r"refus(es|ing) to (drink|breastfeed)"],
-    "poor_appetite": [r"(tidak|tak|kurang|ga|gak|nggak) (mau |nafsu |napsu )?makan", r"susah makan", r"nafsu makan (turun|kurang|berkurang|hilang)", r"napsu makan", r"(poor|loss of|no) appetite", r"won'?t eat", r"refus(es|ing) (to eat|food)", r"lepeh"],
-    "oedema": [r"bengkak (di )?(kaki|kedua kaki|punggung kaki|wajah)", r"kaki bengkak", r"swollen (feet|legs)", r"oedema", r"edema"],
-    "weight_loss": [r"(berat badan|bb) (turun|berkurang|tidak naik)", r"(makin|tambah) kurus", r"kurus", r"weight loss", r"losing weight", r"not gaining weight"],
-    "sunken_eyes": [r"mata cekung", r"sunken eyes", r"ubun[- ]ubun cekung"],
-    "rash": [r"ruam", r"bintik merah", r"campak", r"rash", r"measles"],
+    "runny_nose": [r"pilek", r"ingus", r"hidung (meler|tersumbat|mampet)", r"runny nose", r"stuffy nose", r"flu\b"],
+    "fast_breathing": [r"sesak", r"ngos ngosan", r"tersengal", r"megap", r"tarikan dinding dada", r"dada (tertarik|cekung)",
+                       r"(tidak bisa|susah|sulit|kesulitan) (ber)?napas", r"can't breathe", r"cannot breathe", r"shortness of breath",
+                       r"short of breath", r"chest (in )?drawing", r"wheez"],
+    "vomiting": [r"muntah", r"vomit", r"throwing up", r"throws up", r"threw up"],
+    "vomits_everything": [r"semua (yang )?(dimakan|diminum|masuk) (dimuntahkan|keluar)", r"can't keep (anything|food|water) down"],
+    "convulsions": [r"kejang", r"\bstep\b", r"stuip", r"kelojotan", r"mata (mendelik|melotot|ke atas)", r"convuls", r"seizure", r"\bfits?\b", r"fitting"],
+    "lethargy": [r"tidak sadar", r"pingsan", r"(susah|sulit|tidak bisa) dibangunkan", r"tidak (mau |bisa )?bangun", r"tidak (respon|merespon|bereaksi)",
+                 r"letargi", r"letharg", r"unconscious", r"unresponsive", r"hard to wake", r"won't wake", r"not waking", r"floppy"],
+    "unable_to_drink": [r"(tidak|susah|sulit) (mau |bisa )?makan (dan|atau|maupun|ataupun) minum", r"tidak (mau|bisa) (asi|susu)", r"menolak (asi|susu)",
+                        r"unable to (drink|breastfeed)"],
+    "poor_appetite": [r"\bgtm\b", r"lepeh", r"nafsu makan (turun|kurang|berkurang|hilang|menurun)", r"makan (cuma |hanya )?sedikit",
+                      r"(poor|loss of|no) appetite", r"eats? (very )?little"],
+    "oedema": [r"oedema", r"edema"],
+    "weight_loss": [r"(berat badan|bb|berat) (turun|berkurang|tidak naik|menurun)", r"(makin|tambah|semakin) kurus", r"kurus", r"weight loss",
+                    r"losing weight", r"lost weight", r"not gaining weight"],
+    "sunken_eyes": [r"mata cekung", r"sunken eyes", r"ubun ubun cekung"],
+    "rash": [r"ruam", r"bintik (bintik )?merah", r"campak", r"rash", r"measles"],
     "worms": [r"cacing", r"worms?\b"],
-    "repeated_illness": [r"sering sakit", r"sakit terus", r"bolak[- ]balik sakit", r"keeps getting sick", r"often sick", r"frequently ill"],
+    "repeated_illness": [r"sering sakit", r"sakit terus", r"bolak balik sakit", r"keeps getting sick", r"often sick", r"frequently ill"],
 }
-_COMPILED = {k: [re.compile(p, re.IGNORECASE) for p in pats] for k, pats in LEXICON.items()}
+
+# (symptom, body/subject word, state word, max tokens apart, exclude-if-next-token)
+NEAR: list[tuple[str, str, str, int, str | None]] = [
+    ("fast_breathing", r"(ber)?napas|breath|breathe|breathes|breathing",
+     r"cepat|sesak|susah|sulit|berat|pendek|fast|faster|quick|quickly|rapid|rapidly|hard|heavy|heavily|difficult|laboured|labored|struggling|struggles",
+     3, None),
+    ("diarrhea", _STOOL, r"cair|encer|air|lembek|watery|loose|runny|liquid", 3, None),
+    ("diarrhea", _STOOL, r"terus|sering|berkali|terus menerus", 2, None),
+    ("bloody_stool", _STOOL, r"darah|berdarah|blood|bloody", 4, None),
+    ("high_fever", r"panas|demam|suhu|fever|temperature", r"tinggi|high|very", 3, None),
+    ("vomits_everything", r"muntah|vomit|vomits|vomiting|throws|throwing",
+     r"terus|semua|setiap|tiap|everything|all|constantly|nonstop", 3, None),
+    ("convulsions", r"badan|tubuh|body", r"kaku|kelojotan|stiff|jerking|shaking", 2, None),
+    ("lethargy", r"lemas|lemah|lesu|loyo|lunglai|weak|limp", r"sekali|sangat|very|really|extremely", 2, None),
+    ("lethargy", r"tidur|sleeping|sleepy|sleeps", r"terus|very|all|unusually", 2, None),
+    ("unable_to_drink", r"tidak|susah|sulit|menolak|ogah|refuses|refusing|won't|can't|cannot|unable|not",
+     r"minum|menyusu|nyusu|netek|nenen|mimik|drink|drinks|drinking|breastfeed|breastfeeding|nurse|nursing", 2,
+     r"obat|vitamin|sirup|puyer|medicine|medicines|syrup"),
+    ("poor_appetite", r"tidak|susah|sulit|kurang|menolak|ogah|malas|males|won't|refuses|refusing|not|doesn't|don't|hardly",
+     r"makan|eat|eats|eating|food", 2, None),
+    ("oedema", r"bengkak|sembab|swollen|swelling|puffy",
+     r"kaki|telapak|punggung|wajah|muka|kelopak|feet|foot|leg|legs|face|ankle|ankles|eyelids", 3, None),
+]
+
+_SLANG = {
+    "gak": "tidak", "ga": "tidak", "nggak": "tidak", "ngga": "tidak", "enggak": "tidak", "engga": "tidak", "gk": "tidak",
+    "tdk": "tidak", "tak": "tidak", "ndak": "tidak", "nda": "tidak", "g": "tidak",
+    "bgt": "sekali", "banget": "sekali", "amat": "sekali",
+    "nafas": "napas", "bernafas": "bernapas", "nafasnya": "napas", "yg": "yang", "sdh": "sudah", "udah": "sudah",
+    "blm": "belum", "dgn": "dengan", "trs": "terus", "terusan": "terus", "hr": "hari", "anget": "hangat", "lemes": "lemas", "cepet": "cepat", "cpt": "cepat", "lemess": "lemas", "sesek": "sesak", "mencrett": "mencret",
+    "cant": "can't", "wont": "won't", "doesnt": "doesn't", "dont": "don't", "isnt": "isn't",
+}
+_PHRASE_NORMALISE = [(r"buang air besar", "bab"), (r"buang air (cair|encer)", "bab cair"), (r"b\.a\.b", "bab")]
+_BREAKS = re.compile(r"[.,;!?\n()]+|\b(?:tapi|tetapi|namun|but|however|walaupun|meskipun|although)\b")
+_STOP_BACK = {"dan", "and", "serta", "juga", "lalu", "kemudian", "then", "also"}
+_RESOLVED = re.compile(r"^(sudah |already |has |have )?(sembuh|hilang|reda|turun|berhenti|membaik|stopped|gone|resolved|better)\b")
+_BREASTFEED = re.compile(r"menyusu|nyusu|netek|nenen|breastfeed|breastfeeding|nursing")
+_TEMP_HIGH = re.compile(r"\b(39|4[0-2])([.,]\d)?\s*(°|derajat|c\b)", re.IGNORECASE)
+
+_COMPILED = {k: [re.compile(p) for p in pats] for k, pats in PHRASES.items()}
+_NEAR = [(k, re.compile(rf"(?:{a})"), re.compile(rf"(?:{b})"), w, re.compile(rf"(?:{x})") if x else None) for k, a, b, w, x in NEAR]
+_NEG_RE = re.compile(rf"(?:{_NEG})")
+
+
+def _tokens(clause: str) -> list[str]:
+    out = []
+    for tok in re.findall(r"[a-z0-9°']+", clause):
+        tok = _SLANG.get(tok, tok)
+        if tok in ("nya", "lah", "kah"):
+            continue
+        if len(tok) > 5 and tok.endswith("nya"):
+            tok = _SLANG.get(tok[:-3], tok[:-3])
+        out.extend(tok.split())
+    return out
+
+
+def _clauses(text: str) -> list[list[str]]:
+    t = re.sub(r"(\w)\1{2,}", r"\1", text.lower())  # "panaaas" -> "panas"
+    t = t.replace("-", " ").replace("’", "'")
+    for pat, rep in _PHRASE_NORMALISE:
+        t = re.sub(pat, rep, t)
+    return [toks for part in _BREAKS.split(t) if part and (toks := _tokens(part))]
+
+
+def _negated_before(toks: list[str], start: int) -> bool:
+    for i in range(start - 1, max(-1, start - 4), -1):
+        if toks[i] in _STOP_BACK:
+            return False
+        if _NEG_RE.fullmatch(toks[i]):
+            return True
+    return False
+
+
+def _resolved_after(toks: list[str], end: int) -> bool:
+    return bool(_RESOLVED.match(" ".join(toks[end:end + 3])))
+
+
+def _accept(key: str, toks: list[str], start: int, end: int) -> bool:
+    if _negated_before(toks, start):
+        return False
+    return key in DANGER_SIGNS or not _resolved_after(toks, end)
+
+
+def _match_clause(toks: list[str]) -> set[str]:
+    found: set[str] = set()
+    joined = " ".join(toks)
+    offsets = [0]
+    for tok in toks:
+        offsets.append(offsets[-1] + len(tok) + 1)
+    def token_at(char: int) -> int:
+        return max(i for i, o in enumerate(offsets[:-1]) if o <= char)
+
+    for key, pats in _COMPILED.items():
+        for p in pats:
+            if any(_accept(key, toks, token_at(m.start()), token_at(m.end() - 1) + 1) for m in p.finditer(joined)):
+                found.add(key)
+                break
+    for key, a, b, window, exclude in _NEAR:
+        a_idx = [i for i, t in enumerate(toks) if a.fullmatch(t)]
+        if not a_idx:
+            continue
+        b_idx = [i for i, t in enumerate(toks) if b.fullmatch(t)]
+        for i in a_idx:
+            for j in b_idx:
+                if i == j or abs(i - j) > window:
+                    continue
+                lo, hi = min(i, j), max(i, j)
+                if exclude and hi + 1 < len(toks) and exclude.fullmatch(toks[hi + 1]):
+                    continue
+                negation_is_the_concept = bool(_NEG_RE.fullmatch(toks[i]))
+                between_negated = not negation_is_the_concept and any(_NEG_RE.fullmatch(t) for t in toks[lo + 1:hi])
+                if between_negated or (not negation_is_the_concept and not _accept(key, toks, lo, hi + 1)):
+                    continue
+                if negation_is_the_concept and _negated_before(toks, lo):
+                    continue  # "bukan tidak mau makan": double negation
+                if key == "unable_to_drink" and j == i + 1 and i > 0 and toks[i - 1] == "sudah" and _BREASTFEED.fullmatch(toks[j]):
+                    continue  # "sudah tidak menyusu" = weaned, not a danger sign ("sudah tidak mau menyusu" still counts)
+                found.add(key)
+    return found
+
 
 _NUM_WORDS = {"satu": 1, "se": 1, "dua": 2, "tiga": 3, "empat": 4, "lima": 5, "enam": 6, "tujuh": 7,
               "one": 1, "a": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7}
@@ -57,17 +197,26 @@ def _duration_days(text: str) -> int | None:
     m = re.search(r"\bse(hari|minggu)\b", lower)
     if m:
         return _UNIT_DAYS[m.group(1)]
+    if re.search(r"kemarin lusa|two days ago", lower):
+        return 2
+    if re.search(r"sejak kemarin|dari kemarin|since yesterday", lower):
+        return 1
     return None
 
 
 def interpret_rules(text: str) -> dict:
-    found = [k for k, pats in _COMPILED.items() if any(p.search(text) for p in pats)]
-    if "vomits_everything" in found and "vomiting" not in found:
-        found.append("vomiting")
-    if "high_fever" in found and "fever" not in found:
-        found.append("fever")
-    # "tidak mau makan" must not be mistaken for inability to drink, and vice versa.
-    return {"symptoms": sorted(set(found)), "duration_days": _duration_days(text), "appetite": "poor" if "poor_appetite" in found else None}
+    found: set[str] = set()
+    for toks in _clauses(text or ""):
+        found |= _match_clause(toks)
+    if _TEMP_HIGH.search(text or ""):
+        found.add("high_fever")
+    if "vomits_everything" in found:
+        found.add("vomiting")
+    if "high_fever" in found:
+        found.add("fever")
+    if "bloody_stool" in found:
+        found.add("diarrhea")
+    return {"symptoms": sorted(found), "duration_days": _duration_days(text or ""), "appetite": "poor" if "poor_appetite" in found else None}
 
 
 _SCHEMA = {
