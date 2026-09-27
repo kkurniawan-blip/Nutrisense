@@ -14,6 +14,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Mascot } from '../components/Mascot';
 import { AuthProvider, useAuth } from '../lib/auth';
+import { PrefsProvider } from '../lib/prefs';
 import { SyncProvider } from '../lib/sync';
 import { colors, fonts } from '../theme';
 
@@ -31,7 +32,8 @@ function RootStack() {
     <Stack screenOptions={headerOptions}>
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false }} />
-      <Stack.Screen name="register" options={{ title: t('register') }} />
+      <Stack.Screen name="register" options={{ title: `🌱 ${t('signUp')}` }} />
+      <Stack.Screen name="settings" options={{ title: `⚙️ ${t('settings')}` }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="child/new" options={{ title: t('addChild') }} />
       <Stack.Screen name="child/[id]/index" options={{ title: '' }} />
@@ -63,12 +65,14 @@ export default function RootLayout() {
   }
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <SyncProvider>
-          <StatusBar style="dark" />
-          <RootStack />
-        </SyncProvider>
-      </AuthProvider>
+      <PrefsProvider>
+        <AuthProvider>
+          <SyncProvider>
+            <StatusBar style="dark" />
+            <RootStack />
+          </SyncProvider>
+        </AuthProvider>
+      </PrefsProvider>
     </SafeAreaProvider>
   );
 }

@@ -34,10 +34,15 @@ class LoginIn(BaseModel):
 
 
 class ProfileUpdateIn(BaseModel):
-    full_name: str | None = None
-    phone: str | None = None
+    full_name: str | None = Field(default=None, min_length=2, max_length=160)
+    phone: str | None = Field(default=None, max_length=32)
     language: str | None = Field(default=None, pattern="^(id|en)$")
     region_id: int | None = None
+
+
+class PasswordChangeIn(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8, max_length=128)
 
 
 class ChildIn(BaseModel):

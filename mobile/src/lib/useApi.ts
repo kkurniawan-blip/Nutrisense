@@ -2,6 +2,8 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 
 import { api, errorText, NetworkError } from './api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { getJSON, setJSON } from './storage';
 
 const CACHE_PREFIX = 'nutrisense.cache:';
@@ -44,4 +46,11 @@ export function useApi<T>(path: string | null) {
   );
 
   return { data, error, loading, stale, reload, setData };
+}
+
+/** Removes every cached API response from the phone (on logout, or from Settings). */
+export async function clearApiCache(): Promise<number> {
+  const keys = (await AsyncStorage.getAllKeys()).filter((k) => k.startsWith(CACHE_PREFIX));
+  if (keys.length) await AsyncStorage.multiRemove(keys);
+  return keys.length;
 }

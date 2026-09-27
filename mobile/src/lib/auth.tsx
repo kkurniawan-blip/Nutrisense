@@ -2,10 +2,14 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 
 import { api, initApi, setToken, setUnauthorizedHandler } from './api';
 import { translate, TKey } from './i18n';
+import { clearQueue } from './offline';
 import { getJSON, setJSON } from './storage';
+import { clearApiCache } from './useApi';
 import type { Lang, User } from './types';
 
 const LANG_KEY = 'nutrisense.lang';
+/** Which account the offline outbox belongs to, so queued data is never sent under someone else's login. */
+const OWNER_KEY = 'nutrisense.outboxOwner';
 
 interface AuthState {
   ready: boolean;
@@ -17,6 +21,8 @@ interface AuthState {
   register: (body: Record<string, unknown>) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  updateMe: (body: Partial<Pick<User, 'full_name' | 'phone' | 'region_id' | 'language'>>) => Promise<void>;
+  changePassword: (current: string, next: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -26,14 +32,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [lang, setLangState] = useState<Lang>('id');
 
-  const logout = useCallback(async () => {
+  // Session expired: sign out but keep queued data, the same person usually logs straight back in.
+  const expire = useCallback(async () => {
     await setToken(null);
     setUser(null);
   }, []);
 
+  // Explicit sign-out: a shared family phone must not show (or send) this account's data afterwards.
+  const logout = useCallback(async () => {
+    await expire();
+    await Promise.all([clearApiCache(), clearQueue()]).catch(() => undefined);
+  }, [expire]);
+
   useEffect(() => {
     setUnauthorizedHandler(() => {
-      void logout();
+      void expire();
     });
     (async () => {
       setLangState(await getJSON<Lang>(LANG_KEY, 'id'));
@@ -41,6 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (token) {
         try {
           const me = await api<User>('/api/auth/me');
+          if ((await getJSON<number | null>(OWNER_KEY, null)) === null) await setJSON(OWNER_KEY, me.id);
           setUser(me);
           setLangState(me.language);
         } catch {
@@ -49,9 +63,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       setReady(true);
     })();
-  }, [logout]);
+  }, [expire]);
 
   const onAuth = useCallback(async (res: { access_token: string; user: User }) => {
+    const owner = await getJSON<number | null>(OWNER_KEY, null);
+    if (owner !== res.user.id) {
+      // A different account on this phone: drop the previous account's cache and unsent data.
+      await Promise.all([clearApiCache(), clearQueue()]).catch(() => undefined);
+      await setJSON(OWNER_KEY, res.user.id);
+    }
     await setToken(res.access_token);
     setUser(res.user);
     setLangState(res.user.language);
@@ -73,6 +93,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       register: async (body) => onAuth(await api('/api/auth/register', { body })),
       logout,
       refreshUser: async () => setUser(await api<User>('/api/auth/me')),
+      updateMe: async (body) => {
+        const me = await api<User>('/api/auth/me', { method: 'PATCH', body });
+        setUser(me);
+        if (me.language !== lang) {
+          setLangState(me.language);
+          await setJSON(LANG_KEY, me.language);
+        }
+      },
+      changePassword: async (current, next) => {
+        await api('/api/auth/change-password', { body: { current_password: current, new_password: next } });
+      },
     }),
     [ready, user, lang, onAuth, logout],
   );

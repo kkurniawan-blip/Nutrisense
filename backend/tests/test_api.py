@@ -343,3 +343,23 @@ def test_simple_menu_idea_and_recipe_list(client, auth):
     assert r["simple_idea"]["text"].startswith("Tambahkan") and any(g["key"] == "grains_roots" for g in r["present_groups"])
     recipes = client.get(f"/api/children/{cid}/recipes", headers=h).json()
     assert len(recipes) >= 10 and recipes[0]["minutes"] <= recipes[-1]["minutes"]
+
+
+def test_account_settings_and_password_change(client):
+    body = {"email": "settings.mom@example.id", "password": "Awal12345", "full_name": "Ibu Settings", "consent_data_processing": True}
+    r = client.post("/api/auth/register", json=body)
+    assert r.status_code == 201
+    h = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    region = client.get("/api/regions").json()[0]["id"]
+
+    me = client.patch("/api/auth/me", json={"full_name": "Ibu Settings Baru", "phone": " ", "region_id": region, "language": "en"}, headers=h).json()
+    assert me["full_name"] == "Ibu Settings Baru" and me["phone"] is None and me["language"] == "en" and me["region_id"] == region
+    assert client.patch("/api/auth/me", json={"region_id": 999999}, headers=h).status_code == 400
+    assert client.patch("/api/auth/me", json={"full_name": "x"}, headers=h).status_code == 422
+
+    assert client.post("/api/auth/change-password", json={"current_password": "salah123", "new_password": "Baru12345"}, headers=h).status_code == 400
+    assert client.post("/api/auth/change-password", json={"current_password": "Awal12345", "new_password": "pendek"}, headers=h).status_code == 422
+    assert client.post("/api/auth/change-password", json={"current_password": "Awal12345", "new_password": "Baru12345"}, headers=h).status_code == 200
+    assert client.post("/api/auth/login", json={"email": body["email"], "password": "Awal12345"}).status_code == 401
+    assert client.post("/api/auth/login", json={"email": body["email"], "password": "Baru12345"}).status_code == 200
+    assert client.post("/api/auth/change-password", json={"current_password": "x", "new_password": "Baru12345"}).status_code == 401

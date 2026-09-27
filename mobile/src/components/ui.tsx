@@ -144,11 +144,55 @@ export function Button({
   );
 }
 
-export function Field({ label, ...props }: TextInputProps & { label: string }) {
+export function Field({ label, hint, error, ...props }: TextInputProps & { label: string; hint?: string; error?: string | null }) {
   return (
     <View style={{ marginBottom: 14 }}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
-      <TextInput placeholderTextColor="#BCAEB6" {...props} style={[styles.input, props.multiline && { minHeight: 100, textAlignVertical: 'top' }]} />
+      <TextInput
+        placeholderTextColor="#BCAEB6"
+        accessibilityLabel={label}
+        {...props}
+        style={[styles.input, props.multiline && { minHeight: 100, textAlignVertical: 'top' }, error ? { borderColor: colors.danger } : null]}
+      />
+      {error ? (
+        <Text style={{ color: colors.danger, fontSize: 13, fontWeight: '700', marginTop: 4 }}>⚠️ {error}</Text>
+      ) : hint ? (
+        <Text style={{ color: colors.muted, fontSize: 13, marginTop: 4 }}>{hint}</Text>
+      ) : null}
+    </View>
+  );
+}
+
+/** Password input with a show/hide eye button (big enough to tap). */
+export function PasswordField({ label, hint, error, showLabel, hideLabel, ...props }: TextInputProps & { label: string; hint?: string; error?: string | null; showLabel: string; hideLabel: string }) {
+  const [show, setShow] = useState(false);
+  return (
+    <View style={{ marginBottom: 14 }}>
+      <Text style={styles.label}>{label}</Text>
+      <View style={{ justifyContent: 'center' }}>
+        <TextInput
+          placeholderTextColor="#BCAEB6"
+          accessibilityLabel={label}
+          autoCapitalize="none"
+          autoCorrect={false}
+          {...props}
+          secureTextEntry={!show}
+          style={[styles.input, { paddingRight: 52 }, error ? { borderColor: colors.danger } : null]}
+        />
+        <Pressable
+          onPress={() => setShow(!show)}
+          accessibilityRole="button"
+          accessibilityLabel={show ? hideLabel : showLabel}
+          style={{ position: 'absolute', right: 4, width: TOUCH, height: TOUCH, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Ionicons name={show ? 'eye-off' : 'eye'} size={22} color={colors.muted} />
+        </Pressable>
+      </View>
+      {error ? (
+        <Text style={{ color: colors.danger, fontSize: 13, fontWeight: '700', marginTop: 4 }}>⚠️ {error}</Text>
+      ) : hint ? (
+        <Text style={{ color: colors.muted, fontSize: 13, marginTop: 4 }}>{hint}</Text>
+      ) : null}
     </View>
   );
 }

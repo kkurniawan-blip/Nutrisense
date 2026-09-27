@@ -85,3 +85,8 @@ export async function flush(): Promise<FlushResult> {
   await setJSON(QUEUE_KEY, keep);
   return { sent, failed, remaining: keep.length };
 }
+
+/** Drops everything waiting to be sent (used when signing out, so data never goes out under another account). */
+export async function clearQueue(): Promise<void> {
+  await setJSON(QUEUE_KEY, []);
+}

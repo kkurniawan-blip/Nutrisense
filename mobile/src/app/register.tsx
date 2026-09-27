@@ -1,36 +1,102 @@
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
+import { Pressable, View } from 'react-native';
 
-import { Bubble, Button, Card, Chip, ErrorBox, Field, H2, P, Screen, Toggle } from '../components/ui';
-import { api, errorText } from '../lib/api';
+import { Text } from '../components/Text';
+import { Bubble, Button, Card, Chip, ErrorBox, Field, H2, Loading, PasswordField, Row, Screen, StatusPill, Toggle } from '../components/ui';
+import { api, ApiError, errorText, NetworkError } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import type { Region } from '../lib/types';
+import { EMAIL_RE, passwordStrength } from '../lib/validate';
+import { colors, radius, statusColor, type StatusKey } from '../theme';
+
+type Consent = { data: boolean; ai: boolean; satusehat: boolean; research: boolean };
+
+const STRENGTH: Record<'weak' | 'ok' | 'strong', { status: StatusKey; width: string }> = {
+  weak: { status: 'action', width: '33%' },
+  ok: { status: 'monitor', width: '66%' },
+  strong: { status: 'ok', width: '100%' },
+};
+
+function Progress({ step }: { step: 1 | 2 }) {
+  const { t } = useAuth();
+  return (
+    <View style={{ marginBottom: 12 }} accessibilityLabel={`${t('step')} ${step} ${t('of')} 2`}>
+      <Text style={{ fontWeight: '800', color: colors.muted, marginBottom: 6 }}>
+        {t('step')} {step} {t('of')} 2 · {step === 1 ? t('signUpStep1') : t('signUpStep2')}
+      </Text>
+      <Row style={{ gap: 6 }}>
+        {[1, 2].map((i) => (
+          <View key={i} style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: i <= step ? colors.primary : colors.border }} />
+        ))}
+      </Row>
+    </View>
+  );
+}
+
+/** A consent row: badge, toggle, and one plain sentence on what it is for. */
+function ConsentRow({ badge, status, label, why, value, onChange, required }: { badge: string; status: StatusKey; label: string; why: string; value: boolean; onChange: (v: boolean) => void; required?: boolean }) {
+  return (
+    <View style={{ borderTopWidth: 1, borderColor: colors.border, paddingTop: 10, marginTop: 6 }}>
+      <StatusPill status={status} label={badge} />
+      <Toggle label={label} value={value} onChange={onChange} />
+      <Text style={{ color: required && !value ? colors.danger : colors.muted, fontSize: 13, lineHeight: 19 }}>{why}</Text>
+    </View>
+  );
+}
 
 export default function Register() {
   const { register, t, lang } = useAuth();
-  const [form, setForm] = useState({ full_name: '', email: '', password: '', phone: '' });
-  const [regions, setRegions] = useState<Region[]>([]);
+  const [step, setStep] = useState<1 | 2>(1);
+  const [form, setForm] = useState({ full_name: '', email: '', password: '', confirm: '', phone: '' });
+  const [tried, setTried] = useState(false);
+  const [regions, setRegions] = useState<Region[] | null>(null);
   const [regionId, setRegionId] = useState<number | null>(null);
-  const [consent, setConsent] = useState({ data: false, ai: true, satusehat: false, research: false });
+  const [consent, setConsent] = useState<Consent>({ data: false, ai: true, satusehat: false, research: false });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api<Region[]>('/api/regions').then(setRegions).catch((e) => setError(errorText(e)));
+    api<Region[]>('/api/regions')
+      .then(setRegions)
+      .catch((e) => {
+        setRegions([]);
+        setError(errorText(e));
+      });
   }, []);
 
+  const set = (k: keyof typeof form) => (v: string) => setForm({ ...form, [k]: v });
+  const strength = passwordStrength(form.password);
+  const errors = {
+    full_name: form.full_name.trim().length < 2 ? t('nameRequired') : null,
+    email: !EMAIL_RE.test(form.email.trim()) ? t('emailInvalid') : null,
+    password: form.password.length < 8 ? t('passwordMin') : null,
+    confirm: form.confirm !== form.password ? t('passwordMismatch') : null,
+  };
+  const step1Ok = !Object.values(errors).some(Boolean);
+  const show = (k: keyof typeof errors) => (tried || (form[k] && k !== 'full_name') ? errors[k] : null);
+
+  const next = () => {
+    setTried(true);
+    if (step1Ok) {
+      setError(null);
+      setStep(2);
+    }
+  };
+
   const submit = async () => {
-    if (!form.full_name || !form.email || form.password.length < 8 || !consent.data) {
-      setError(t('required'));
+    if (!consent.data) {
+      setError(t('consentRequired'));
       return;
     }
     setBusy(true);
     setError(null);
     try {
       await register({
-        ...form,
+        full_name: form.full_name.trim(),
         email: form.email.trim(),
-        phone: form.phone || null,
+        password: form.password,
+        phone: form.phone.trim() || null,
         region_id: regionId,
         language: lang,
         consent_data_processing: consent.data,
@@ -40,38 +106,113 @@ export default function Register() {
       });
       router.replace('/');
     } catch (e) {
-      setError(errorText(e));
+      if (e instanceof ApiError && e.status === 409) {
+        setError(t('emailTaken'));
+        setStep(1);
+      } else setError(e instanceof NetworkError ? t('cannotReachServer') : errorText(e));
     } finally {
       setBusy(false);
     }
   };
 
-  const set = (k: keyof typeof form) => (v: string) => setForm({ ...form, [k]: v });
+  const districts = [...new Set((regions ?? []).map((r) => r.district))];
+
+  if (step === 1)
+    return (
+      <Screen>
+        <Progress step={1} />
+        <Bubble mood="cheer">{t('signUpHello')}</Bubble>
+        <Card>
+          <Field label={`🙂 ${t('fullName')}`} value={form.full_name} onChangeText={set('full_name')} error={show('full_name')} autoComplete="name" textContentType="name" placeholder="Ibu Maria" />
+          <Field
+            label={`✉️ ${t('email')}`}
+            value={form.email}
+            onChangeText={set('email')}
+            error={show('email')}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            autoComplete="email"
+            textContentType="emailAddress"
+            placeholder="nama@email.com"
+          />
+          <Field label={`📱 ${t('phone')}`} value={form.phone} onChangeText={set('phone')} keyboardType="phone-pad" autoComplete="tel" hint={t('phoneHint')} placeholder="08xx" />
+          <PasswordField
+            label={`🔑 ${t('password')}`}
+            value={form.password}
+            onChangeText={set('password')}
+            error={show('password')}
+            hint={t('passwordHint')}
+            autoComplete="new-password"
+            textContentType="newPassword"
+            showLabel={t('showPassword')}
+            hideLabel={t('hidePassword')}
+          />
+          {strength && (
+            <View style={{ marginTop: -8, marginBottom: 12 }}>
+              <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.border }}>
+                <View style={{ height: 6, borderRadius: 3, width: STRENGTH[strength].width as `${number}%`, backgroundColor: statusColor[STRENGTH[strength].status].fg }} />
+              </View>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: statusColor[STRENGTH[strength].status].fg, marginTop: 4 }}>
+                {statusColor[STRENGTH[strength].status].dot} {t(`pw_${strength}`)}
+              </Text>
+            </View>
+          )}
+          <PasswordField
+            label={`🔑 ${t('confirmPassword')}`}
+            value={form.confirm}
+            onChangeText={set('confirm')}
+            error={show('confirm')}
+            autoComplete="new-password"
+            textContentType="newPassword"
+            showLabel={t('showPassword')}
+            hideLabel={t('hidePassword')}
+            onSubmitEditing={next}
+          />
+        </Card>
+        {error && <ErrorBox message={error} />}
+        <Button title={t('next')} icon="arrow-forward" onPress={next} />
+        <Pressable onPress={() => router.replace('/login')} accessibilityRole="button" style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: colors.primaryDark, fontWeight: '800' }}>{t('haveAccount')}</Text>
+        </Pressable>
+      </Screen>
+    );
 
   return (
     <Screen>
-      <Bubble mood="cheer">{t('addFirstChild')}</Bubble>
+      <Progress step={2} />
       <Card>
-        <Field label={t('fullName')} value={form.full_name} onChangeText={set('full_name')} />
-        <Field label={t('email')} value={form.email} onChangeText={set('email')} autoCapitalize="none" keyboardType="email-address" />
-        <Field label={`${t('password')} (min. 8)`} value={form.password} onChangeText={set('password')} secureTextEntry />
-        <Field label={t('phone')} value={form.phone} onChangeText={set('phone')} keyboardType="phone-pad" />
-        <P muted style={{ marginBottom: 6 }}>{t('region')}</P>
-        <Card style={{ flexDirection: 'row', flexWrap: 'wrap', padding: 8, marginBottom: 0 }}>
-          {regions.map((r) => (
-            <Chip key={r.id} label={`${r.name} (${r.district})`} selected={regionId === r.id} onPress={() => setRegionId(r.id)} />
-          ))}
-        </Card>
+        <H2 emoji="📍">{t('whereLive')}</H2>
+        <Text style={{ color: colors.muted, marginTop: -6, marginBottom: 10, lineHeight: 20 }}>{t('whereLiveSub')}</Text>
+        {!regions && <Loading />}
+        {districts.map((d) => (
+          <View key={d} style={{ marginBottom: 6 }}>
+            <Text style={{ fontWeight: '800', fontSize: 13, color: colors.muted, marginBottom: 4 }}>{d}</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+              {regions!
+                .filter((r) => r.district === d)
+                .map((r) => (
+                  <Chip key={r.id} emoji={regionId === r.id ? '✓' : undefined} label={r.name} selected={regionId === r.id} onPress={() => setRegionId(regionId === r.id ? null : r.id)} />
+                ))}
+            </View>
+          </View>
+        ))}
       </Card>
+
       <Card>
-        <H2 emoji="🔒">{t('consentTitle')}</H2>
-        <Toggle label={t('consentData')} value={consent.data} onChange={(v) => setConsent({ ...consent, data: v })} />
-        <Toggle label={t('consentAI')} value={consent.ai} onChange={(v) => setConsent({ ...consent, ai: v })} />
-        <Toggle label={t('consentSatusehat')} value={consent.satusehat} onChange={(v) => setConsent({ ...consent, satusehat: v })} />
-        <Toggle label={t('consentResearch')} value={consent.research} onChange={(v) => setConsent({ ...consent, research: v })} />
+        <H2 emoji="🔐">{t('consentTitle')}</H2>
+        <Text style={{ color: colors.muted, marginTop: -6, lineHeight: 20 }}>{t('consentIntro')}</Text>
+        <ConsentRow required badge={t('cat_required')} status="info" label={t('consentData')} why={t('consentDataWhy')} value={consent.data} onChange={(v) => setConsent({ ...consent, data: v })} />
+        <ConsentRow badge={t('cat_ai')} status="ai" label={t('consentAI')} why={t('consentAIWhy')} value={consent.ai} onChange={(v) => setConsent({ ...consent, ai: v })} />
+        <ConsentRow badge={t('cat_health')} status="ok" label={t('consentSatusehat')} why={t('consentSatusehatWhy')} value={consent.satusehat} onChange={(v) => setConsent({ ...consent, satusehat: v })} />
+        <ConsentRow badge={t('cat_optional')} status="unknown" label={t('consentResearch')} why={t('consentResearchWhy')} value={consent.research} onChange={(v) => setConsent({ ...consent, research: v })} />
+        <View style={{ backgroundColor: statusColor.info.bg, borderRadius: radius.md, padding: 10, marginTop: 12 }}>
+          <Text style={{ color: statusColor.info.fg, fontSize: 13, lineHeight: 19, fontWeight: '700' }}>ℹ️ {t('consentChangeLater')}</Text>
+        </View>
       </Card>
+
       {error && <ErrorBox message={error} />}
-      <Button title={t('register')} onPress={submit} loading={busy} disabled={!consent.data} icon="person-add-outline" />
+      <Button title={t('createAccount')} onPress={submit} loading={busy} disabled={!consent.data} icon="checkmark-circle" />
+      <Button title={t('back')} variant="ghost" icon="arrow-back" onPress={() => setStep(1)} />
     </Screen>
   );
 }

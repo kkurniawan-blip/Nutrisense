@@ -49,6 +49,22 @@ npx expo start
 | Doctor | `doctor@nutrisense.id` | Human-in-the-loop review, approve RUTF / deworming (doctor-only items), referrals |
 | Admin | `admin@nutrisense.id` | Everything above, plus user management, audit log and model retraining (API) |
 
+Or create your own mother/caregiver account with **Daftar sebagai Ibu / pengasuh** on the login screen. Kader and health-worker accounts are created by an admin (`POST /api/users`).
+
+### Accounts and settings
+
+- **Login:** email check, show/hide password, friendly errors, and "Lupa kata sandi?". The app has no email service, so this explains that a Kader or the Puskesmas resets the password.
+- **Sign up (2 steps):**
+  1. Name, email, optional phone, password with a strength meter, and a repeated password.
+  2. Village, and consent grouped as Wajib / Untuk fitur AI / Untuk layanan kesehatan / Opsional.
+- **Settings** (Profile → ⚙️ Pengaturan):
+  - edit name, phone and village;
+  - change password (`POST /api/auth/change-password`, needs the current password);
+  - language and text size (Normal / Besar / Sangat besar);
+  - offline sync status, and clearing saved data;
+  - privacy, notifications, the health guide, server address, and app/AI info.
+- **Shared phones:** logging out clears cached pages and unsent data. The app warns first if anything is still unsent. When a session expires, queued data is kept. Queued data never goes out under a different account.
+
 ---
 
 ## How it maps to the proposal
@@ -159,7 +175,7 @@ This is the overfitting risk Appendix B already flags as future work.
 ## Tests and checks
 
 ```bash
-cd backend && pytest -q            # 64 tests: WHO z-scores vs published tables, model quality, triage,
+cd backend && pytest -q            # 65 tests: WHO z-scores vs published tables, model quality, triage,
                                    # symptom lexicon, the full caregiver→Kader→officer→locker workflow,
                                    # RBAC, consent, encryption at rest, FHIR, offline sync
 cd mobile && npx tsc --noEmit && npx eslint src

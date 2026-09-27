@@ -7,7 +7,7 @@ from .. import serializers as S
 from ..database import get_db
 from ..deps import get_current_user, require_roles
 from ..models import Consent, Region, User
-from ..schemas import LoginIn, ProfileUpdateIn, RegisterIn, StaffCreateIn
+from ..schemas import LoginIn, PasswordChangeIn, ProfileUpdateIn, RegisterIn, StaffCreateIn
 from ..security import create_access_token, hash_password, verify_password
 from ..services.common import audit
 
@@ -63,11 +63,32 @@ def me(user: User = Depends(get_current_user)):
 
 @router.patch("/auth/me")
 def update_me(body: ProfileUpdateIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    for field, value in body.model_dump(exclude_unset=True).items():
+    data = body.model_dump(exclude_unset=True)
+    if data.get("region_id") is not None and db.get(Region, data["region_id"]) is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Unknown region")
+    if "full_name" in data and not data["full_name"]:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Name is required")
+    if "phone" in data:
+        data["phone"] = (data["phone"] or "").strip() or None
+    for field, value in data.items():
         setattr(user, field, value)
+    audit(db, user, "update_profile", "user", user.id, fields=sorted(data))
     db.commit()
     db.refresh(user)
     return S.user(user)
+
+
+@router.post("/auth/change-password")
+def change_password(body: PasswordChangeIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Change your own password. The current password is required so a borrowed, unlocked phone can't take over an account."""
+    if not verify_password(body.current_password, user.password_hash):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Current password is incorrect")
+    if body.current_password == body.new_password:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "The new password must be different")
+    user.password_hash = hash_password(body.new_password)
+    audit(db, user, "change_password", "user", user.id)
+    db.commit()
+    return {"ok": True}
 
 
 @router.post("/users", status_code=201)
