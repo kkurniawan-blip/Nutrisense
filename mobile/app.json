@@ -1,0 +1,55 @@
+{
+  "expo": {
+    "name": "NutriSense",
+    "slug": "nutrisense",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "id.nutrisense.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "NutriSense uses the camera to scan meals (NutriScan) and locker pickup QR codes.",
+        "NSPhotoLibraryUsageDescription": "NutriSense lets you choose a meal photo for NutriScan."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E7F5F0",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "id.nutrisense.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "output": "single",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-font",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "NutriSense uses the camera to scan locker pickup QR codes."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "NutriSense lets you choose a meal photo for NutriScan.",
+          "cameraPermission": "NutriSense uses the camera to photograph meals for NutriScan."
+        }
+      ]
+    ],
+    "scheme": "nutrisense",
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}

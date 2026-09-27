@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Backend runtime data
+backend/*.db
+backend/model_store/
+backend/uploads/
+backend/.env
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/

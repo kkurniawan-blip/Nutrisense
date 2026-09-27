@@ -1,0 +1,17 @@
+{
+  "note": "Reference stunting prevalence (% of children under five). Replace or extend with the DataMinions / ADB KIDB series used in the proposal.",
+  "series": {
+    "indonesia": {
+      "label": "Indonesia (national)",
+      "source": "Riskesdas 2013/2018, SSGBI 2019, SSGI 2021/2022/2024, SKI 2023 (Kemenkes RI)",
+      "target": {"year": 2029, "value": 14.2},
+      "data": [[2013, 37.2], [2018, 30.8], [2019, 27.7], [2021, 24.4], [2022, 21.6], [2023, 21.5], [2024, 19.8]]
+    },
+    "ntt": {
+      "label": "Nusa Tenggara Timur",
+      "source": "SSGI 2021/2022/2024, SKI 2023 (Kemenkes RI)",
+      "target": {"year": 2029, "value": 14.2},
+      "data": [[2021, 37.8], [2022, 35.3], [2023, 37.9], [2024, 37.0]]
+    }
+  }
+}
