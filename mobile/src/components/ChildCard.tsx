@@ -1,37 +1,55 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { useAuth } from '../lib/auth';
+import { childEmoji, formatAge } from '../lib/fun';
 import type { Child } from '../lib/types';
 import { colors } from '../theme';
+import { Text } from './Text';
 import { Card, RiskBadge } from './ui';
 
 export function ChildCard({ child }: { child: Child }) {
-  const { t } = useAuth();
+  const { t, lang } = useAuth();
   const a = child.latest_assessment;
   const m = child.latest_measurement;
   const emergency = a?.triage.urgency === 'emergency';
+  const girl = child.sex === 'female';
   return (
     <Card onPress={() => router.push(`/child/${child.id}`)} style={emergency ? { borderColor: colors.danger, borderWidth: 2 } : undefined}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <View style={{ backgroundColor: child.sex === 'female' ? '#FCE7F3' : '#DBEAFE', borderRadius: 24, padding: 10 }}>
-          <Ionicons name={child.sex === 'female' ? 'woman' : 'man'} size={22} color={child.sex === 'female' ? '#BE185D' : '#1D4ED8'} />
+        <View
+          style={{
+            backgroundColor: girl ? colors.pinkSoft : colors.skySoft,
+            borderRadius: 30,
+            width: 60,
+            height: 60,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 3,
+            borderColor: girl ? colors.pink : colors.sky,
+          }}
+        >
+          <Text style={{ fontSize: 30 }}>{childEmoji(child.sex, child.age_months)}</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text }}>{child.name}</Text>
-          <Text style={{ color: colors.muted, fontSize: 13 }}>
-            {Math.floor(child.age_months)} {t('months')} · {child.region?.name ?? '-'}
-            {m ? ` · ${m.height_cm} cm / ${m.weight_kg} kg` : ''}
+          <Text style={{ fontSize: 18, fontWeight: '900' }}>{child.name}</Text>
+          <Text style={{ color: colors.muted, fontSize: 13, marginBottom: 4 }}>
+            🎂 {formatAge(child.age_months, lang)}
+            {m ? `  ·  📏 ${m.height_cm} cm  ·  ⚖️ ${m.weight_kg} kg` : ''}
           </Text>
+          <RiskBadge level={a?.risk_level} />
         </View>
-        <RiskBadge level={a?.risk_level} />
+        <Ionicons name="chevron-forward-circle" size={28} color={colors.primary} />
       </View>
       {a && a.triage.urgency !== 'routine' && (
-        <Text style={{ marginTop: 8, color: emergency ? colors.danger : colors.warn, fontWeight: '600' }}>
-          {t(`urgency_${a.triage.urgency}`)}
-        </Text>
+        <View style={{ marginTop: 10, backgroundColor: emergency ? colors.dangerSoft : colors.warnSoft, borderRadius: 12, padding: 10 }}>
+          <Text style={{ color: emergency ? colors.danger : colors.warn, fontWeight: '800' }}>
+            {emergency ? '🚨 ' : '💛 '}
+            {t(`urgency_${a.triage.urgency}`)}
+          </Text>
+        </View>
       )}
     </Card>
   );

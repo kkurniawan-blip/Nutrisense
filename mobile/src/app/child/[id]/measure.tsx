@@ -1,10 +1,14 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
+import { View } from 'react-native';
 
 import { AssessmentView } from '../../../components/AssessmentView';
-import { Button, Card, ErrorBox, Field, P, Screen, Segmented } from '../../../components/ui';
+import { Mascot } from '../../../components/Mascot';
+import { Text } from '../../../components/Text';
+import { Bubble, Button, Card, ErrorBox, Field, Row, Screen, Segmented } from '../../../components/ui';
 import { api, errorText, NetworkError } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
+import { formatAge } from '../../../lib/fun';
 import { enqueue, uuid } from '../../../lib/offline';
 import type { Assessment, Child, Measurement } from '../../../lib/types';
 import { useApi } from '../../../lib/useApi';
@@ -12,9 +16,20 @@ import { colors } from '../../../theme';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+function StepLabel({ n, text }: { n: number; text: string }) {
+  return (
+    <Row style={{ marginBottom: 8 }}>
+      <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ color: '#fff', fontWeight: '900' }}>{n}</Text>
+      </View>
+      <Text style={{ fontWeight: '800', fontSize: 16 }}>{text}</Text>
+    </Row>
+  );
+}
+
 export default function Measure() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { t } = useAuth();
+  const { t, lang } = useAuth();
   const child = useApi<Child>(`/api/children/${id}`);
   const [weight, setWeight] = useState('');
   const [height, setHeight] = useState('');
@@ -34,14 +49,7 @@ export default function Measure() {
       setError(t('required'));
       return;
     }
-    const body = {
-      weight_kg: num(weight),
-      height_cm: num(height),
-      muac_cm: muac ? num(muac) : null,
-      position: pos,
-      measured_at: date,
-      client_uuid: uuid(),
-    };
+    const body = { weight_kg: num(weight), height_cm: num(height), muac_cm: muac ? num(muac) : null, position: pos, measured_at: date, client_uuid: uuid() };
     setBusy(true);
     setError(null);
     setInfo(null);
@@ -60,12 +68,21 @@ export default function Measure() {
 
   if (result) {
     const m = result.measurement;
+    const good = result.assessment?.risk_level === 'low';
     return (
       <Screen>
-        <Card style={{ backgroundColor: colors.primarySoft }}>
-          <P>
-            ✓ {m.measured_at}: {m.height_cm} cm · {m.weight_kg} kg → HAZ {m.haz ?? '–'} · WAZ {m.waz ?? '–'} · WHZ {m.whz ?? '–'}
-          </P>
+        <View style={{ alignItems: 'center', marginVertical: 6 }}>
+          <Mascot size={100} mood={good ? 'cheer' : 'caring'} bounce={good} />
+          <Text style={{ fontSize: 20, fontWeight: '900', color: colors.primaryDark, textAlign: 'center', marginTop: 6 }}>
+            {good ? t('celebrate') : t('supportive')}
+          </Text>
+        </View>
+        <Card tint={colors.mintSoft}>
+          <Row style={{ justifyContent: 'space-around' }}>
+            <Text style={{ fontSize: 18, fontWeight: '900' }}>📏 {m.height_cm} cm</Text>
+            <Text style={{ fontSize: 18, fontWeight: '900' }}>⚖️ {m.weight_kg} kg</Text>
+          </Row>
+          <Text style={{ textAlign: 'center', color: colors.muted, marginTop: 4 }}>{m.measured_at}</Text>
         </Card>
         {result.assessment && <AssessmentView a={result.assessment} />}
         <Button title={t('open')} onPress={() => router.replace(`/child/${id}`)} icon="arrow-forward" />
@@ -75,34 +92,37 @@ export default function Measure() {
 
   return (
     <Screen>
+      <Bubble mood="happy">
+        <Text style={{ fontWeight: '800' }}>
+          {child.data?.name} · {formatAge(child.data?.age_months ?? 0, lang)}
+        </Text>
+        <Text style={{ marginTop: 4 }}>{t('measureTip')}</Text>
+      </Bubble>
       <Card>
-        <P muted style={{ marginBottom: 8 }}>
-          {child.data?.name} · {Math.floor(child.data?.age_months ?? 0)} {t('months')}
-        </P>
-        <Field label={t('weight')} value={weight} onChangeText={setWeight} keyboardType="decimal-pad" placeholder="10.4" />
-        <Field label={t('height')} value={height} onChangeText={setHeight} keyboardType="decimal-pad" placeholder="82.5" />
-        <P muted>{t('position')}</P>
+        <StepLabel n={1} text={`⚖️ ${t('weight')}`} />
+        <Field label="" value={weight} onChangeText={setWeight} keyboardType="decimal-pad" placeholder="10.4" />
+        <StepLabel n={2} text={`📏 ${t('height')}`} />
         <Segmented
           value={pos}
           onChange={setPosition}
           options={[
-            { value: 'lying', label: t('lying') },
-            { value: 'standing', label: t('standing') },
+            { value: 'lying', label: `🛏️ ${t('lying')}` },
+            { value: 'standing', label: `🧍 ${t('standing')}` },
           ]}
         />
-        <Field label={t('muac')} value={muac} onChangeText={setMuac} keyboardType="decimal-pad" />
-        <Field label={t('measuredAt')} value={date} onChangeText={setDate} keyboardType="numbers-and-punctuation" />
+        <Field label="" value={height} onChangeText={setHeight} keyboardType="decimal-pad" placeholder="82.5" />
+        <StepLabel n={3} text={`🗓️ ${t('measuredAt')}`} />
+        <Field label="" value={date} onChangeText={setDate} keyboardType="numbers-and-punctuation" />
+        <Field label={`💪 ${t('muac')}`} value={muac} onChangeText={setMuac} keyboardType="decimal-pad" />
       </Card>
       {error && <ErrorBox message={error} />}
       {info && (
-        <Card style={{ backgroundColor: colors.warnSoft }}>
-          <P>{info}</P>
+        <Card tint={colors.accentSoft}>
+          <Text>📶 {info}</Text>
         </Card>
       )}
-      <Button title={t('save')} onPress={submit} loading={busy} icon="save-outline" />
-      <P muted style={{ fontSize: 12, textAlign: 'center' }}>
-        {t('disclaimer')}
-      </P>
+      <Button title={t('save')} onPress={submit} loading={busy} icon="checkmark-circle" />
+      <Text style={{ fontSize: 12, textAlign: 'center', color: colors.muted, marginTop: 6 }}>{t('disclaimer')}</Text>
     </Screen>
   );
 }

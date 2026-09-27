@@ -1,12 +1,11 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { Text } from 'react-native';
-
 import { Badge, Card, Empty, ErrorBox, H2, Loading, P, RiskBadge, Row, Screen, Segmented } from '../../components/ui';
 import { isOversight, useAuth } from '../../lib/auth';
 import type { Assessment, CaseItem } from '../../lib/types';
 import { useApi } from '../../lib/useApi';
 import { colors } from '../../theme';
+import { Text } from '../../components/Text';
 
 const PRIORITY_COLOR = { emergency: colors.danger, high: colors.danger, medium: colors.warn, low: colors.muted } as const;
 

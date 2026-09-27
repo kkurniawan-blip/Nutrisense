@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Badge, Button, Card, ErrorBox, H2, Loading, P, Row, Screen } from '../../components/ui';
 import { api, errorText } from '../../lib/api';
@@ -9,6 +9,7 @@ import { useAuth } from '../../lib/auth';
 import type { LogisticsOption, SupplyRequest } from '../../lib/types';
 import { useApi } from '../../lib/useApi';
 import { colors } from '../../theme';
+import { Text } from '../../components/Text';
 
 const ICON = { locker_stock: 'file-tray-stacked-outline', drone: 'airplane-outline', courier: 'bicycle-outline' } as const;
 

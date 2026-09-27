@@ -1,13 +1,12 @@
 import { router } from 'expo-router';
 import React from 'react';
-import { Text } from 'react-native';
-
 import { Button, Card, Empty, ErrorBox, Loading, P, Row, Screen } from '../components/ui';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import type { Notification } from '../lib/types';
 import { useApi } from '../lib/useApi';
 import { colors } from '../theme';
+import { Text } from '../components/Text';
 
 export default function Notifications() {
   const { t, user } = useAuth();

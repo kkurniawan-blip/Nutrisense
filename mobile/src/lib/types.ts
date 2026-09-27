@@ -178,7 +178,7 @@ export interface NutritionPlan {
   };
   focus_nutrients: { key: string; label: string }[];
   priority_foods: { key: string; name: string; portion_g: number }[];
-  recipes: { key: string; name: string; steps: string; min_age_months: number; targets: string[] }[];
+  recipes: Recipe[];
   tips: string[];
   meal_plan: { meal: string; menu: string; why: string }[];
   cautions: string[];
@@ -253,4 +253,38 @@ export interface Notification {
   data: Record<string, unknown>;
   read: boolean;
   created_at: string;
+}
+
+export interface Recipe {
+  key: string;
+  name: string;
+  min_age_months: number;
+  minutes: number;
+  cost: number;
+  cost_label: string;
+  meal: 'main' | 'snack';
+  foods: string[];
+  food_groups: string[];
+  ingredients: string[];
+  steps: string[];
+  targets: string[];
+  why?: string;
+  adds_groups?: string[];
+}
+
+export interface MenuIdea {
+  name: string;
+  minutes: number;
+  ingredients: string[];
+  steps: string[];
+  why: string;
+}
+
+export interface MenuSuggestions {
+  groups_today: string[];
+  missing_groups: { key: string; label: string }[];
+  suggestions: Recipe[];
+  ai_ideas: MenuIdea[];
+  generated_by: string;
+  note?: string;
 }

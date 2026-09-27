@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Badge, Bar, Button, Card, ErrorBox, H2, P, Row, Screen, Segmented } from '../../components/ui';
 import { api, errorText } from '../../lib/api';
@@ -8,6 +8,7 @@ import { isOversight, useAuth } from '../../lib/auth';
 import type { Locker, SupplyRequest } from '../../lib/types';
 import { useApi } from '../../lib/useApi';
 import { colors } from '../../theme';
+import { Text } from '../../components/Text';
 
 interface Drone {
   id: number;

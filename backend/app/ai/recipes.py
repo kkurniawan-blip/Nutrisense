@@ -1,0 +1,167 @@
+"""Easy, low-cost recipes built only from everyday foods found in village kiosks and markets in NTT.
+
+Design rules for every recipe:
+  * at most ~20 minutes of hands-on cooking and only a pot, a pan or a steamer;
+  * ingredients a family can buy cheaply or grow (egg, tempeh, tofu, moringa, corn, sweet potato,
+    anchovy, local fish, banana, papaya, mung beans), measured in household units (spoons, handfuls);
+  * age-appropriate texture from 6 months, little salt and no added sugar for babies.
+
+`foods` lists FOODS keys (used for food-group and nutrient matching); `cost` is 1 (very cheap) or 2
+(affordable); `meal` is main or snack.
+"""
+
+RECIPES: list[dict] = [
+    {
+        "key": "puree_ubi", "min_age": 6, "minutes": 15, "cost": 1, "meal": "main",
+        "foods": ["ubi_jalar", "asi"], "targets": ["vitamin_a_mcg", "energy_kcal"],
+        "name": {"id": "Puree ubi jalar oranye", "en": "Orange sweet potato puree"},
+        "ingredients": {"id": ["1 potong ubi jalar oranye", "2–3 sdm ASI atau air matang"],
+                        "en": ["1 piece orange sweet potato", "2–3 tbsp breast milk or boiled water"]},
+        "steps": {"id": ["Kupas dan kukus ubi 10 menit sampai empuk.", "Haluskan dengan sendok, campur ASI sampai lembut.", "Sajikan hangat-hangat kuku."],
+                  "en": ["Peel and steam the sweet potato for 10 minutes until soft.", "Mash with a spoon and mix in breast milk until smooth.", "Serve lukewarm."]},
+    },
+    {
+        "key": "pisang_kerok", "min_age": 6, "minutes": 3, "cost": 1, "meal": "snack",
+        "foods": ["pisang"], "targets": ["energy_kcal"],
+        "name": {"id": "Pisang kerok", "en": "Scraped banana"},
+        "ingredients": {"id": ["1 buah pisang matang"], "en": ["1 ripe banana"]},
+        "steps": {"id": ["Kupas pisang, kerok dagingnya dengan sendok.", "Suapkan langsung selagi segar."],
+                  "en": ["Peel the banana and scrape the flesh with a spoon.", "Feed straight away while fresh."]},
+    },
+    {
+        "key": "pepaya_lumat", "min_age": 6, "minutes": 3, "cost": 1, "meal": "snack",
+        "foods": ["pepaya"], "targets": ["vitamin_a_mcg"],
+        "name": {"id": "Pepaya lumat", "en": "Mashed papaya"},
+        "ingredients": {"id": ["2 potong pepaya matang"], "en": ["2 slices ripe papaya"]},
+        "steps": {"id": ["Buang biji, lumatkan pepaya dengan garpu.", "Untuk anak > 9 bulan, potong dadu kecil."],
+                  "en": ["Remove the seeds and mash with a fork.", "For children over 9 months, cut into small cubes."]},
+    },
+    {
+        "key": "bubur_jagung_kelor", "min_age": 6, "minutes": 20, "cost": 1, "meal": "main",
+        "foods": ["jagung", "daun_kelor", "telur"], "targets": ["iron_mg", "protein_g", "vitamin_a_mcg"],
+        "name": {"id": "Bubur jagung kelor telur", "en": "Corn porridge with moringa and egg"},
+        "ingredients": {"id": ["3 sdm jagung pipil", "1 genggam daun kelor", "1 butir telur", "1 gelas air"],
+                        "en": ["3 tbsp corn kernels", "1 handful moringa leaves", "1 egg", "1 glass of water"]},
+        "steps": {"id": ["Rebus jagung dengan air sampai empuk (±12 menit), lalu haluskan.", "Masukkan daun kelor dan telur kocok, aduk sampai telur matang.", "Saring atau haluskan lagi untuk bayi 6–8 bulan."],
+                  "en": ["Boil the corn until soft (about 12 minutes), then mash.", "Add the moringa and beaten egg; stir until the egg is cooked.", "Strain or mash again for babies aged 6–8 months."]},
+    },
+    {
+        "key": "bubur_teri_kelor", "min_age": 8, "minutes": 20, "cost": 1, "meal": "main",
+        "foods": ["bubur_beras", "ikan_teri", "daun_kelor"], "targets": ["calcium_mg", "protein_g", "iron_mg"],
+        "name": {"id": "Bubur nasi teri kelor", "en": "Rice porridge with anchovy and moringa"},
+        "ingredients": {"id": ["3 sdm nasi", "1 sdm ikan teri", "1 genggam daun kelor", "1,5 gelas air"],
+                        "en": ["3 tbsp cooked rice", "1 tbsp dried anchovies", "1 handful moringa leaves", "1.5 glasses of water"]},
+        "steps": {"id": ["Rendam teri di air panas 5 menit lalu bilas (mengurangi garam).", "Masak nasi dengan air sampai jadi bubur, masukkan teri cincang.", "Tambahkan daun kelor 2 menit terakhir, haluskan sesuai usia."],
+                  "en": ["Soak the anchovies in hot water for 5 minutes, then rinse (removes salt).", "Cook the rice in water into porridge and add the chopped anchovies.", "Add the moringa for the last 2 minutes; mash to suit the child's age."]},
+    },
+    {
+        "key": "tim_ikan_labu", "min_age": 8, "minutes": 20, "cost": 1, "meal": "main",
+        "foods": ["ikan", "labu", "nasi"], "targets": ["protein_g", "vitamin_a_mcg"],
+        "name": {"id": "Nasi tim ikan labu kuning", "en": "Soft rice with fish and pumpkin"},
+        "ingredients": {"id": ["3 sdm nasi", "1 potong ikan segar (tanpa duri)", "2 potong labu kuning", "1 siung bawang merah"],
+                        "en": ["3 tbsp cooked rice", "1 piece fresh fish (boneless)", "2 pieces pumpkin", "1 shallot"]},
+        "steps": {"id": ["Kukus ikan dan labu bersama nasi dengan sedikit air ±15 menit.", "Pastikan semua duri ikan sudah dibuang.", "Lumatkan atau cincang sesuai usia."],
+                  "en": ["Steam the fish and pumpkin with the rice and a little water for about 15 minutes.", "Check carefully that every fish bone is removed.", "Mash or chop to suit the child's age."]},
+    },
+    {
+        "key": "nasi_tim_hati", "min_age": 8, "minutes": 20, "cost": 2, "meal": "main",
+        "foods": ["nasi", "hati_ayam", "wortel"], "targets": ["iron_mg", "zinc_mg", "vitamin_a_mcg", "protein_g"],
+        "name": {"id": "Nasi tim hati ayam wortel", "en": "Soft rice with chicken liver and carrot"},
+        "ingredients": {"id": ["3 sdm nasi", "1 potong hati ayam", "½ wortel parut", "sedikit minyak"],
+                        "en": ["3 tbsp cooked rice", "1 piece chicken liver", "½ grated carrot", "a little oil"]},
+        "steps": {"id": ["Rebus hati ayam sampai matang, cincang halus.", "Tumis sebentar dengan wortel parut.", "Campur ke nasi lembek. Hati ayam cukup 1–2 kali seminggu."],
+                  "en": ["Boil the chicken liver until cooked, then chop finely.", "Sauté briefly with the grated carrot.", "Mix into soft rice. Liver 1–2 times a week is enough."]},
+    },
+    {
+        "key": "bubur_kacang_hijau", "min_age": 8, "minutes": 25, "cost": 1, "meal": "snack",
+        "foods": ["kacang_hijau", "pisang"], "targets": ["protein_g", "energy_kcal"],
+        "name": {"id": "Bubur kacang hijau pisang", "en": "Mung bean porridge with banana"},
+        "ingredients": {"id": ["3 sdm kacang hijau (rendam semalam)", "½ pisang matang", "1,5 gelas air"],
+                        "en": ["3 tbsp mung beans (soaked overnight)", "½ ripe banana", "1.5 glasses of water"]},
+        "steps": {"id": ["Rebus kacang hijau sampai pecah dan empuk.", "Haluskan bersama pisang sebagai pemanis alami.", "Tidak perlu gula."],
+                  "en": ["Boil the mung beans until they split and soften.", "Mash with the banana as a natural sweetener.", "No sugar needed."]},
+    },
+    {
+        "key": "telur_orak_bayam", "min_age": 9, "minutes": 10, "cost": 1, "meal": "main",
+        "foods": ["telur", "bayam", "nasi"], "targets": ["protein_g", "iron_mg", "vitamin_a_mcg"],
+        "name": {"id": "Telur orak-arik bayam", "en": "Scrambled egg with spinach"},
+        "ingredients": {"id": ["1 butir telur", "1 genggam bayam cincang", "sedikit minyak", "nasi lembek"],
+                        "en": ["1 egg", "1 handful chopped spinach", "a little oil", "soft rice"]},
+        "steps": {"id": ["Tumis bayam sebentar sampai layu.", "Masukkan telur kocok, aduk sampai matang sempurna.", "Sajikan dengan nasi lembek."],
+                  "en": ["Sauté the spinach briefly until wilted.", "Add the beaten egg and stir until fully cooked.", "Serve with soft rice."]},
+    },
+    {
+        "key": "telur_dadar_kelor", "min_age": 9, "minutes": 10, "cost": 1, "meal": "main",
+        "foods": ["telur", "daun_kelor", "nasi"], "targets": ["protein_g", "iron_mg", "vitamin_a_mcg"],
+        "name": {"id": "Telur dadar kelor", "en": "Moringa omelette"},
+        "ingredients": {"id": ["1 butir telur", "1 genggam daun kelor", "sedikit minyak"],
+                        "en": ["1 egg", "1 handful moringa leaves", "a little oil"]},
+        "steps": {"id": ["Kocok telur dengan daun kelor.", "Masak di wajan dengan api kecil sampai matang.", "Potong kecil-kecil, sajikan dengan nasi."],
+                  "en": ["Beat the egg with the moringa leaves.", "Cook in a pan on low heat until done.", "Cut into small pieces and serve with rice."]},
+    },
+    {
+        "key": "tempe_tahu_kukus", "min_age": 12, "minutes": 15, "cost": 1, "meal": "main",
+        "foods": ["tempe", "tahu", "bayam", "nasi"], "targets": ["protein_g", "iron_mg", "calcium_mg"],
+        "name": {"id": "Nasi, tempe-tahu kukus, sayur bayam", "en": "Rice with steamed tempeh, tofu and spinach"},
+        "ingredients": {"id": ["1 potong tempe", "1 potong tahu", "1 genggam bayam", "1 siung bawang putih"],
+                        "en": ["1 piece tempeh", "1 piece tofu", "1 handful spinach", "1 garlic clove"]},
+        "steps": {"id": ["Kukus tempe dan tahu 10 menit, potong kecil.", "Rebus bayam dengan bawang putih jadi sayur bening.", "Sajikan dengan nasi."],
+                  "en": ["Steam the tempeh and tofu for 10 minutes; cut small.", "Boil the spinach with garlic for a clear soup.", "Serve with rice."]},
+    },
+    {
+        "key": "sup_tahu_telur", "min_age": 12, "minutes": 15, "cost": 1, "meal": "main",
+        "foods": ["tahu", "telur", "wortel", "nasi"], "targets": ["protein_g", "calcium_mg", "vitamin_a_mcg"],
+        "name": {"id": "Sup tahu telur wortel", "en": "Tofu, egg and carrot soup"},
+        "ingredients": {"id": ["1 potong tahu", "1 butir telur", "½ wortel", "1 siung bawang merah", "2 gelas air"],
+                        "en": ["1 piece tofu", "1 egg", "½ carrot", "1 shallot", "2 glasses of water"]},
+        "steps": {"id": ["Rebus wortel dan bawang sampai wortel empuk.", "Masukkan tahu potong dadu, lalu telur kocok sambil diaduk.", "Masak 2 menit, sajikan dengan nasi."],
+                  "en": ["Boil the carrot and shallot until the carrot is soft.", "Add diced tofu, then pour in the beaten egg while stirring.", "Cook 2 more minutes; serve with rice."]},
+    },
+    {
+        "key": "nasi_kelor_telur", "min_age": 12, "minutes": 10, "cost": 1, "meal": "main",
+        "foods": ["nasi", "daun_kelor", "telur"], "targets": ["protein_g", "iron_mg", "vitamin_a_mcg"],
+        "name": {"id": "Nasi kelor telur ceplok", "en": "Moringa rice with a fried egg"},
+        "ingredients": {"id": ["1 centong nasi", "1 genggam daun kelor", "1 butir telur", "sedikit minyak"],
+                        "en": ["1 scoop cooked rice", "1 handful moringa leaves", "1 egg", "a little oil"]},
+        "steps": {"id": ["Tumis daun kelor sebentar, aduk dengan nasi.", "Masak telur ceplok sampai kuningnya matang.", "Sajikan bersama."],
+                  "en": ["Sauté the moringa briefly and stir into the rice.", "Fry an egg until the yolk is fully cooked.", "Serve together."]},
+    },
+    {
+        "key": "perkedel_tahu_kukus", "min_age": 12, "minutes": 20, "cost": 1, "meal": "snack",
+        "foods": ["tahu", "telur", "wortel"], "targets": ["protein_g", "calcium_mg"],
+        "name": {"id": "Perkedel tahu kukus", "en": "Steamed tofu patties"},
+        "ingredients": {"id": ["2 potong tahu", "1 butir telur", "½ wortel parut", "1 siung bawang putih"],
+                        "en": ["2 pieces tofu", "1 egg", "½ grated carrot", "1 garlic clove"]},
+        "steps": {"id": ["Hancurkan tahu, campur telur, wortel, dan bawang halus.", "Bentuk bulat pipih, kukus 12 menit.", "Cocok jadi bekal atau camilan."],
+                  "en": ["Crumble the tofu and mix with the egg, carrot and crushed garlic.", "Shape into small patties and steam for 12 minutes.", "Great as a packed meal or snack."]},
+    },
+    {
+        "key": "jagung_bose_ikan", "min_age": 12, "minutes": 40, "cost": 1, "meal": "main",
+        "foods": ["jagung", "kacang_hijau", "ikan"], "targets": ["protein_g", "energy_kcal", "zinc_mg"],
+        "name": {"id": "Jagung bose dengan ikan", "en": "Jagung bose (NTT corn stew) with fish"},
+        "ingredients": {"id": ["1 gelas jagung bose (jagung tumbuk)", "3 sdm kacang", "1 potong ikan tanpa duri"],
+                        "en": ["1 glass jagung bose (pounded corn)", "3 tbsp beans", "1 piece boneless fish"]},
+        "steps": {"id": ["Masak jagung bose dan kacang seperti biasa sampai lunak (bisa sekalian untuk keluarga).", "Rebus atau bakar ikan, buang durinya.", "Sajikan jagung bose lembek dengan ikan suwir."],
+                  "en": ["Cook the jagung bose with beans as usual until soft (make it for the whole family).", "Boil or grill the fish and remove the bones.", "Serve soft jagung bose with shredded fish."]},
+    },
+    {
+        "key": "ubi_kacang", "min_age": 12, "minutes": 15, "cost": 1, "meal": "snack",
+        "foods": ["ubi_jalar", "kacang_tanah"], "targets": ["vitamin_a_mcg", "energy_kcal", "protein_g"],
+        "name": {"id": "Ubi rebus taburan kacang halus", "en": "Boiled sweet potato with ground peanut"},
+        "ingredients": {"id": ["1 potong ubi jalar", "1 sdm kacang tanah sangrai yang dihaluskan"],
+                        "en": ["1 piece sweet potato", "1 tbsp roasted peanuts, finely ground"]},
+        "steps": {"id": ["Rebus ubi sampai empuk, potong kecil.", "Taburi kacang yang sudah dihaluskan (kacang utuh bisa bikin tersedak)."],
+                  "en": ["Boil the sweet potato until soft and cut small.", "Sprinkle with ground peanut (whole nuts are a choking risk)."]},
+    },
+    {
+        "key": "tumis_daun_singkong_teri", "min_age": 12, "minutes": 15, "cost": 1, "meal": "main",
+        "foods": ["daun_singkong", "ikan_teri", "nasi"], "targets": ["calcium_mg", "iron_mg", "vitamin_a_mcg"],
+        "name": {"id": "Daun singkong rebus teri", "en": "Cassava leaves with anchovy"},
+        "ingredients": {"id": ["1 genggam daun singkong muda", "1 sdm ikan teri (rendam & bilas)", "1 siung bawang putih"],
+                        "en": ["1 handful young cassava leaves", "1 tbsp anchovies (soaked & rinsed)", "1 garlic clove"]},
+        "steps": {"id": ["Rebus daun singkong sampai sangat empuk (±10 menit), cincang halus.", "Tumis sebentar dengan bawang putih dan teri.", "Sajikan dengan nasi."],
+                  "en": ["Boil the cassava leaves until very tender (about 10 minutes); chop finely.", "Sauté briefly with the garlic and anchovies.", "Serve with rice."]},
+    },
+]
+
+COST_LABEL = {1: {"id": "Hemat", "en": "Budget"}, 2: {"id": "Terjangkau", "en": "Affordable"}}

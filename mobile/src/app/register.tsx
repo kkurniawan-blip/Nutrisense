@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 
-import { Button, Card, Chip, ErrorBox, Field, H2, P, Screen, Toggle } from '../components/ui';
+import { Bubble, Button, Card, Chip, ErrorBox, Field, H2, P, Screen, Toggle } from '../components/ui';
 import { api, errorText } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import type { Region } from '../lib/types';
@@ -50,6 +50,7 @@ export default function Register() {
 
   return (
     <Screen>
+      <Bubble mood="cheer">{t('addFirstChild')}</Bubble>
       <Card>
         <Field label={t('fullName')} value={form.full_name} onChangeText={set('full_name')} />
         <Field label={t('email')} value={form.email} onChangeText={set('email')} autoCapitalize="none" keyboardType="email-address" />
@@ -63,7 +64,7 @@ export default function Register() {
         </Card>
       </Card>
       <Card>
-        <H2>{t('consentTitle')}</H2>
+        <H2 emoji="🔒">{t('consentTitle')}</H2>
         <Toggle label={t('consentData')} value={consent.data} onChange={(v) => setConsent({ ...consent, data: v })} />
         <Toggle label={t('consentAI')} value={consent.ai} onChange={(v) => setConsent({ ...consent, ai: v })} />
         <Toggle label={t('consentSatusehat')} value={consent.satusehat} onChange={(v) => setConsent({ ...consent, satusehat: v })} />

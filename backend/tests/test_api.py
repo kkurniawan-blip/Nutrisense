@@ -228,3 +228,15 @@ def test_claude_path_used_when_available(client, auth, monkeypatch):
     monkeypatch.setattr(llm, "complete_chat", lambda system, messages, max_tokens=2000: "Berikan telur setiap hari.")
     r = client.post("/api/assistant/chat", headers=auth("ibu.maria@nutrisense.id"), json={"message": "Menu apa yang bagus?"}).json()
     assert r == {"reply": "Berikan telur setiap hari.", "generated_by": "claude"}
+
+
+def test_menu_suggestions_after_nutriscan(client, auth):
+    h = auth("ibu.maria@nutrisense.id")
+    cid = client.get("/api/children", headers=h).json()[1]["id"]  # Budi, 30 months
+    before = client.post(f"/api/children/{cid}/menu-suggestions", headers=h, json={}).json()
+    after = client.post(f"/api/children/{cid}/menu-suggestions", headers=h,
+                        json={"items": [{"food_key": "telur"}, {"food_key": "bayam"}]}).json()
+    assert "eggs" in after["groups_today"] and "vita_fruit_veg" in after["groups_today"]
+    assert len(after["missing_groups"]) <= len(before["missing_groups"])
+    s = after["suggestions"][0]
+    assert s["ingredients"] and s["steps"] and s["minutes"] and s["cost_label"] and s["why"]

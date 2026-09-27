@@ -10,7 +10,7 @@ _SYSTEM = """You are NutriBot, the assistant inside the NutriSense app, which he
 How to help:
 - Answer questions about child growth, feeding (ASI, MPASI), hygiene, common childhood illness, and how to use the app.
 - Use the child context below when it is given, and explain growth results (z-scores, risk level) in plain language.
-- Recommend affordable local foods (eggs, fish, tempeh, moringa/kelor, mung beans, corn, pumpkin, papaya).
+- Recommend affordable local foods (eggs, fish, tempeh, moringa/kelor, mung beans, corn, pumpkin, papaya). Any recipe you suggest must take about 20 minutes or less, need only a pot, pan or steamer, and use ingredients sold in a village kiosk or market; give household measures (spoons, handfuls).
 - Follow WHO/Kemenkes feeding guidance, and never promote breast-milk substitutes.
 - Answer in the language the user writes in (Bahasa Indonesia by default), in short paragraphs or brief lists that someone with basic literacy can follow.
 
@@ -26,9 +26,12 @@ _FAQ = [
     (r"stunting|pendek|tinggi badan|height",
      {"id": "Stunting adalah kondisi anak lebih pendek dari standar WHO untuk usianya (TB/U di bawah -2 SD) akibat kurang gizi kronis dan infeksi berulang. Pencegahan terbaik: ASI eksklusif 6 bulan, MPASI kaya protein hewani, imunisasi lengkap, air bersih dan cuci tangan, serta pengukuran rutin di Posyandu.",
       "en": "Stunting means a child is shorter than the WHO standard for their age (height-for-age below -2 SD), caused by chronic undernutrition and repeated infection. Best prevention: exclusive breastfeeding for 6 months, complementary food rich in animal protein, full immunisation, clean water and handwashing, and regular Posyandu measurement."}),
+    (r"susah makan|tidak mau makan|gak mau makan|GTM|picky|won'?t eat|refuses? (to eat|food)",
+     {"id": "Anak susah makan itu wajar, Bunda. Coba: (1) jadwal makan teratur 3x + 2 camilan, jangan diberi susu/jajan 1 jam sebelum makan; (2) porsi kecil tapi padat gizi, misalnya telur dadar kelor atau perkedel tahu kukus; (3) makan bersama keluarga, 20–30 menit saja, tanpa dipaksa atau TV; (4) tawarkan makanan baru berulang sampai 10–15 kali. Kalau berat badan tidak naik 2 bulan atau anak sakit, hubungi Kader/Puskesmas.",
+      "en": "Picky eating is common, Mom. Try: (1) regular times, 3 meals + 2 snacks, no milk or snacks an hour before meals; (2) small but nutrient-dense portions, e.g. a moringa omelette or steamed tofu patties; (3) eat together as a family for 20–30 minutes, no forcing and no TV; (4) offer new foods again and again, 10–15 times. If weight has not gone up for 2 months or the child is ill, contact the Kader or Puskesmas."}),
     (r"mpasi|makan|menu|resep|food|feed|recipe|meal",
-     {"id": "Mulai MPASI di usia 6 bulan. Setiap makan usahakan ada karbohidrat (nasi/jagung/ubi), protein hewani (telur/ikan/hati ayam), protein nabati (tempe/tahu/kacang hijau), dan sayur/buah (kelor, labu, pepaya). Lihat menu 'Rencana Gizi' di aplikasi untuk resep sesuai usia.",
-      "en": "Start complementary feeding at 6 months. Each meal should include a staple (rice/corn/sweet potato), an animal protein (egg/fish/chicken liver), a plant protein (tempeh/tofu/mung beans) and vegetables/fruit (moringa, pumpkin, papaya). See 'Nutrition Plan' in the app for age-appropriate recipes."}),
+     {"id": "Mulai MPASI di usia 6 bulan. Setiap makan usahakan ada karbohidrat (nasi/jagung/ubi), protein hewani (telur/ikan/hati ayam), protein nabati (tempe/tahu/kacang hijau), dan sayur/buah (kelor, labu, pepaya). Buka NutriScan → 'Masak apa hari ini?' untuk resep mudah dan hemat sesuai usia si kecil.",
+      "en": "Start complementary feeding at 6 months. Each meal should include a staple (rice/corn/sweet potato), an animal protein (egg/fish/chicken liver), a plant protein (tempeh/tofu/mung beans) and vegetables/fruit (moringa, pumpkin, papaya). Open NutriScan → 'What should I cook today?' for easy, budget recipes for your child's age."}),
     (r"diare|mencret|diarrh",
      {"id": "Saat diare: teruskan ASI dan makan, berikan oralit setiap kali BAB cair, dan zinc 1x sehari selama 10 hari. Segera ke Puskesmas jika ada darah di BAB, anak sangat lemas, mata cekung, atau tidak mau minum.",
       "en": "During diarrhoea: keep breastfeeding and feeding, give ORS after every loose stool and zinc once daily for 10 days. Go to the Puskesmas if there is blood in the stool, the child is very weak, has sunken eyes, or will not drink."}),

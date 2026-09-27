@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 
-import { Button, Card, Chip, ErrorBox, Field, P, Screen, Segmented, Toggle } from '../../components/ui';
+import { Bubble, Button, Card, Chip, ErrorBox, Field, P, Screen, Segmented, Toggle } from '../../components/ui';
 import { api, errorText } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import type { Child, Region } from '../../lib/types';
@@ -56,6 +56,7 @@ export default function NewChild() {
 
   return (
     <Screen>
+      <Bubble mood="cheer">{t('addFirstChild')}</Bubble>
       <Card>
         {user?.role !== 'caregiver' && (
           <Field label={t('caregiverEmail')} value={caregiverEmail} onChangeText={setCaregiverEmail} autoCapitalize="none" keyboardType="email-address" />
@@ -66,8 +67,8 @@ export default function NewChild() {
           value={sex}
           onChange={setSex}
           options={[
-            { value: 'female', label: t('female') },
-            { value: 'male', label: t('male') },
+            { value: 'female', label: `👧 ${t('female')}` },
+            { value: 'male', label: `👦 ${t('male')}` },
           ]}
         />
         <Field label={t('birthDate')} value={birthDate} onChangeText={setBirthDate} placeholder="2024-05-17" keyboardType="numbers-and-punctuation" />
@@ -78,8 +79,8 @@ export default function NewChild() {
             <Chip key={r.id} label={r.name} selected={regionId === r.id} onPress={() => setRegionId(r.id)} />
           ))}
         </Card>
-        <Toggle label={t('cleanWater')} value={water} onChange={setWater} />
-        <Toggle label={t('sanitation')} value={sanitation} onChange={setSanitation} />
+        <Toggle label={`🚰 ${t('cleanWater')}`} value={water} onChange={setWater} />
+        <Toggle label={`🚽 ${t('sanitation')}`} value={sanitation} onChange={setSanitation} />
       </Card>
       {error && <ErrorBox message={error} />}
       <Button title={t('save')} onPress={submit} loading={busy} icon="checkmark" />

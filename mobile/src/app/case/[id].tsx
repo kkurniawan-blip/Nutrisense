@@ -1,6 +1,6 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { AssessmentView } from '../../components/AssessmentView';
 import { Badge, Button, Card, Chip, ErrorBox, Field, H2, Loading, P, Row, Screen, Segmented } from '../../components/ui';
@@ -9,6 +9,7 @@ import { isOversight, useAuth } from '../../lib/auth';
 import type { CaseItem, RiskLevel, SupplyRequest } from '../../lib/types';
 import { useApi } from '../../lib/useApi';
 import { colors } from '../../theme';
+import { Text } from '../../components/Text';
 
 const STATUSES = ['open', 'in_progress', 'referred', 'resolved', 'closed'] as const;
 

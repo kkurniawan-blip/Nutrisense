@@ -85,6 +85,26 @@ npx expo start
 - Right to deletion
 - FHIR R4 export (`Patient`, `Observation` with LOINC 8302-2 / 8306-3 / 29463-7, `RiskAssessment`, `Consent`) and a simulated SATUSEHAT sync
 
+### Mother-friendly design
+
+The caregiver experience is designed to feel warm and playful rather than clinical:
+- **Nuri**, a sprout mascot drawn in SVG (it grows with the child), greets, explains and cheers.
+- A soft coral, mint and sunshine palette, the rounded Nunito font, and big emoji feature tiles.
+- A raised **NutriScan** camera button in the centre of the tab bar.
+- Gentle status wording: "🌱 Growing well", "👀 Keep an eye on it", "💛 Needs attention". Emergencies stay unmistakably red. Staff screens keep the clinical labels.
+- Small rewards: a **rainbow plate** (the 8 WHO food groups eaten today), meal-logging streaks, collectable stickers, and a "height vs. peers" bar.
+
+### NutriScan menu suggester
+
+After a meal is snapped or logged, `POST /api/children/{id}/menu-suggestions` works out which food groups are still missing today and which nutrients were short this week. It then picks easy dishes that fill those gaps, each adding something the previous one didn't.
+
+All 17 recipes (`backend/app/ai/recipes.py`):
+- use everyday, cheap foods from village kiosks and markets (egg, tempeh, tofu, moringa, corn, sweet potato, anchovy, local fish, banana);
+- need only a pot, pan or steamer, and give household measures;
+- show cooking time (mostly 3–20 minutes), a budget label and the minimum age.
+
+With Claude enabled, Nuri adds two extra ideas under the same rules.
+
 ### Claude AI and the offline fallback
 
 Every AI feature works without internet or an API key: rules, WHO tables and the scikit-learn model always run.
@@ -121,7 +141,7 @@ This is the overfitting risk Appendix B already flags as future work.
 ## Tests and checks
 
 ```bash
-cd backend && pytest -q            # 53 tests: WHO z-scores vs published tables, model quality, triage,
+cd backend && pytest -q            # 56 tests: WHO z-scores vs published tables, model quality, triage,
                                    # symptom lexicon, the full caregiver→Kader→officer→locker workflow,
                                    # RBAC, consent, encryption at rest, FHIR, offline sync
 cd mobile && npx tsc --noEmit && npx eslint src

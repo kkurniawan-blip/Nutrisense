@@ -1,12 +1,13 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { LayoutChangeEvent, Text, View } from 'react-native';
+import { LayoutChangeEvent, View } from 'react-native';
 import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 
 import { Card, ErrorBox, H1, H2, Loading, P, RiskBadge, Row, Screen, Segmented, Stat } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
 import { useApi } from '../../lib/useApi';
 import { colors } from '../../theme';
+import { Text } from '../../components/Text';
 
 interface Summary {
   children: number;

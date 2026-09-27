@@ -1,6 +1,6 @@
 from datetime import date, datetime, timezone
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Body, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -10,7 +10,7 @@ from ..ai.growth import age_in_months
 from ..database import get_db
 from ..deps import get_child, get_current_user, lang_of
 from ..models import ChatMessage, MealLog, NutritionRecommendation, RiskAssessment, SymptomReport, User
-from ..schemas import ChatIn, MealIn
+from ..schemas import ChatIn, MealIn, MenuSuggestIn
 from ..services.common import audit, has_consent
 
 router = APIRouter(prefix="/api", tags=["nutrition & AI assistant"])
@@ -74,13 +74,34 @@ async def nutriscan(child_id: int, image: UploadFile = File(...), lang: str | No
     return {"available": True, **result}
 
 
+@router.post("/children/{child_id}/menu-suggestions")
+def menu_suggestions(child_id: int, body: MenuSuggestIn = Body(default=MenuSuggestIn()), lang: str | None = None,
+                     user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Menu suggester (used by NutriScan): easy, cheap dishes that fill today's missing food groups
+    and this week's nutrient gaps."""
+    child = get_child(child_id, db, user)
+    L = lang_of(user, lang)
+    age = age_in_months(child.birth_date, date.today())
+    meals = db.scalars(select(MealLog).where(MealLog.child_id == child.id).order_by(MealLog.eaten_at.desc()).limit(100)).all()
+    today = datetime.now(timezone.utc).date()
+    groups = {g for m in meals if (m.eaten_at if m.eaten_at.tzinfo else m.eaten_at.replace(tzinfo=timezone.utc)).date() == today
+              for g in (m.food_groups or [])}
+    _, _, pending_groups = nutrition.compute_meal([i.model_dump() for i in body.items])
+    groups |= set(pending_groups)
+    intake = nutrition.analyse_intake(meals, age, lang=L)
+    result = nutrition.suggest_menus(age, sorted(groups), intake.get("gaps") or [], L,
+                                     use_ai=has_consent(db, child.caregiver_id, "ai_analysis"))
+    return {"groups_today": sorted(groups), **result}
+
+
 @router.get("/children/{child_id}/nutrition-plan")
 def nutrition_plan(child_id: int, refresh: bool = False, lang: str | None = None, user: User = Depends(get_current_user),
                    db: Session = Depends(get_db)):
     child = get_child(child_id, db, user)
     latest = db.scalar(select(NutritionRecommendation).where(NutritionRecommendation.child_id == child.id)
                        .order_by(NutritionRecommendation.id.desc()))
-    if latest and not refresh:
+    stale = latest is not None and any("minutes" not in r for r in latest.content.get("recipes", []))  # pre-v2 recipe format
+    if latest and not refresh and not stale:
         return {"id": latest.id, "created_at": latest.created_at.isoformat(), **latest.content}
 
     L = lang_of(user, lang)

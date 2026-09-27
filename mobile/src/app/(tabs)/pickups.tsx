@@ -1,12 +1,41 @@
 import React from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
-import { Badge, Card, Empty, ErrorBox, Loading, P, Row, Screen } from '../../components/ui';
+import { Text } from '../../components/Text';
+import { Bubble, Card, Empty, ErrorBox, Loading, Row, Screen } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
 import type { SupplyRequest } from '../../lib/types';
 import { useApi } from '../../lib/useApi';
 import { colors } from '../../theme';
+
+const STEPS = [
+  { key: 'pending_approval', emoji: '📝' },
+  { key: 'in_transit', emoji: '🚁' },
+  { key: 'ready_for_pickup', emoji: '📦' },
+  { key: 'picked_up', emoji: '✅' },
+];
+
+function Progress({ status, via }: { status: string; via: string | null }) {
+  const { t } = useAuth();
+  const idx = Math.max(0, STEPS.findIndex((s) => s.key === status));
+  return (
+    <Row style={{ justifyContent: 'space-between', marginTop: 10 }}>
+      {STEPS.map((s, i) => {
+        const done = i <= idx;
+        const emoji = s.key === 'in_transit' && via === 'courier' ? '🛵' : s.key === 'in_transit' && via === 'locker_stock' ? '🏪' : s.emoji;
+        return (
+          <View key={s.key} style={{ alignItems: 'center', flex: 1 }}>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: done ? colors.mintSoft : '#F3ECE8', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: done ? colors.mint : '#E6D9D2' }}>
+              <Text style={{ fontSize: 18, opacity: done ? 1 : 0.4 }}>{emoji}</Text>
+            </View>
+            <Text style={{ fontSize: 10, textAlign: 'center', color: done ? colors.ok : colors.muted, fontWeight: '700', marginTop: 2 }}>{t(`status_${s.key}`)}</Text>
+          </View>
+        );
+      })}
+    </Row>
+  );
+}
 
 export default function Pickups() {
   const { t } = useAuth();
@@ -17,47 +46,62 @@ export default function Pickups() {
 
   return (
     <Screen refreshing={reqs.loading} onRefresh={reqs.reload}>
+      <Bubble mood="cheer" tint={colors.accentSoft}>
+        {t('packageHero')}
+      </Bubble>
       {reqs.error && <ErrorBox message={reqs.error} onRetry={reqs.reload} />}
       {!reqs.data && <Loading />}
       {reqs.data?.length === 0 && <Empty text={t('noPickups')} />}
+
       {ready.map((r) => (
-        <Card key={r.id} style={{ borderColor: colors.primary, borderWidth: 2 }}>
-          <Row style={{ justifyContent: 'space-between' }}>
-            <Text style={{ fontWeight: '800', fontSize: 17, color: colors.text, flex: 1 }}>{r.child_name}</Text>
-            <Badge text={t('status_ready_for_pickup')} fg="#fff" bg={colors.primary} />
-          </Row>
-          <P>{r.locker?.name}</P>
-          {r.items.map((i) => (
-            <P key={i.item_key} muted>
-              • {i.quantity}× {i.name}
-            </P>
-          ))}
-          <View style={{ alignItems: 'center', marginVertical: 12 }}>
-            {r.qr_payload && <QRCode value={r.qr_payload} size={200} />}
-            <P muted style={{ marginTop: 8 }}>{t('showQR')}</P>
-            <Text style={{ fontSize: 32, fontWeight: '800', letterSpacing: 6, color: colors.primaryDark }}>{r.pickup_code}</Text>
-            <P muted>{t('pickupCode')}</P>
+        <Card key={r.id} style={{ padding: 0, overflow: 'hidden' }}>
+          <View style={{ backgroundColor: colors.primary, padding: 16 }}>
+            <Text style={{ color: '#fff', fontSize: 30 }}>🎁</Text>
+            <Text style={{ color: '#fff', fontWeight: '900', fontSize: 19 }}>{r.child_name}</Text>
+            <Text style={{ color: '#ffffffdd', fontWeight: '700' }}>📍 {r.locker?.name}</Text>
           </View>
-          {r.expires_at && (
-            <P muted style={{ fontSize: 12 }}>
-              {t('expires')}: {new Date(r.expires_at).toLocaleString()}
-            </P>
-          )}
+          <View style={{ padding: 16 }}>
+            {r.items.map((i) => (
+              <Text key={i.item_key} style={{ fontWeight: '600' }}>
+                • {i.quantity}× {i.name}
+              </Text>
+            ))}
+          </View>
+          {/* ticket perforation */}
+          <Row style={{ marginHorizontal: -10 }}>
+            <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: colors.bg }} />
+            <View style={{ flex: 1, borderTopWidth: 2, borderStyle: 'dashed', borderColor: colors.border }} />
+            <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: colors.bg }} />
+          </Row>
+          <View style={{ alignItems: 'center', padding: 16 }}>
+            {r.qr_payload && <QRCode value={r.qr_payload} size={190} color={colors.text} />}
+            <Text style={{ color: colors.muted, marginTop: 8 }}>{t('showQR')}</Text>
+            <Text style={{ fontSize: 34, fontWeight: '900', letterSpacing: 8, color: colors.primaryDark }}>{r.pickup_code}</Text>
+            <Text style={{ color: colors.muted }}>{t('pickupCode')}</Text>
+            {r.expires_at && (
+              <Text style={{ fontSize: 12, color: colors.muted, marginTop: 6 }}>
+                ⏰ {t('expires')}: {new Date(r.expires_at).toLocaleString()}
+              </Text>
+            )}
+          </View>
         </Card>
       ))}
+
       {others.map((r) => {
         const chosen = r.decision?.chosen;
         return (
           <Card key={r.id}>
-            <Row style={{ justifyContent: 'space-between' }}>
-              <Text style={{ fontWeight: '700', color: colors.text, flex: 1 }}>{r.child_name}</Text>
-              <Badge text={t(`status_${r.status}`)} fg={colors.info} bg={colors.infoSoft} />
-            </Row>
-            <P muted style={{ fontSize: 13 }}>{r.items.map((i) => `${i.quantity}× ${i.name}`).join(', ')}</P>
+            <Text style={{ fontWeight: '900', fontSize: 16 }}>🎁 {r.child_name}</Text>
+            <Text style={{ color: colors.muted, fontSize: 13 }}>{r.items.map((i) => `${i.quantity}× ${i.name}`).join(', ')}</Text>
+            {['pending_approval', 'in_transit', 'picked_up'].includes(r.status) ? (
+              <Progress status={r.status} via={r.fulfillment} />
+            ) : (
+              <Text style={{ marginTop: 6, fontWeight: '700', color: colors.warn }}>{t(`status_${r.status}`)}</Text>
+            )}
             {r.status === 'in_transit' && chosen && (
-              <P style={{ fontSize: 13 }}>
+              <Text style={{ fontSize: 13, marginTop: 8, fontWeight: '700', color: colors.info }}>
                 {t(`via_${chosen.type}`)} → {chosen.locker_name} · {t('eta')} ~{Math.round(chosen.eta_minutes)} {t('minutes')}
-              </P>
+              </Text>
             )}
           </Card>
         );

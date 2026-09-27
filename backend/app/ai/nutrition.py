@@ -12,6 +12,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 from . import llm
+from .recipes import COST_LABEL, RECIPES
 
 # WHO minimum dietary diversity (MDD) food groups for children 6-23 months.
 FOOD_GROUPS = {
@@ -74,41 +75,6 @@ AKG = [
     (6, 12, {"energy_kcal": 800, "protein_g": 15, "iron_mg": 11, "zinc_mg": 3, "vitamin_a_mcg": 400, "calcium_mg": 270}),
     (12, 48, {"energy_kcal": 1350, "protein_g": 20, "iron_mg": 7, "zinc_mg": 3, "vitamin_a_mcg": 400, "calcium_mg": 650}),
     (48, 61, {"energy_kcal": 1400, "protein_g": 25, "iron_mg": 10, "zinc_mg": 5, "vitamin_a_mcg": 450, "calcium_mg": 1000}),
-]
-
-RECIPES = [
-    {"key": "bubur_jagung_kelor", "min_age": 6, "foods": ["jagung", "daun_kelor", "telur"], "targets": ["iron_mg", "protein_g", "vitamin_a_mcg"],
-     "name": {"id": "Bubur jagung kelor telur", "en": "Corn porridge with moringa and egg"},
-     "steps": {"id": "Rebus jagung pipil hingga lunak, haluskan. Masukkan segenggam daun kelor dan 1 butir telur kocok, aduk hingga matang. Saring/haluskan untuk bayi 6-8 bulan.",
-               "en": "Boil corn kernels until soft and mash. Stir in a handful of moringa leaves and one beaten egg until cooked. Strain or mash smooth for babies 6-8 months."}},
-    {"key": "puree_ubi", "min_age": 6, "foods": ["ubi_jalar", "asi"], "targets": ["vitamin_a_mcg", "energy_kcal"],
-     "name": {"id": "Puree ubi jalar oranye", "en": "Orange sweet potato puree"},
-     "steps": {"id": "Kukus ubi jalar oranye, haluskan dengan sedikit ASI atau air matang hingga lembut.",
-               "en": "Steam orange sweet potato and mash with a little breast milk or boiled water until smooth."}},
-    {"key": "nasi_tim_hati", "min_age": 8, "foods": ["nasi", "hati_ayam", "wortel"], "targets": ["iron_mg", "zinc_mg", "vitamin_a_mcg", "protein_g"],
-     "name": {"id": "Nasi tim hati ayam wortel", "en": "Steamed rice with chicken liver and carrot"},
-     "steps": {"id": "Tim beras dengan kaldu ayam. Tumis hati ayam cincang dan wortel parut dengan sedikit minyak, campurkan ke nasi tim. Hati ayam cukup 1-2 kali seminggu.",
-               "en": "Steam rice in chicken broth. Sauté minced chicken liver and grated carrot in a little oil, then mix in. Liver 1-2 times a week is enough."}},
-    {"key": "bubur_kacang_hijau", "min_age": 8, "foods": ["kacang_hijau", "susu"], "targets": ["protein_g", "energy_kcal", "calcium_mg"],
-     "name": {"id": "Bubur kacang hijau", "en": "Mung bean porridge"},
-     "steps": {"id": "Rendam kacang hijau semalam, rebus hingga pecah dan lunak. Haluskan, tambahkan sedikit santan atau susu. Kurangi gula.",
-               "en": "Soak mung beans overnight, boil until soft, mash, and add a little coconut milk or milk. Keep sugar low."}},
-    {"key": "telur_dadar_kelor", "min_age": 9, "foods": ["telur", "daun_kelor"], "targets": ["protein_g", "iron_mg", "vitamin_a_mcg"],
-     "name": {"id": "Telur dadar kelor", "en": "Moringa omelette"},
-     "steps": {"id": "Kocok 1 telur dengan daun kelor cincang, masak dengan sedikit minyak hingga matang sempurna. Potong kecil-kecil.",
-               "en": "Beat one egg with chopped moringa leaves and cook through in a little oil. Cut into small pieces."}},
-    {"key": "jagung_bose_ikan", "min_age": 12, "foods": ["jagung", "kacang_hijau", "ikan"], "targets": ["protein_g", "energy_kcal", "zinc_mg"],
-     "name": {"id": "Jagung bose dengan ikan", "en": "Jagung bose (NTT corn & bean stew) with fish"},
-     "steps": {"id": "Masak jagung bose (jagung tumbuk dan kacang) seperti biasa hingga lunak. Sajikan dengan ikan kuah atau ikan bakar yang durinya sudah dibuang.",
-               "en": "Cook jagung bose (pounded corn with beans) until soft. Serve with boneless fish in broth or grilled fish."}},
-    {"key": "tempe_tahu_bayam", "min_age": 12, "foods": ["tempe", "tahu", "bayam", "nasi"], "targets": ["protein_g", "iron_mg", "calcium_mg"],
-     "name": {"id": "Nasi, tempe-tahu kukus dan sayur bayam", "en": "Rice with steamed tempeh-tofu and spinach"},
-     "steps": {"id": "Kukus tempe dan tahu, potong kecil. Masak bayam bening. Sajikan dengan nasi lembek.",
-               "en": "Steam tempeh and tofu and cut small. Cook a clear spinach soup. Serve with soft rice."}},
-    {"key": "sup_ikan_labu", "min_age": 12, "foods": ["ikan", "labu", "nasi"], "targets": ["protein_g", "vitamin_a_mcg"],
-     "name": {"id": "Sup ikan kuah kuning dengan labu", "en": "Yellow fish soup with pumpkin"},
-     "steps": {"id": "Rebus ikan dengan bumbu kuning (kunyit, bawang) dan potongan labu kuning hingga lunak. Pastikan duri dibuang.",
-               "en": "Simmer fish with turmeric-shallot spice and pumpkin pieces until soft. Remove all bones."}},
 ]
 
 NUTRIENT_LABELS = {
@@ -229,6 +195,109 @@ _RECO_SYSTEM = (
 )
 
 
+MDD_GROUPS = ["grains_roots", "pulses_nuts", "dairy", "flesh", "eggs", "vita_fruit_veg", "other_fruit_veg"]
+
+# Basic kitchen items every household has; AI menu ideas may use only these plus FOODS.
+PANTRY = {"id": "bawang merah, bawang putih, kunyit, minyak, garam sedikit, air", "en": "shallot, garlic, turmeric, oil, a little salt, water"}
+
+
+def recipe_view(r: dict, lang: str) -> dict:
+    L = lang if lang in ("id", "en") else "en"
+    groups = sorted({FOODS[f]["group"] for f in r["foods"] if f in FOODS})
+    return {
+        "key": r["key"], "name": r["name"][L], "min_age_months": r["min_age"], "minutes": r["minutes"],
+        "cost": r["cost"], "cost_label": COST_LABEL[r["cost"]][L], "meal": r["meal"], "foods": r["foods"],
+        "food_groups": groups, "ingredients": r["ingredients"][L], "steps": r["steps"][L],
+        "targets": [NUTRIENT_LABELS[t][L] for t in r["targets"]],
+    }
+
+
+def _age_ok(r: dict, age: float) -> bool:
+    return r["min_age"] <= age and (age >= 6 or r["min_age"] <= 6)
+
+
+_MENU_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["ideas"],
+    "properties": {
+        "ideas": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["name", "minutes", "ingredients", "steps", "why"],
+                "properties": {
+                    "name": {"type": "string"},
+                    "minutes": {"type": "integer"},
+                    "ingredients": {"type": "array", "items": {"type": "string"}},
+                    "steps": {"type": "array", "items": {"type": "string"}},
+                    "why": {"type": "string"},
+                },
+            },
+        }
+    },
+}
+
+
+def suggest_menus(age_months: float, groups_today: list[str], gaps: list[str], lang: str = "id", limit: int = 3,
+                  use_ai: bool = True) -> dict:
+    """Menu suggester used after NutriScan: easy, cheap dishes that add the food groups still missing
+    today and the nutrients the child has been short of this week."""
+    L = lang if lang in ("id", "en") else "en"
+    if age_months < 6:
+        return {"missing_groups": [], "suggestions": [], "ai_ideas": [], "generated_by": "rules",
+                "note": {"id": "Si kecil belum 6 bulan: cukup ASI saja ya, Bunda.",
+                         "en": "Under 6 months: breast milk only is best."}[L]}
+    missing = [g for g in MDD_GROUPS if g not in groups_today]
+    candidates = [r for r in RECIPES if _age_ok(r, age_months)]
+    still_missing, still_gaps = list(missing), list(gaps)
+    suggestions = []
+    # Greedy: each pick should add food groups / nutrients the previous picks did not already cover.
+    while candidates and len(suggestions) < limit:
+        def score(r):
+            r_groups = {FOODS[f]["group"] for f in r["foods"] if f in FOODS}
+            return (3 * len([g for g in still_missing if g in r_groups]) + 2 * len([t for t in r["targets"] if t in still_gaps])
+                    - r["minutes"] / 10 - (r["cost"] - 1))
+        r = max(candidates, key=score)
+        candidates.remove(r)
+        r_groups = {FOODS[f]["group"] for f in r["foods"] if f in FOODS}
+        adds = [g for g in missing if g in r_groups]
+        fills = [t for t in r["targets"] if t in gaps]
+        still_missing = [g for g in still_missing if g not in r_groups]
+        still_gaps = [t for t in still_gaps if t not in r["targets"]]
+        why = []
+        if adds:
+            why.append({"id": "Melengkapi: ", "en": "Adds: "}[L] + ", ".join(FOOD_GROUPS[g][L] for g in adds))
+        if fills:
+            why.append({"id": "Mengisi kekurangan ", "en": "Tops up "}[L] + ", ".join(NUTRIENT_LABELS[f][L] for f in fills))
+        suggestions.append({**recipe_view(r, L), "why": "; ".join(why) or {"id": "Menu seimbang dan mudah", "en": "Balanced and easy"}[L],
+                            "adds_groups": adds})
+
+    ai_ideas, source = [], "rules"
+    if use_ai:
+        foods = "; ".join(f["name_id"] for f in FOODS.values() if f["key"] not in ("mie", "biskuit", "pmt_biskuit", "asi"))
+        ai = llm.complete_json(
+            _RECO_SYSTEM,
+            (
+                f"Write in {'Bahasa Indonesia' if L == 'id' else 'English'}. Child age: {age_months:.0f} months.\n"
+                f"Food groups already eaten today: {', '.join(groups_today) or 'none'}. Missing: {', '.join(missing) or 'none'}.\n"
+                f"Nutrients short this week: {', '.join(gaps) or 'none'}.\n"
+                "Suggest 2 NEW dish ideas for the next meal or snack. Hard rules: at most 20 minutes; only a pot, pan or "
+                "steamer; use ONLY these cheap everyday foods: " + foods + f"; plus pantry basics: {PANTRY[L]}. "
+                "Texture must suit the age, no honey under 12 months, no whole nuts, no added sugar, very little salt. "
+                "Household measures (spoons, handfuls). 3 short steps max. `why` = one sentence on which gap it fills."
+            ),
+            _MENU_SCHEMA,
+            max_tokens=2500,
+        )
+        if ai:
+            ai_ideas = [i for i in ai.get("ideas", []) if i.get("minutes", 99) <= 25][:2]
+            source = "claude+rules" if ai_ideas else "rules"
+    return {"missing_groups": [{"key": g, "label": FOOD_GROUPS[g][L]} for g in missing],
+            "suggestions": suggestions, "ai_ideas": ai_ideas, "generated_by": source}
+
+
 def recommend(child_ctx: dict, intake: dict, risk_level: str | None, lang: str = "id", use_ai: bool = True) -> dict:
     """Rule-based recommendation, optionally personalised by Claude. child_ctx: {age_months, sex, name, haz, whz, symptoms}."""
     age = child_ctx["age_months"]
@@ -241,7 +310,8 @@ def recommend(child_ctx: dict, intake: dict, risk_level: str | None, lang: str =
         for k in _foods_for(n):
             if k not in priority_foods:
                 priority_foods.append(k)
-    recipes = [r for r in RECIPES if r["min_age"] <= age and (set(r["targets"]) & set(focus))][:4]
+    recipes = sorted((r for r in RECIPES if _age_ok(r, age) and set(r["targets"]) & set(focus)),
+                     key=lambda r: (-len(set(r["targets"]) & set(focus)), r["minutes"], r["cost"]))[:4]
 
     tips: list[str] = []
     if age < 6:
@@ -272,8 +342,7 @@ def recommend(child_ctx: dict, intake: dict, risk_level: str | None, lang: str =
         "focus_nutrients": [{"key": n, "label": NUTRIENT_LABELS[n][L]} for n in focus],
         "priority_foods": [{"key": k, "name": FOODS[k]["name_id"] if L == "id" else FOODS[k]["name_en"],
                             "portion_g": FOODS[k]["portion_g"]} for k in priority_foods[:8]],
-        "recipes": [{"key": r["key"], "name": r["name"][L], "steps": r["steps"][L], "min_age_months": r["min_age"],
-                     "foods": r["foods"], "targets": [NUTRIENT_LABELS[t][L] for t in r["targets"]]} for r in recipes],
+        "recipes": [recipe_view(r, L) for r in recipes],
         "tips": tips,
         "meal_plan": [],
         "cautions": [],
@@ -292,7 +361,9 @@ def recommend(child_ctx: dict, intake: dict, risk_level: str | None, lang: str =
             f"Nutrients to prioritise: {', '.join(focus)}. Locally available priority foods: "
             f"{', '.join(FOODS[k]['name_id'] for k in priority_foods[:8])}.\n"
             "Give a short headline, 3-5 personalised tips, a one-day meal plan appropriate for the child's age "
-            "(meal, menu, why), and any cautions (choking hazards, allergy, hygiene, when to see a health worker)."
+            "(meal, menu, why), and any cautions (choking hazards, allergy, hygiene, when to see a health worker). "
+            "Every menu must be easy (under 20 minutes, a pot/pan/steamer only) and use cheap foods sold in any village "
+            f"kiosk or market, or grown at home, plus pantry basics ({PANTRY[L]}). No expensive or imported items."
         ),
         _RECO_SCHEMA,
         max_tokens=3000,

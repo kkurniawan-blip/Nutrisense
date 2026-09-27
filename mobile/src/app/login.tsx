@@ -1,20 +1,21 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button, Card, ErrorBox, Field, P, Segmented, styles as ui } from '../components/ui';
+import { Mascot } from '../components/Mascot';
+import { Text } from '../components/Text';
+import { Button, Card, ErrorBox, Field, Segmented, styles as ui } from '../components/ui';
 import { errorText, getBaseUrl, setBaseUrl } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import type { Lang } from '../lib/types';
 import { colors } from '../theme';
 
 const DEMO = [
-  ['ibu.maria@nutrisense.id', 'Caregiver / Orang tua'],
-  ['kader.oesapa@nutrisense.id', 'Kader'],
-  ['officer@nutrisense.id', 'Health officer / Dinkes'],
-  ['doctor@nutrisense.id', 'Doctor / Dokter'],
+  ['ibu.maria@nutrisense.id', '🤱', 'Bunda / Caregiver'],
+  ['kader.oesapa@nutrisense.id', '🏡', 'Kader'],
+  ['officer@nutrisense.id', '🏥', 'Dinkes / Officer'],
+  ['doctor@nutrisense.id', '🩺', 'Dokter / Doctor'],
 ];
 
 export default function Login() {
@@ -46,48 +47,53 @@ export default function Login() {
   return (
     <SafeAreaView style={ui.screen}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <View style={{ flex: 1, padding: 20, justifyContent: 'center', maxWidth: 480, width: '100%', alignSelf: 'center' }}>
-          <View style={{ alignItems: 'center', marginBottom: 20 }}>
-            <View style={{ backgroundColor: colors.primary, borderRadius: 24, padding: 14, marginBottom: 10 }}>
-              <Ionicons name="leaf" size={40} color="#fff" />
-            </View>
-            <Text style={{ fontSize: 30, fontWeight: '800', color: colors.primaryDark }}>NutriSense</Text>
-            <P muted>{t('appTagline')}</P>
+        <ScrollView contentContainerStyle={{ padding: 20, maxWidth: 480, width: '100%', alignSelf: 'center' }} keyboardShouldPersistTaps="handled">
+          <View style={{ alignItems: 'center', marginVertical: 12 }}>
+            <View style={{ position: 'absolute', width: 180, height: 180, borderRadius: 90, backgroundColor: colors.primarySoft, top: -10 }} />
+            <View style={{ position: 'absolute', width: 60, height: 60, borderRadius: 30, backgroundColor: colors.accentSoft, top: 0, right: 40 }} />
+            <View style={{ position: 'absolute', width: 40, height: 40, borderRadius: 20, backgroundColor: colors.mintSoft, top: 110, left: 50 }} />
+            <Mascot size={130} mood="cheer" bounce />
+            <Text style={{ fontSize: 34, fontWeight: '900', color: colors.primary, marginTop: 4 }}>NutriSense</Text>
+            <Text style={{ fontSize: 18, fontWeight: '800' }}>{t('loginHello')}</Text>
+            <Text style={{ color: colors.muted, textAlign: 'center' }}>{t('appTagline')} 🌱</Text>
           </View>
           <Segmented<Lang>
             value={lang}
             onChange={(l) => void setLang(l)}
             options={[
-              { value: 'id', label: 'Bahasa Indonesia' },
-              { value: 'en', label: 'English' },
+              { value: 'id', label: '🇮🇩 Indonesia' },
+              { value: 'en', label: '🇬🇧 English' },
             ]}
           />
           <Card>
-            <Field label={t('email')} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
-            <Field label={t('password')} value={password} onChangeText={setPassword} secureTextEntry autoComplete="password" onSubmitEditing={submit} />
+            <Field label={`✉️ ${t('email')}`} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
+            <Field label={`🔑 ${t('password')}`} value={password} onChangeText={setPassword} secureTextEntry autoComplete="password" onSubmitEditing={submit} />
             {error && <ErrorBox message={error} />}
-            <Button title={t('login')} onPress={submit} loading={busy} disabled={!email || !password} icon="log-in-outline" />
+            <Button title={t('login')} onPress={submit} loading={busy} disabled={!email || !password} icon="log-in" />
             <Button title={t('noAccount')} variant="ghost" onPress={() => router.push('/register')} />
           </Card>
-          <Card>
-            <P muted style={{ marginBottom: 6 }}>{t('demoAccounts')}</P>
-            {DEMO.map(([e, role]) => (
-              <Pressable
-                key={e}
-                onPress={() => {
-                  setEmail(e);
-                  setPassword('Demo1234!');
-                }}
-                style={{ paddingVertical: 6 }}
-              >
-                <Text style={{ color: colors.primary, fontWeight: '600' }}>{role}</Text>
-                <Text style={{ color: colors.muted, fontSize: 13 }}>{e}</Text>
-              </Pressable>
-            ))}
+          <Card tint={colors.lavenderSoft}>
+            <Text style={{ fontWeight: '800', marginBottom: 8 }}>🎈 {t('demoAccounts')}</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {DEMO.map(([e, emoji, role]) => (
+                <Pressable
+                  key={e}
+                  onPress={() => {
+                    setEmail(e);
+                    setPassword('Demo1234!');
+                  }}
+                  style={{ backgroundColor: '#fff', borderRadius: 16, padding: 10, flexBasis: '47%', flexGrow: 1 }}
+                >
+                  <Text style={{ fontSize: 22 }}>{emoji}</Text>
+                  <Text style={{ fontWeight: '800', color: colors.lavender }}>{role}</Text>
+                  <Text style={{ color: colors.muted, fontSize: 11 }}>{e}</Text>
+                </Pressable>
+              ))}
+            </View>
           </Card>
           <Pressable onPress={() => setShowServer(!showServer)} style={{ alignItems: 'center', padding: 8 }}>
-            <Text style={{ color: colors.muted, fontSize: 13 }}>
-              {t('serverUrl')}: {getBaseUrl()}
+            <Text style={{ color: colors.muted, fontSize: 12 }}>
+              ⚙️ {t('serverUrl')}: {getBaseUrl()}
             </Text>
           </Pressable>
           {showServer && (
@@ -103,7 +109,7 @@ export default function Login() {
               />
             </Card>
           )}
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

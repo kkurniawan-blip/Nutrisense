@@ -98,3 +98,27 @@ def test_recommendation_rule_based_offline():
 def test_llm_disabled_without_key():
     assert llm.is_enabled() is False
     assert llm.complete_json("s", "u", {"type": "object"}) is None
+
+
+def test_recipes_are_easy_and_use_everyday_foods():
+    from app.ai.recipes import RECIPES
+
+    assert len(RECIPES) >= 15
+    for r in RECIPES:
+        assert all(f in nutrition.FOODS for f in r["foods"]), r["key"]
+        assert r["cost"] in (1, 2) and r["minutes"] <= 40
+        assert len(r["steps"]["id"]) <= 3 and len(r["steps"]["en"]) == len(r["steps"]["id"])
+        assert r["ingredients"]["id"] and len(r["ingredients"]["id"]) == len(r["ingredients"]["en"])
+        # No expensive or instant foods in the menu suggester.
+        assert not {"mie", "biskuit", "daging_sapi"} & set(r["foods"])
+
+
+def test_menu_suggester_fills_missing_groups():
+    r = nutrition.suggest_menus(14, ["grains_roots"], ["iron_mg"], "en", use_ai=False)
+    assert len(r["suggestions"]) == 3
+    added = {g for s in r["suggestions"] for g in s["adds_groups"]}
+    assert len(added) >= 4  # suggestions are diverse, not three variants of the same dish
+    assert all(s["min_age_months"] <= 14 and s["minutes"] <= 40 for s in r["suggestions"])
+    assert nutrition.suggest_menus(4, [], [], "en", use_ai=False)["suggestions"] == []
+    baby = nutrition.suggest_menus(7, [], [], "en", use_ai=False)
+    assert all(s["min_age_months"] <= 7 for s in baby["suggestions"])

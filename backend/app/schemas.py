@@ -94,6 +94,10 @@ class MealIn(BaseModel):
     ai_notes: str | None = None
 
 
+class MenuSuggestIn(BaseModel):
+    items: list[MealItemIn] = Field(default_factory=list, description="Foods just scanned/selected but not saved yet")
+
+
 class ChatIn(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
     child_id: int | None = None

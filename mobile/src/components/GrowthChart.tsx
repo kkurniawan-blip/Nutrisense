@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { LayoutChangeEvent, Text, View } from 'react-native';
+import { LayoutChangeEvent, View } from 'react-native';
 import Svg, { Circle, G, Line, Path, Text as SvgText } from 'react-native-svg';
 
 import { colors } from '../theme';
+import { Text } from './Text';
 
 export interface ChartData {
   points: { age_months: number; value: number; z: number | null }[];
