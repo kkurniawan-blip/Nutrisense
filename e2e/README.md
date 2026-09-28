@@ -1,11 +1,11 @@
 # End-to-end test
 
-`app.e2e.mjs` drives the real app in a browser (Chromium through Playwright), the way people use it. It runs 45 steps across these sessions:
+`app.e2e.mjs` drives the real app in a browser (Chromium through Playwright), the way people use it. It runs 48 steps across these sessions:
 
 | Session | What it covers |
 |---|---|
 | **New mother** | Wrong password, sign-up (including its error messages), edit profile, change password, text size, log out and back in |
-| **Mother** | Home checklist, child profile, growth history, development, recipes, meal plan, a guided measurement, logging a meal, three symptom checks (a tapped danger sign, a typed danger sign, a negated sentence that must stay calm), NutriScan, Tanya Nuri, packages, privacy switches, health guide, adding a child |
+| **Mother** | Home checklist, child profile, growth history, development, recipes, meal plan, a guided measurement, logging a meal, NutriScan (foods on hand → best dish → cooking steps → logged meal, including the instant-noodle tip), three symptom checks (a tapped danger sign, a typed danger sign, a negated sentence that must stay calm), Tanya Nuri, packages, privacy switches, health guide, adding a child |
 | **Kader** | Area counts, filters and paging, search, cases, sharing a note with the family, logistics, locker pickup, measuring a child, Settings opened directly |
 | **Officer and doctor** | Dashboard, reviews, readable package options, approving a package, drone fleet, case review |
 | **Mother again** | Sees the Kader's note as a recommendation and gets a notification in her language |

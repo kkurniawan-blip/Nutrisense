@@ -431,10 +431,12 @@ def scan_image(image_bytes: bytes, media_type: str, age_months: float, lang: str
         return None
     foods_hint = "; ".join(f"{k} = {v['name_id']} / {v['name_en']}" for k, v in FOODS.items())
     ai = llm.complete_json(
-        "You analyse photos of meals served to young children in Indonesia for a nutrition screening app. "
-        "Identify each visible food, map it to the closest key in the provided food list (use 'other' when none "
-        "fits), and estimate the edible portion in grams using the plate, bowl, spoon or hand for scale. "
-        "Confidence is 0-1. If the image is not food, set is_food=false and return no items.",
+        "You analyse photos taken by mothers in Indonesia for a child nutrition app. The photo may show a cooked "
+        "meal, raw ingredients in the kitchen (eggs, vegetables, tempeh, fish, rice...), or food at a market or kiosk. "
+        "Identify each visible food or ingredient, map it to the closest key in the provided food list (use 'other' "
+        "when none fits), and estimate one child portion in grams (for a cooked meal, the portion on the plate, using "
+        "the plate, bowl, spoon or hand for scale). Confidence is 0-1. If the image shows no food, set is_food=false "
+        "and return no items.",
         [
             {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": base64.standard_b64encode(image_bytes).decode()}},
             {"type": "text", "text": f"Child age: {age_months:.0f} months. Write `notes` and `name` in "

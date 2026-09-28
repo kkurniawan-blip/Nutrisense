@@ -136,8 +136,8 @@ export function Button({
         <ActivityIndicator color={palette.fg} />
       ) : (
         <View style={styles.buttonInner}>
-          {icon && <Ionicons name={icon} size={small ? 16 : 20} color={palette.fg} />}
-          <Text style={[styles.buttonText, small && { fontSize: 14 }, { color: palette.fg }]}>{title}</Text>
+          {icon && <Ionicons name={icon} size={small ? 18 : 22} color={palette.fg} />}
+          <Text style={[styles.buttonText, small && { fontSize: 16 }, { color: palette.fg }]}>{title}</Text>
         </View>
       )}
     </PressScale>
@@ -213,7 +213,7 @@ export function Chip({ label, selected, onPress, tone, emoji }: { label: string;
       onPress={onPress}
       style={[styles.chip, { backgroundColor: selected ? active : '#fff', borderColor: selected ? active : colors.border }]}
     >
-      <Text style={{ color: selected ? '#fff' : colors.text, fontSize: 14, fontWeight: '600' }}>
+      <Text style={{ color: selected ? '#fff' : colors.text, fontSize: 16, fontWeight: '700' }}>
         {emoji ? `${emoji} ` : ''}
         {label}
       </Text>
@@ -259,8 +259,8 @@ export function StatusPill({ status, label, large }: { status: StatusKey; label:
       accessibilityLabel={label}
       style={[styles.badge, { backgroundColor: c.bg, flexDirection: 'row', alignItems: 'center', gap: 6 }, large && { paddingHorizontal: 14, paddingVertical: 8 }]}
     >
-      <Text style={{ fontSize: large ? 14 : 11 }}>{c.dot}</Text>
-      <Text style={{ color: c.fg, fontWeight: '800', fontSize: large ? 17 : 13 }}>{label}</Text>
+      <Text style={{ fontSize: large ? 14 : 12 }}>{c.dot}</Text>
+      <Text style={{ color: c.fg, fontWeight: '800', fontSize: large ? 17 : 15 }}>{label}</Text>
     </View>
   );
 }
@@ -281,11 +281,11 @@ export function ListRow({ emoji, title, subtitle, onPress, right }: { emoji: str
   return (
     <PressScale onPress={onPress} accessibilityRole="button" style={styles.listRow}>
       <View style={styles.listIcon}>
-        <Text style={{ fontSize: 20 }}>{emoji}</Text>
+        <Text style={{ fontSize: 22 }}>{emoji}</Text>
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={{ fontWeight: '800', fontSize: 16 }}>{title}</Text>
-        {subtitle ? <Text style={{ color: colors.muted, fontSize: 13 }}>{subtitle}</Text> : null}
+        <Text style={{ fontWeight: '800', fontSize: 17 }}>{title}</Text>
+        {subtitle ? <Text style={{ color: colors.muted, fontSize: 15, lineHeight: 20 }}>{subtitle}</Text> : null}
       </View>
       {right ?? <Ionicons name="chevron-forward" size={20} color={colors.muted} />}
     </PressScale>
@@ -332,10 +332,10 @@ export function Tile({ emoji, title, subtitle, onPress, color = 0, wide }: { emo
   return (
     <PressScale onPress={onPress} style={[styles.tile, { backgroundColor: p.bg, flexBasis: wide ? '100%' : '47%' }]}>
       <View style={styles.tileEmoji}>
-        <Text style={{ fontSize: 26 }}>{emoji}</Text>
+        <Text style={{ fontSize: 28 }}>{emoji}</Text>
       </View>
-      <Text style={{ fontSize: 16, fontWeight: '800', color: p.fg, marginTop: 8 }}>{title}</Text>
-      {subtitle ? <Text style={{ fontSize: 12, color: colors.muted, marginTop: 2 }}>{subtitle}</Text> : null}
+      <Text style={{ fontSize: 18, fontWeight: '900', color: p.fg, marginTop: 10 }}>{title}</Text>
+      {subtitle ? <Text style={{ fontSize: 14, color: colors.text, marginTop: 2, lineHeight: 19 }}>{subtitle}</Text> : null}
     </PressScale>
   );
 }
@@ -419,24 +419,24 @@ export function Bar({ pct, color = colors.mint, warnBelow = 70 }: { pct: number;
 
 export const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  padded: { padding: 16 },
-  card: { backgroundColor: colors.card, borderRadius: radius.lg, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: '#F7ECE6', ...shadow },
+  padded: { paddingHorizontal: 18, paddingTop: 18 },
+  card: { backgroundColor: colors.card, borderRadius: radius.lg, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: '#F7ECE6', ...shadow },
   h1: { fontSize: 26, fontWeight: '900', color: colors.text, marginBottom: 8 },
-  h2Row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, marginTop: 4 },
-  h2: { fontSize: 18, fontWeight: '800', color: colors.text, flexShrink: 1 },
-  p: { fontSize: 15, color: colors.text, lineHeight: 22 },
-  label: { fontSize: 13, fontWeight: '700', color: colors.muted, marginBottom: 6, marginLeft: 4 },
+  h2Row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, marginTop: 4, gap: 8 },
+  h2: { fontSize: 20, fontWeight: '800', color: colors.text, flexShrink: 1, lineHeight: 26 },
+  p: { fontSize: 17, color: colors.text, lineHeight: 25 },
+  label: { fontSize: 15, fontWeight: '800', color: colors.text, marginBottom: 8, marginLeft: 4 },
   input: { borderWidth: 2, borderColor: '#F4E6DF', borderRadius: radius.md, paddingHorizontal: 16, paddingVertical: 12, fontSize: 17, backgroundColor: '#FFFCFA', color: colors.text },
-  button: { borderRadius: radius.pill, paddingVertical: 15, paddingHorizontal: 20, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginVertical: 5 },
-  buttonSmall: { paddingVertical: 9, paddingHorizontal: 14, minHeight: TOUCH },
+  button: { borderRadius: radius.pill, paddingVertical: 16, paddingHorizontal: 20, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginVertical: 6, minHeight: 58 },
+  buttonSmall: { paddingVertical: 10, paddingHorizontal: 16, minHeight: 48 },
   buttonInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  buttonText: { fontSize: 16, fontWeight: '800' },
+  buttonText: { fontSize: 18, fontWeight: '800', textAlign: 'center', flexShrink: 1 },
   toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, minHeight: TOUCH },
-  chip: { borderWidth: 2, borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 8, marginRight: 8, marginBottom: 8, minHeight: TOUCH, justifyContent: 'center' },
-  listRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, minHeight: 56 },
-  listIcon: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  chip: { borderWidth: 2, borderRadius: radius.pill, paddingHorizontal: 16, paddingVertical: 10, marginRight: 8, marginBottom: 10, minHeight: 48, justifyContent: 'center' },
+  listRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, minHeight: 66 },
+  listIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
   segment: { flexDirection: 'row', backgroundColor: '#F6EAE4', borderRadius: radius.pill, padding: 4, marginBottom: 14 },
-  segmentItem: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 8, minHeight: TOUCH, borderRadius: radius.pill },
+  segmentItem: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 4, minHeight: 48, borderRadius: radius.pill },
   segmentActive: { backgroundColor: colors.primary },
   badge: { borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4, alignSelf: 'flex-start' },
   stat: { flex: 1, minWidth: 96, backgroundColor: colors.card, borderRadius: radius.md, padding: 14, ...shadow },
@@ -445,9 +445,9 @@ export const styles = StyleSheet.create({
   errorBox: { backgroundColor: colors.dangerSoft, borderRadius: radius.md, padding: 14, marginVertical: 8 },
   barTrack: { height: 12, backgroundColor: '#F4E9E3', borderRadius: 6, overflow: 'hidden', flex: 1 },
   barFill: { height: 12, borderRadius: 6 },
-  tile: { borderRadius: radius.lg, padding: 14, minHeight: 118, flexGrow: 1 },
-  tileEmoji: { backgroundColor: '#fff', borderRadius: 18, width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
-  bubble: { flex: 1, borderRadius: 20, padding: 14, marginLeft: 10, marginBottom: 6 },
+  tile: { borderRadius: radius.lg, padding: 16, minHeight: 132, flexGrow: 1 },
+  tileEmoji: { backgroundColor: '#fff', borderRadius: 20, width: 54, height: 54, alignItems: 'center', justifyContent: 'center' },
+  bubble: { flex: 1, borderRadius: 20, padding: 16, marginLeft: 10, marginBottom: 6 },
   bubbleTail: {
     position: 'absolute',
     left: -8,

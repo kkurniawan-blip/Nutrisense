@@ -101,6 +101,10 @@ class MealIn(BaseModel):
     client_uuid: str | None = Field(default=None, max_length=64, description="Idempotency key for offline sync")
 
 
+class KitchenIn(BaseModel):
+    food_keys: list[str] = Field(default_factory=list, max_length=40, description="Foods on hand (from NutriScan or picked)")
+
+
 class MenuSuggestIn(BaseModel):
     items: list[MealItemIn] = Field(default_factory=list, description="Foods just scanned/selected but not saved yet")
 

@@ -74,7 +74,7 @@ export default function Nutrition() {
             🌈 {t('diversity')}: <Text style={{ fontWeight: '900', color: p.intake.mdd_met ? colors.ok : colors.warn }}>{p.intake.dietary_diversity}</Text> / 8 {t('groupsPerDay')}
           </Text>
         )}
-        <Button small variant="secondary" title={t('logMeal')} icon="camera" onPress={() => router.push(`/child/${id}/meal?action=camera`)} />
+        <Button small variant="secondary" title={t('logMeal')} icon="create-outline" onPress={() => router.push(`/child/${id}/meal?action=manual`)} />
       </Card>
 
       {p.priority_foods.length > 0 && (

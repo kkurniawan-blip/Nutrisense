@@ -160,7 +160,7 @@ function MotherHome() {
 
             {/* Primary actions */}
             <Row style={{ flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
-              <Tile emoji="📸" title={t('actLogMeal')} color={0} onPress={() => router.push(`/child/${child.id}/meal?action=camera`)} />
+              <Tile emoji="📸" title="NutriScan" subtitle={t('tileNutriScanSub')} color={0} onPress={() => router.push(`/nutriscan?child=${child.id}`)} />
               <Tile emoji="📏" title={t('tileMeasure')} color={4} onPress={() => router.push(`/child/${child.id}/measure`)} />
               <Tile emoji="🤒" title={t('actCheckSymptoms')} color={5} onPress={() => router.push(`/child/${child.id}/symptoms`)} />
               <Tile emoji="💬" title={t('tileConsult')} color={3} onPress={() => router.push('/assistant')} />
@@ -173,8 +173,8 @@ function MotherHome() {
               <ListRow emoji="🧠" title={t('development')} onPress={() => router.push(`/child/${child.id}/development`)} />
             </Journey>
             <Journey emoji="🍽️" title={t('jNutrition')} subtitle={t('jNutritionSub')}>
-              <ListRow emoji="📸" title="NutriScan" onPress={() => router.push(`/child/${child.id}/meal?action=camera`)} />
-              <ListRow emoji="🥘" title={t('tileNutrition')} onPress={() => router.push(`/nutriscan?child=${child.id}`)} />
+              <ListRow emoji="📸" title="NutriScan" subtitle={t('tileNutriScanSub')} onPress={() => router.push(`/nutriscan?child=${child.id}`)} />
+              <ListRow emoji="✍️" title={t('actLogMeal')} onPress={() => router.push(`/child/${child.id}/meal?action=manual`)} />
               <ListRow emoji="🗓️" title={t('nutritionPlan')} onPress={() => router.push(`/child/${child.id}/nutrition`)} />
               <ListRow emoji="👩‍🍳" title={t('recipes')} onPress={() => router.push(`/child/${child.id}/recipes`)} />
             </Journey>

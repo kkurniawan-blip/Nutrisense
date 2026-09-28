@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 pip install --no-cache-dir -r backend/requirements.txt
 
 (cd mobile && npm ci --no-audit --no-fund && \
-  EXPO_PUBLIC_SAME_ORIGIN_API=1 CI=1 EXPO_NO_TELEMETRY=1 npx expo export --platform web --output-dir ../backend/web)
+  EXPO_PUBLIC_SAME_ORIGIN_API=1 CI=1 EXPO_NO_TELEMETRY=1 npx expo export --platform web --clear --output-dir ../backend/web)
 
 # Stable secrets for this codespace, kept in backend/.env (not committed).
 if ! grep -q NUTRISENSE_JWT_SECRET backend/.env 2>/dev/null; then

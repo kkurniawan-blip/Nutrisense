@@ -12,19 +12,19 @@ function Steps({ ingredients, steps }: { ingredients: string[]; steps: string[] 
   const { t } = useAuth();
   return (
     <View style={{ marginTop: 10 }}>
-      <Text style={{ fontWeight: '800', marginBottom: 4 }}>🧺 {t('ingredients')}</Text>
+      <Text style={{ fontWeight: '900', fontSize: 18, marginBottom: 6 }}>🧺 {t('ingredients')}</Text>
       {ingredients.map((i) => (
-        <Text key={i} style={{ color: colors.text, marginLeft: 6, lineHeight: 22 }}>
+        <Text key={i} style={{ color: colors.text, marginLeft: 6, fontSize: 17, lineHeight: 26 }}>
           • {i}
         </Text>
       ))}
-      <Text style={{ fontWeight: '800', marginTop: 10, marginBottom: 4 }}>👩‍🍳 {t('howTo')}</Text>
+      <Text style={{ fontWeight: '900', fontSize: 18, marginTop: 14, marginBottom: 8 }}>👩‍🍳 {t('howTo')}</Text>
       {steps.map((s, i) => (
-        <Row key={s} style={{ alignItems: 'flex-start', marginBottom: 6 }}>
-          <View style={{ backgroundColor: colors.accent, width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ color: '#fff', fontWeight: '900', fontSize: 12 }}>{i + 1}</Text>
+        <Row key={s} style={{ alignItems: 'flex-start', marginBottom: 12, gap: 12 }}>
+          <View style={{ backgroundColor: colors.primary, width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: '#fff', fontWeight: '900', fontSize: 16 }}>{i + 1}</Text>
           </View>
-          <Text style={{ flex: 1, lineHeight: 21 }}>{s}</Text>
+          <Text style={{ flex: 1, fontSize: 17, lineHeight: 26 }}>{s}</Text>
         </Row>
       ))}
     </View>
@@ -39,20 +39,20 @@ export function RecipeCard({ recipe, index = 0 }: { recipe: Recipe; index?: numb
   return (
     <Card style={{ padding: 0, overflow: 'hidden' }}>
       <Pressable onPress={() => setOpen(!open)}>
-        <View style={{ backgroundColor: p.bg, padding: 14 }}>
-          <Text style={{ fontSize: 26, letterSpacing: 4 }}>{recipe.foods.map((f) => FOOD_EMOJI[f] ?? '🍽️').join('')}</Text>
-          <Text style={{ fontSize: 17, fontWeight: '900', color: p.fg, marginTop: 4 }}>{recipe.name}</Text>
+        <View style={{ backgroundColor: p.bg, padding: 18 }}>
+          <Text style={{ fontSize: 30, letterSpacing: 4 }}>{recipe.foods.map((f) => FOOD_EMOJI[f] ?? '🍽️').join('')}</Text>
+          <Text style={{ fontSize: 21, fontWeight: '900', color: p.fg, marginTop: 6, lineHeight: 27 }}>{recipe.name}</Text>
           <Row style={{ flexWrap: 'wrap', marginTop: 8 }}>
             <Badge text={`⏱ ${recipe.minutes} ${t('minutes')}`} fg={colors.text} bg="#ffffffcc" />
             <Badge text={`💰 ${recipe.cost_label}`} fg={colors.text} bg="#ffffffcc" />
             <Badge text={`👶 ${recipe.min_age_months}+ ${t('months')}`} fg={colors.text} bg="#ffffffcc" />
           </Row>
         </View>
-        <View style={{ padding: 14 }}>
-          {recipe.why ? <Text style={{ color: colors.ok, fontWeight: '700', marginBottom: 4 }}>✨ {recipe.why}</Text> : null}
-          <Text style={{ color: colors.muted, fontSize: 13 }}>💪 {recipe.targets.join(' · ')}</Text>
+        <View style={{ padding: 18 }}>
+          {recipe.why ? <Text style={{ color: colors.ok, fontWeight: '700', marginBottom: 6, fontSize: 16 }}>✨ {recipe.why}</Text> : null}
+          <Text style={{ color: colors.muted, fontSize: 16 }}>💪 {recipe.targets.join(' · ')}</Text>
           {open && <Steps ingredients={recipe.ingredients} steps={recipe.steps} />}
-          <Text style={{ color: colors.primary, fontWeight: '800', marginTop: 8 }}>{open ? `▲ ${t('hideRecipe')}` : `▼ ${t('showRecipe')}`}</Text>
+          <Text style={{ color: colors.primaryDark, fontWeight: '900', fontSize: 17, marginTop: 12 }}>{open ? `▲ ${t('hideRecipe')}` : `▼ ${t('showRecipe')}`}</Text>
         </View>
       </Pressable>
     </Card>

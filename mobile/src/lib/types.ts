@@ -316,6 +316,30 @@ export interface Recipe {
   adds_groups?: string[];
 }
 
+/** NutriScan: a recipe ranked for the foods on hand. */
+export interface KitchenRecipe extends Recipe {
+  have: { key: string; name: string }[];
+  need: { key: string; name: string; price_idr: number; where: string }[];
+  need_cost_idr: number;
+  total_cost_idr: number;
+  benefits: { key: string; text: string }[];
+  highlights: string[];
+}
+
+export interface KitchenResult {
+  child_id: number;
+  child_name: string;
+  age_months: number;
+  detected: { key: string; name: string }[];
+  swaps: { key: string; text: string }[];
+  best: KitchenRecipe | null;
+  others: KitchenRecipe[];
+  ai_ideas: MenuIdea[];
+  age_note: string | null;
+  price_note: string;
+  generated_by: string;
+}
+
 export interface MenuIdea {
   name: string;
   minutes: number;

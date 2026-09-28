@@ -221,9 +221,30 @@ await session('mother', 'ibu.maria@nutrisense.id', async (h) => {
     await text('Dipahami sebagai', false).waitFor({ timeout: 20000 });
     if (await page.getByText('Segera cari pertolongan medis', { exact: false }).count()) throw new Error('false emergency');
   });
-  await step('nutriscan tab', async () => {
+  await step('nutriscan start screen', async () => {
     await go('/nutriscan');
+    await text('Foto makanan, dapat resep bergizi', false).waitFor();
     await text('kelompok hari ini', false).waitFor();
+  });
+  await step('nutriscan: foods on hand to the best dish', async () => {
+    await go(`/food/${kid1.id}?action=pick`);
+    for (const f of ['Telur ayam rebus', 'Bayam', 'Nasi putih']) await field(f).click();
+    await text('✨ Cari menu terbaik').click();
+    await text(`Paling bergizi untuk ${first(kid1)}`, false).waitFor({ timeout: 20000 });
+    await text('Semua bahan sudah ada', false).waitFor();
+  });
+  await step('nutriscan: shopping list, noodle swap and cooking steps', async () => {
+    await go(`/food/${kid1.id}?action=pick`);
+    for (const f of ['Nasi putih', 'Mi instan (matang)']) await field(f).click();
+    await text('✨ Cari menu terbaik').click();
+    await text('Mi instan sedikit gizinya', false).waitFor({ timeout: 20000 });
+    await text('Perlu dibeli atau dipetik', false).waitFor();
+    await text('👩‍🍳 Lihat cara memasak').click();
+    await text('Cara memasak', false).waitFor();
+  });
+  await step('nutriscan: cooked dish is logged as a meal', async () => {
+    await text(`✅ Sudah dimasak? Catat untuk ${first(kid1)}`).click();
+    await text('Tersimpan di catatan makan', false).waitFor({ timeout: 15000 });
   });
   await step('tanya nuri', async () => {
     await go('/assistant');

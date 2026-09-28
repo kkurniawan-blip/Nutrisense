@@ -56,12 +56,12 @@ npx expo start
 
 Tabs at the bottom: **Beranda** (home) · **Tanya Nuri** (ask Nuri) · **NutriScan** · **Paket** (packages) · **Profil**.
 
-![Home, measurement result, meal result and an urgent symptom](images/2-mother-daily.png)
+![Home, measurement result, logging a meal and an urgent symptom](images/2-mother-daily.png)
 
 ### Every day: Beranda
 - Pick your child at the top.
 - **Hari ini untuk …** (today for …) lists what to do today. Green means done. Orange means it still needs doing: tap the line to do it.
-- Big buttons: **Catat makan** (log a meal), **Catat tumbuh** (measure), **Cek gejala** (check symptoms) and **Tanya Nuri**.
+- Big buttons: **NutriScan**, **Catat tumbuh** (measure), **Cek gejala** (check symptoms) and **Tanya Nuri**.
 
 ### Measure your child: Catat tumbuh
 Four steps:
@@ -72,15 +72,27 @@ Four steps:
 
 The result is in plain words, for example 🟢 *Pertumbuhan baik* (growing well), 🟡 *Perlu dipantau* (keep an eye on it) or 🟠 *Perlu perhatian* (needs attention). Below it is a short list of what you can do. The detailed AI numbers are under **Lihat detail analisis AI**.
 
-### Log meals: NutriScan
-- Tap the camera button in the middle of the tab bar.
-- Take a photo, or pick the foods from the list.
-- The result shows:
-  - **Yang sudah ada:** food groups already on the plate;
-  - **Yang bisa dilengkapi:** groups you could add;
-  - **💡 Ide sederhana:** one easy idea;
-  - **… / 8 kelompok hari ini:** today's food variety score. Aim for 5 or more.
-- **Lihat ide menu** opens cheap, quick recipes with ingredients from the local market.
+### NutriScan: from a photo of your food to a healthy recipe
+
+![NutriScan: start, choosing foods, the best dish, a shopping list with a tip, and cooking steps](images/6-nutriscan.png)
+
+Tap the round camera button in the middle of the tab bar. Then:
+
+1. **Foto** (photo): take a photo of the food or ingredients you have at home, e.g. eggs, spinach and rice. You can also choose a photo from the gallery, or tap **Tanpa foto** (no photo) and pick the foods yourself.
+2. **Bahan apa yang Ibu punya?** (which foods do you have?): Nuri shows the foods it recognised as big tiles with a green ✓.
+   - Tap a tile to add or remove a food, then tap **Cari menu terbaik** (find the best dish).
+   - Recognising foods in a photo needs the Claude AI key on the server. Without it, the app says so, and you tap the foods you can see in your photo instead.
+3. **Menu terbaik untuk …** (best dish for …): the most nourishing dish you can make for your child from these foods. It shows:
+   - why it is good, e.g. *Telur: protein untuk tumbuh tinggi dan otak* (egg: protein to grow tall and for the brain);
+   - **Sudah ada di rumah** (already at home) and **Perlu dibeli atau dipetik** (to buy or pick), with an estimated price and where to find it. Leaves like moringa (kelor) are often free from a garden.
+   - a tip when a food is not a good choice for a child, e.g. instant noodles, with a cheap better option;
+   - other dishes you can make.
+4. **Lihat cara memasak** (see how to cook it): ingredients in spoons and handfuls, then big numbered steps. Every recipe uses cheap foods from the kiosk, market or garden. Most take 20 minutes or less, and the texture suits your child's age.
+5. **Sudah dimasak?** (cooked it?): tap to save the dish in your child's meal log. This also updates today's food variety score (aim for 5 of 8 food groups).
+
+The dishes are chosen for your child's age and for the nutrients your child has been short of this week. Prices are rough estimates for NTT markets and kiosks and may differ.
+
+**Catat makan** (log a meal) is separate: use it to record what your child ate without looking for a recipe. It is under **Makan & gizi** on Beranda, or **Catat makan tanpa foto** at the bottom of NutriScan.
 
 ### When your child is sick: Cek gejala
 - Tap the symptoms, or type how your child is in your own words, e.g. *"anaknya diare 2 hari, lemas sekali"*.

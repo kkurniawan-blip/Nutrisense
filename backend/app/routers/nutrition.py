@@ -5,12 +5,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import serializers as S
-from ..ai import assistant, llm, nutrition
+from ..ai import assistant, kitchen, llm, nutrition
 from ..ai.growth import age_in_months
 from ..database import get_db
 from ..deps import get_child, get_current_user, lang_of
 from ..models import ChatMessage, MealLog, NutritionRecommendation, RiskAssessment, SymptomReport, User
-from ..schemas import ChatIn, MealIn, MenuSuggestIn
+from ..schemas import ChatIn, KitchenIn, MealIn, MenuSuggestIn
 from ..services.common import audit, has_consent
 
 router = APIRouter(prefix="/api", tags=["nutrition & AI assistant"])
@@ -76,6 +76,20 @@ async def nutriscan(child_id: int, image: UploadFile = File(...), lang: str | No
     audit(db, user, "nutriscan", "child", child.id, items=len(result["items"]))
     db.commit()
     return {"available": True, **result}
+
+
+@router.post("/children/{child_id}/nutriscan/recipes")
+def nutriscan_recipes(child_id: int, body: KitchenIn = Body(default=KitchenIn()), lang: str | None = None,
+                      user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """NutriScan, step 2: from the foods on hand to the most nutritious easy dish for this child, with what
+    to buy (estimated prices) and how to cook it."""
+    child = get_child(child_id, db, user)
+    L = lang_of(user, lang)
+    age = age_in_months(child.birth_date, date.today())
+    meals = db.scalars(select(MealLog).where(MealLog.child_id == child.id).order_by(MealLog.eaten_at.desc()).limit(100)).all()
+    gaps = nutrition.analyse_intake(meals, age, lang=L).get("gaps") or []
+    result = kitchen.recipes_from_foods(body.food_keys, age, gaps, L, use_ai=has_consent(db, child.caregiver_id, "ai_analysis"))
+    return {"child_id": child.id, "child_name": child.name.split(" ")[0], "age_months": round(age, 1), **result}
 
 
 @router.post("/children/{child_id}/menu-suggestions")

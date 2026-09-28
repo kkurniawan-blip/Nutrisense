@@ -76,7 +76,7 @@ function RootStack() {
         />
         <Stack.Screen
           name="child/[id]/meal"
-          options={{ title: "📸 NutriScan" }}
+          options={{ title: `✍️ ${t("actLogMeal")}` }}
         />
         <Stack.Screen
           name="child/[id]/history"
@@ -90,6 +90,7 @@ function RootStack() {
           name="child/[id]/recipes"
           options={{ title: `👩‍🍳 ${t("recipes")}` }}
         />
+        <Stack.Screen name="food/[id]" options={{ title: "📸 NutriScan" }} />
         <Stack.Screen
           name="privacy"
           options={{ title: `🔐 ${t("dataPrivacy")}` }}

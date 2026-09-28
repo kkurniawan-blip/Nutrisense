@@ -271,8 +271,8 @@ export default function ChildDetail() {
         <DiversityCard groups={today.data?.groups_today ?? []} />
       </Card>
       <Card>
-        <ListRow emoji="📸" title="NutriScan" subtitle={t('actLogMeal')} onPress={() => router.push(`/child/${id}/meal?action=camera`)} />
-        <ListRow emoji="🥘" title={t('tileNutrition')} subtitle={t('easyCheap')} onPress={() => router.push(`/nutriscan?child=${id}`)} />
+        <ListRow emoji="📸" title="NutriScan" subtitle={t('tileNutriScanSub')} onPress={() => router.push(`/nutriscan?child=${id}`)} />
+        <ListRow emoji="✍️" title={t('actLogMeal')} subtitle={t('easyCheap')} onPress={() => router.push(`/child/${id}/meal?action=manual`)} />
         <ListRow emoji="🗓️" title={t('nutritionPlan')} onPress={() => router.push(`/child/${id}/nutrition`)} />
         <ListRow emoji="👩‍🍳" title={t('recipes')} onPress={() => router.push(`/child/${id}/recipes`)} />
       </Card>

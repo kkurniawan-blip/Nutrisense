@@ -11,7 +11,7 @@ RUN npm ci --no-audit --no-fund
 COPY mobile/ ./
 # The app calls the API on the same address it was loaded from.
 ENV EXPO_PUBLIC_SAME_ORIGIN_API=1 CI=1 EXPO_NO_TELEMETRY=1
-RUN npx expo export --platform web --output-dir /web
+RUN npx expo export --platform web --clear --output-dir /web
 
 # 2. The API, with the web app and a pre-trained risk model baked in.
 FROM python:3.11-slim

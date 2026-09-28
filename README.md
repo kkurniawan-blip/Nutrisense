@@ -116,7 +116,7 @@ docker run -p 8000:8000 nutrisense      # then open http://localhost:8000
 - Predictive growth tracker: `trend.py` computes HAZ velocity and projects 3 and 6 months ahead, so a child sliding toward −2 SD is flagged before stunting is visible.
 - Triage engine: `triage.py` produces four urgency tiers, next steps, and supply needs.
 - Symptom interpretation: `symptoms.py` reads Bahasa Indonesia, English and local terms (*mencret*, *step*, *lepeh*…).
-- Nutrition: `nutrition.py` holds 32 local foods, AKG 2019 targets and WHO dietary diversity, gap analysis, and NTT recipes (kelor, jagung bose…). **NutriScan** turns a meal photo into foods, portions and nutrients.
+- Nutrition: `nutrition.py` holds 32 local foods, AKG 2019 targets and WHO dietary diversity, gap analysis, and NTT recipes (kelor, jagung bose…). **NutriScan** turns a photo of food or ingredients into foods, then into the best cheap dish for the child (`kitchen.py`).
 - NutriBot: `assistant.py`.
 - Heat map and prevalence projection: `routers/dashboard.py`.
 
@@ -152,7 +152,9 @@ Every screen answers "what should I do next?" and follows the journey **PANTAU �
 - **AI vs. professionals:** AI output is labelled "🤖 Nuri — panduan AI" and states that it is not a medical diagnosis. The model confidence stays behind "Lihat detail analisis AI". Notes a Kader or doctor shares with the family appear separately as "👩‍⚕️ Rekomendasi tenaga kesehatan", with name and time.
 - **Guided 4-step measurement:** method, how-to, entry with plausibility warnings, then the result.
 - **Symptoms:** "Gejala umum" are kept apart from "Tanda yang perlu perhatian segera". Picking a danger sign immediately shows "🚨 Segera cari pertolongan medis" with a call button.
-- **NutriScan result:** "Yang sudah ada", "Yang bisa dilengkapi", one "💡 Ide sederhana", and a "5 / 8 kelompok hari ini" diversity card with a next target.
+- **NutriScan:** photo of the food or ingredients at home → check the recognised foods → the most nourishing, cheap dish for this child → big step-by-step cooking view → save it as a meal (see below).
+- **Meal log:** "Yang sudah ada", "Yang bisa dilengkapi", one "💡 Ide sederhana", and a "5 / 8 kelompok hari ini" diversity card with a next target.
+- **Roomier layout:** 16 px base text (17 px body copy), more padding, 58 px buttons and 66 px list rows, so screens are easier to read and tap.
 - **Tanya Nuri:** topic tabs (Pertumbuhan / Makan / Gejala / Perkembangan), each with suggested questions that use the child's name.
 - **Paket:** health information, recommended home actions and available packages are three separate sections. A note says packages are optional support.
 - **🔐 Data & privasi:** consent is grouped as Wajib / Untuk fitur AI / Untuk layanan kesehatan / Opsional. Each group has "Apa yang dibagikan?", who it is shared with, and "Lihat detail".
@@ -160,16 +162,30 @@ Every screen answers "what should I do next?" and follows the journey **PANTAU �
 - **Kader home:** "📊 Wilayah saya" shows counts for 🔴 Butuh tindak lanjut / 🟠 Perlu perhatian / 🟢 Terpantau. Below it is a prioritised visit list (`GET /api/dashboard/children`) with search, filters (Semua / Prioritas / Baru / Tindak lanjut, plus Wilayah, Status risiko, Terakhir diukur, Perlu kunjungan) and paging, so it scales to many children.
 - **Kader review:** Kaders can confirm or raise an AI result, but only a doctor or officer can lower a high one. They can also share a case note with the family.
 
-### NutriScan menu suggester
+### NutriScan: from a photo to the best cheap dish
 
-After a meal is snapped or logged, `POST /api/children/{id}/menu-suggestions` works out which food groups are still missing today and which nutrients were short this week. It then picks easy dishes that fill those gaps, each adding something the previous one didn't.
+1. `POST /api/children/{id}/nutriscan` recognises the foods in a photo. The photo can be a meal or raw ingredients in the kitchen or market. This needs Claude; without a key, the mother taps the foods instead.
+2. `POST /api/children/{id}/nutriscan/recipes` with `{"food_keys": [...]}` ranks the recipes (`backend/app/ai/kitchen.py`) by:
+   - how many of the foods on hand they use;
+   - nutrition for this child: the share of the child's daily need for protein, iron, zinc, vitamin A, calcium and energy, weighted towards the nutrients the child was short of this week;
+   - the extra cost;
+   - cooking time.
 
-All 17 recipes (`backend/app/ai/recipes.py`):
-- use everyday, cheap foods from village kiosks and markets (egg, tempeh, tofu, moringa, corn, sweet potato, anchovy, local fish, banana);
+   It returns the best dish and two alternatives. Each has:
+   - plain-language benefits per food;
+   - highlights such as "Tinggi protein";
+   - what is already at home;
+   - what to buy, with estimated NTT prices and where to find it. Garden leaves like kelor are free.
+   - a tip for low-value foods such as instant noodles and sweet snacks.
+
+   With Claude enabled, Nuri adds one extra idea made mostly from the foods on hand.
+
+All 22 recipes (`backend/app/ai/recipes.py`):
+- use everyday, cheap foods from village kiosks, markets and gardens (egg, tempeh, tofu, moringa, corn, cassava, sweet potato, anchovy, local fish, banana);
 - need only a pot, pan or steamer, and give household measures;
-- show cooking time (mostly 3–20 minutes), a budget label and the minimum age.
+- show cooking time (mostly 3–20 minutes), a budget label and the minimum age. Baby-texture versions start at 6 months.
 
-With Claude enabled, Nuri adds two extra ideas under the same rules.
+After a meal is logged, `POST /api/children/{id}/menu-suggestions` suggests dishes that add the food groups still missing today.
 
 ### Claude AI and the offline fallback
 
@@ -215,11 +231,11 @@ This is the overfitting risk Appendix B already flags as future work.
 ## Tests and checks
 
 ```bash
-cd backend && pytest -q            # 119 tests: WHO z-scores vs published tables, model quality, triage,
+cd backend && pytest -q            # 127 tests: WHO z-scores vs published tables, model quality, triage,
                                    # symptom lexicon, the full caregiver→Kader→officer→locker workflow,
                                    # RBAC, consent, encryption at rest, FHIR, offline sync
 cd mobile && npx tsc --noEmit && npx eslint src
-cd e2e && npm test                 # 45-step browser walkthrough for every role (see e2e/README.md)
+cd e2e && npm test                 # 48-step browser walkthrough for every role (see e2e/README.md)
 ```
 
 The test suite runs on SQLite by default. Set `NUTRISENSE_TEST_DATABASE_URL` to an empty PostgreSQL database to run it there.
