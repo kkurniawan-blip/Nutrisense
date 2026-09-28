@@ -83,7 +83,7 @@ export default function SupplyDetail() {
                   <Ionicons name={ICON[o.type]} size={20} color={colors.primaryDark} />
                   <Text style={{ fontWeight: '700', color: colors.text }}>{t(`via_${o.type}`)}</Text>
                 </Row>
-                {isChosen ? <Badge text={t('chosen')} fg="#fff" bg={colors.primary} /> : !o.feasible ? <Badge text={t('infeasible')} fg={colors.muted} bg="#EDF0F4" /> : null}
+                {isChosen ? <Badge text={t('chosen')} fg="#fff" bg={colors.primary} /> : !o.feasible ? <Badge text={t('infeasible')} fg={colors.muted} bg="#F1EFF8" /> : null}
               </Row>
               <P muted style={{ fontSize: 13 }}>
                 {o.hub_name ? `${o.hub_name} → ` : ''}

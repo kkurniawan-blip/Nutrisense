@@ -134,7 +134,7 @@ export default function Logistics() {
                 <Text style={{ fontWeight: '700', color: colors.text }}>
                   {d.code} · {d.hub_name}
                 </Text>
-                <Badge text={t(`drone_${d.status}`)} fg={d.status === 'in_flight' ? colors.info : colors.muted} bg={d.status === 'in_flight' ? colors.infoSoft : '#EDF0F4'} />
+                <Badge text={t(`drone_${d.status}`)} fg={d.status === 'in_flight' ? colors.info : colors.muted} bg={d.status === 'in_flight' ? colors.infoSoft : '#F1EFF8'} />
               </Row>
               <Row style={{ marginTop: 6 }}>
                 <Text style={{ color: colors.muted, width: 90, fontSize: 12 }}>🔋 {Math.round(d.battery_pct)}%</Text>

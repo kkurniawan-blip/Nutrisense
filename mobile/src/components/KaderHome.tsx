@@ -10,27 +10,34 @@ import { childEmoji, formatAge, greeting } from '../lib/fun';
 import { KADER_GROUPS, txt } from '../lib/status';
 import type { AreaChildRow, AreaChildren, AreaGroup, RiskLevel } from '../lib/types';
 import { useApi } from '../lib/useApi';
-import { colors, radius, statusColor } from '../theme';
+import { colors, radius, shadow, statusColor, tones } from '../theme';
 import { SyncBanner } from './SyncBanner';
 import { Text, TextInput } from './Text';
-import { Button, Card, Chip, ErrorBox, H2, IkatPattern, Loading, Row, Segmented, StatusMark, StatusPill, Toggle } from './ui';
+import { Mascot } from './Mascot';
+import { Button, Card, Chip, ErrorBox, H2, Loading, Row, Segmented, StatusPill, Toggle, Wash } from './ui';
 
 type Filter = 'all' | 'priority' | 'new' | 'followup';
+const GROUP_ICON = { followup: 'alert-circle', attention: 'time', monitored: 'checkmark-circle' } as const;
 const PAGE = 30;
 
 /** One child in the Kader's list: status (icon + text + colour), why, when last measured, and one clear action. */
-function ChildRow({ r }: { r: AreaChildRow }) {
+function ChildRow({ r, n }: { r: AreaChildRow; n: number }) {
   const { t, lang } = useAuth();
   const g = KADER_GROUPS[r.group];
   const urgent = r.urgency === 'emergency';
   return (
     <Card style={urgent ? { borderColor: colors.danger, borderWidth: 2 } : undefined}>
-      <Row style={{ alignItems: 'flex-start' }}>
-        <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: r.sex === 'female' ? colors.pinkSoft : colors.skySoft, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 22 }}>{childEmoji(r.sex, r.age_months)}</Text>
+      <Row style={{ alignItems: 'flex-start', gap: 12 }}>
+        <View>
+          <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: r.sex === 'female' ? colors.pinkSoft : colors.skySoft, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: 23 }}>{childEmoji(r.sex, r.age_months)}</Text>
+          </View>
+          <View style={{ position: 'absolute', top: -6, left: -6, minWidth: 24, height: 24, borderRadius: 12, paddingHorizontal: 5, backgroundColor: tones.orange.bg, borderWidth: 2, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: 12, fontWeight: '800', color: tones.orange.fg }}>{n}</Text>
+          </View>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontWeight: '900', fontSize: 17 }}>{r.name}</Text>
+          <Text style={{ fontWeight: '800', fontSize: 17 }}>{r.name}</Text>
           <Text style={{ color: colors.muted, fontSize: 13 }}>
             {formatAge(r.age_months, lang)}
             {r.region ? ` · 📍 ${r.region}` : ''}
@@ -49,7 +56,7 @@ function ChildRow({ r }: { r: AreaChildRow }) {
         {r.needs_visit && <StatusPill status="monitor" label={`🏠 ${t('needsVisit')}`} />}
         {r.is_new && <StatusPill status="ai" label={`✨ ${t('filterNew')}`} />}
       </Row>
-      <Button small title={t('seeChild')} icon="arrow-forward" onPress={() => router.push(`/child/${r.child_id}`)} />
+      <Button small variant="secondary" title={t('seeChild')} icon="arrow-forward" onPress={() => router.push(`/child/${r.child_id}`)} />
     </Card>
   );
 }
@@ -111,34 +118,30 @@ export function KaderHome() {
       contentContainerStyle={{ paddingBottom: 40 }}
       keyboardShouldPersistTaps="handled"
     >
-      <View style={{ backgroundColor: colors.ink, paddingTop: insets.top + 14, paddingHorizontal: 18, paddingBottom: 30, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, overflow: 'hidden' }}>
-        <IkatPattern />
-        <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 4, flexDirection: 'row' }}>
-          <View style={{ flex: 3, backgroundColor: colors.primary }} />
-          <View style={{ flex: 1, backgroundColor: colors.accent }} />
-          <View style={{ flex: 2, backgroundColor: colors.mint }} />
-        </View>
-        <Row style={{ justifyContent: 'space-between' }}>
+      <Wash height={380} />
+      <View style={{ paddingTop: insets.top + 12, paddingHorizontal: 18 }}>
+        <Row style={{ justifyContent: 'space-between', gap: 12 }}>
+          <Mascot size={58} mood="cheer" />
           <View style={{ flex: 1 }}>
-            <Text style={{ color: '#fff', fontSize: 22, fontWeight: '900' }}>
+            <Text style={{ fontSize: 21, fontWeight: '800' }}>
               {greeting(lang)}, {first} 👋
             </Text>
-            <Text style={{ color: '#ffffffcc', fontWeight: '700', marginTop: 2 }}>
+            <Text style={{ color: colors.muted, fontWeight: '600', marginTop: 2 }}>
               🩺 Kader{user?.region ? ` · ${user.region.name}` : ''}
             </Text>
           </View>
-          <Pressable onPress={() => router.push('/notifications')} accessibilityLabel={t('notifications')} style={{ backgroundColor: '#ffffff1a', borderRadius: 12, width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#ffffff33' }}>
-            <Ionicons name="notifications-outline" size={20} color="#fff" />
+          <Pressable onPress={() => router.push('/notifications')} accessibilityLabel={t('notifications')} style={[{ backgroundColor: '#fff', borderRadius: 22, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }, shadow]}>
+            <Ionicons name="notifications-outline" size={21} color={colors.primary} />
           </Pressable>
         </Row>
       </View>
 
-      <View style={{ padding: 16, marginTop: -18 }}>
+      <View style={{ padding: 16 }}>
         <SyncBanner stale={list.stale} />
 
         {/* 📊 My area */}
         <Card>
-          <H2 emoji="📊" right={d ? <Text style={{ color: colors.muted, fontWeight: '800' }}>{d.counts.total} {t('childrenCount')}</Text> : null}>
+          <H2 emoji="👥" right={d ? <Text style={{ color: colors.muted, fontWeight: '700' }}>{d.counts.total} {t('childrenCount')}</Text> : null}>
             {t('myArea')}
           </H2>
           <Row style={{ gap: 8 }}>
@@ -150,15 +153,13 @@ export function KaderHome() {
                   onPress={() => pickGroup(g)}
                   accessibilityRole="button"
                   accessibilityLabel={`${d?.counts[g] ?? 0} ${txt(KADER_GROUPS[g].label, lang)}`}
-                  style={{ flex: 1, backgroundColor: c.bg, borderRadius: radius.md, padding: 10, minHeight: 88 }}
+                  style={{ flex: 1, backgroundColor: c.bg, borderRadius: radius.lg, paddingVertical: 12, paddingHorizontal: 6, minHeight: 112, alignItems: 'center' }}
                 >
-                  <Text style={{ fontSize: 30, fontWeight: '900', color: c.fg }}>{d?.counts[g] ?? '–'}</Text>
-                  <Row style={{ gap: 6, alignItems: 'flex-start' }}>
-                    <View style={{ marginTop: 5 }}>
-                      <StatusMark status={KADER_GROUPS[g].key} />
-                    </View>
-                    <Text style={{ fontSize: 13, fontWeight: '800', color: c.fg, flex: 1 }}>{txt(KADER_GROUPS[g].label, lang)}</Text>
-                  </Row>
+                  <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name={GROUP_ICON[g]} size={20} color={c.mark} />
+                  </View>
+                  <Text style={{ fontSize: 26, fontWeight: '900', color: c.fg, marginTop: 4 }}>{d?.counts[g] ?? '–'}</Text>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: c.fg, textAlign: 'center', lineHeight: 17 }}>{txt(KADER_GROUPS[g].label, lang)}</Text>
                 </Pressable>
               );
             })}
@@ -181,7 +182,7 @@ export function KaderHome() {
 
         {/* Priority list with filters */}
         <H2 emoji="🏠">{t('visitList')}</H2>
-        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: radius.md, paddingHorizontal: 14, marginBottom: 10, borderWidth: 1.5, borderColor: colors.border, minHeight: 48 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: radius.pill, paddingHorizontal: 16, marginBottom: 12, borderWidth: 1.5, borderColor: '#E4E0F3', minHeight: 48 }}>
           <Ionicons name="search" size={18} color={colors.muted} />
           <TextInput
             value={q}
@@ -203,7 +204,7 @@ export function KaderHome() {
           ]}
         />
         <Pressable onPress={() => setShowMore(!showMore)} accessibilityRole="button" accessibilityState={{ expanded: showMore }} style={{ minHeight: 44, justifyContent: 'center' }}>
-          <Text style={{ fontWeight: '800', color: colors.primaryDark }}>
+          <Text style={{ fontWeight: '800', color: colors.primary }}>
             <Ionicons name="options" size={16} /> {t('moreFilters')}
             {extraFilters ? ` (${extraFilters})` : ''} {showMore ? '▲' : '▼'}
           </Text>
@@ -264,8 +265,8 @@ export function KaderHome() {
             <Text style={{ color: statusColor.ok.fg, fontWeight: '800' }}>🎉 {t('noChildrenMatch')}</Text>
           </Card>
         )}
-        {rows.map((r) => (
-          <ChildRow key={r.child_id} r={r} />
+        {rows.map((r, i) => (
+          <ChildRow key={r.child_id} r={r} n={i + 1} />
         ))}
         {moreError && <ErrorBox message={moreError} />}
         {d && rows.length < d.matched && (

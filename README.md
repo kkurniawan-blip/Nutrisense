@@ -133,27 +133,26 @@ docker run -p 8000:8000 nutrisense      # then open http://localhost:8000
 - Right to deletion
 - FHIR R4 export (`Patient`, `Observation` with LOINC 8302-2 / 8306-3 / 29463-7, `RiskAssessment`, `Consent`) and a simulated SATUSEHAT sync
 
-### Design: "digital ikat"
+### Design: soft pastel
 
-A clean, instrument-like interface with a local root, so it looks neither clinical nor like a generic template:
-- **Colours from ikat natural dyes** of East Nusa Tenggara: tarum indigo for text and header bands, mengkudu red for main actions, kunyit turmeric for highlights, on a cool grey that stays readable in sunlight (`mobile/src/theme.ts`).
-- **Ikat texture:** the indigo header bands and the NutriScan camera panel carry a faint woven diamond lattice drawn in SVG (`IkatPattern` in `mobile/src/components/ui.tsx`).
-- **Type:** Plus Jakarta Sans (designed in Jakarta) for reading, Unbounded for big titles and numbers, IBM Plex Mono for small labels such as "LANGKAH 01".
-- **Panels, not bubbles:** white panels with hairline borders instead of soft shadows; buttons and tags are squared-off rectangles.
-- **Line icons for structure, emoji for content:** section headers, menu rows and tiles use line icons in square chips; food, children and Nuri keep their colour.
-- A raised indigo **NutriScan** key with a viewfinder icon in the centre of the tab bar.
+A light, friendly look for mothers (`mobile/src/theme.ts`, `mobile/src/components/ui.tsx`):
+- **Lavender** for main actions, with gentle gradient buttons; white cards with a soft shadow on a faint lavender page, and watercolour washes (peach, mint, lavender) behind the top of each screen.
+- **One pastel colour per feature:** blue for growth, green for food, lavender for help and Nuri, orange for packages. Feature cards carry a gradient icon square; lists use round pastel icons.
+- **Home** starts with Nuri and the NutriSense name, then the greeting and child picker, the child's height and weight, today's checklist, four quick actions and "Jelajahi fitur" cards that fold open.
+- **Short flows show numbered step circles** (measuring, sign-up, NutriScan). The food variety of the day is a progress ring (for example 5/8).
+- **Type:** Plus Jakarta Sans (designed in Jakarta), in regular to bold weights.
 
 The caregiver experience still feels warm rather than clinical:
 - **Nuri**, a sprout mascot drawn in SVG (it grows with the child), greets, explains and cheers.
 - Big feature tiles and big buttons; text size can be raised in Settings.
 - Gentle status wording: "🌱 Growing well", "👀 Keep an eye on it", "💛 Needs attention". Emergencies stay unmistakably red. Staff screens keep the clinical labels.
-- Small rewards: a **rainbow plate** (the 8 WHO food groups eaten today), meal-logging streaks, collectable stickers, and a "height vs. peers" bar.
+- Small rewards: a food-variety ring (the 8 WHO food groups eaten today), meal-logging streaks, collectable stickers, and a "height vs. peers" bar.
 
 ### Simpler, action-first UX
 
 Every screen answers "what should I do next?" and follows the journey **PANTAU → PAHAMI → PERBAIKI → IKUTI → TINDAK LANJUT** (monitor → understand → improve → follow → follow-up).
 
-- **Semantic status colours, never colour alone.** Each status has a marker, a text label and a colour: green on track, yellow monitor, orange action, red urgent, blue info, violet AI. Action and urgent use a diamond marker, the others a square (`mobile/src/theme.ts` `statusColor`, `mobile/src/lib/status.ts`). Touch targets are at least 44 px and selected tabs get a filled icon with an indicator line.
+- **Semantic status colours, never colour alone.** Each status has a marker, a text label and a colour: green on track, yellow monitor, orange action, red urgent, blue info, violet AI. The marker is a coloured dot next to the words (`mobile/src/theme.ts` `statusColor`, `mobile/src/lib/status.ts`). Touch targets are at least 44 px and selected tabs get a filled icon on a soft pill.
 - **Mother home:** starts with a "Hari ini untuk {anak}" checklist (`GET /api/children/{id}/today`) and four big actions. Secondary features sit in three collapsible groups.
 - **Child profile:** status, latest numbers and a growth trend chart (Tinggi / Berat / BB-TB) with "Apa artinya?" and "Pelajari lebih lanjut". It also shows growth history, simple development milestones with this week's activities (`/development`), and the care team "Tim {anak}" with the last review.
 - **AI vs. professionals:** AI output is labelled "🤖 Nuri — panduan AI" and states that it is not a medical diagnosis. The model confidence stays behind "Lihat detail analisis AI". Notes a Kader or doctor shares with the family appear separately as "👩‍⚕️ Rekomendasi tenaga kesehatan", with name and time.

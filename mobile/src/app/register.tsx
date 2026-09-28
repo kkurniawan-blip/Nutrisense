@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { Text } from '../components/Text';
-import { Bubble, Button, Card, Chip, ErrorBox, Field, H2, Loading, PasswordField, Row, Screen, StatusPill, Toggle } from '../components/ui';
+import { Bubble, Button, Card, Chip, ErrorBox, Field, H2, Loading, PasswordField, Screen, StatusPill, StepDots, Toggle } from '../components/ui';
 import { api, ApiError, errorText, NetworkError } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import type { Region } from '../lib/types';
@@ -20,18 +20,7 @@ const STRENGTH: Record<'weak' | 'ok' | 'strong', { status: StatusKey; width: str
 
 function Progress({ step }: { step: 1 | 2 }) {
   const { t } = useAuth();
-  return (
-    <View style={{ marginBottom: 12 }} accessibilityLabel={`${t('step')} ${step} ${t('of')} 2`}>
-      <Text style={{ fontWeight: '800', color: colors.muted, marginBottom: 6 }}>
-        {t('step')} {step} {t('of')} 2 · {step === 1 ? t('signUpStep1') : t('signUpStep2')}
-      </Text>
-      <Row style={{ gap: 6 }}>
-        {[1, 2].map((i) => (
-          <View key={i} style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: i <= step ? colors.primary : colors.border }} />
-        ))}
-      </Row>
-    </View>
-  );
+  return <StepDots total={2} current={step - 1} label={`${t('step')} ${step} ${t('of')} 2 · ${step === 1 ? t('signUpStep1') : t('signUpStep2')}`} />;
 }
 
 /** A consent row: badge, toggle, and one plain sentence on what it is for. */
@@ -172,7 +161,7 @@ export default function Register() {
         {error && <ErrorBox message={error} />}
         <Button title={t('next')} icon="arrow-forward" onPress={next} />
         <Pressable onPress={() => router.replace('/login')} accessibilityRole="button" style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ color: colors.primaryDark, fontWeight: '800' }}>{t('haveAccount')}</Text>
+          <Text style={{ color: colors.primary, fontWeight: '800' }}>{t('haveAccount')}</Text>
         </Pressable>
       </Screen>
     );

@@ -326,7 +326,7 @@ export default function MealScreen() {
           value={filter}
           onChangeText={setFilter}
           placeholder="🔍 telur, ikan, kelor…"
-          placeholderTextColor="#8A92A6"
+          placeholderTextColor="#A09CB5"
           style={{ borderWidth: 1.5, borderColor: colors.border, borderRadius: radius.pill, paddingHorizontal: 16, paddingVertical: 10, marginBottom: 10, fontSize: 16 }}
         />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>

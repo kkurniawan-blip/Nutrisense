@@ -7,7 +7,7 @@ import { BestRecipeCard, CookView, RecipeOptionCard } from '../../components/Coo
 import { DiversityCard } from '../../components/Diversity';
 import { Mascot } from '../../components/Mascot';
 import { Text } from '../../components/Text';
-import { Bubble, Button, Card, ErrorBox, Loading, PressScale, Row } from '../../components/ui';
+import { Bubble, Button, Card, ErrorBox, Loading, PressScale, Row, StepDots } from '../../components/ui';
 import { api, errorText, NetworkError } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { FOOD_EMOJI, groupsToday } from '../../lib/fun';
@@ -25,15 +25,8 @@ function StepHeader({ step, title }: { step: 1 | 2 | 3; title: string }) {
   const { t } = useAuth();
   return (
     <View style={{ marginBottom: 16 }}>
-      <Row style={{ gap: 6, marginBottom: 8 }}>
-        {[1, 2, 3].map((i) => (
-          <View key={i} style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: i <= step ? colors.primary : colors.border }} />
-        ))}
-      </Row>
-      <Text style={{ color: colors.muted, fontWeight: '800', fontSize: 15 }}>
-        {t('step')} {step} {t('of')} 3
-      </Text>
-      <Text style={{ fontSize: 24, fontWeight: '900', marginTop: 2 }}>{title}</Text>
+      <StepDots total={3} current={step - 1} label={`${t('step')} ${step} ${t('of')} 3`} />
+      <Text style={{ fontSize: 23, fontWeight: '900', marginTop: -6 }}>{title}</Text>
     </View>
   );
 }
@@ -305,7 +298,7 @@ export default function NutriScanFlow() {
                     <Text style={{ color: statusColor.ai.fg, fontWeight: '900', fontSize: 15 }}>🤖 {t('nuriIdea')}</Text>
                     <Text style={{ fontSize: 20, fontWeight: '900', marginTop: 6 }}>{idea.name}</Text>
                     <Text style={{ fontSize: 16, marginTop: 4, lineHeight: 23 }}>{idea.why}</Text>
-                    <Text style={{ fontSize: 17, fontWeight: '900', color: colors.primaryDark, marginTop: 8 }}>{t('seeRecipe')} ›</Text>
+                    <Text style={{ fontSize: 17, fontWeight: '900', color: colors.primary, marginTop: 8 }}>{t('seeRecipe')} ›</Text>
                   </Card>
                 ))}
                 <Text style={{ color: colors.muted, fontSize: 14, lineHeight: 20, marginTop: 4 }}>ℹ️ {result.price_note}</Text>

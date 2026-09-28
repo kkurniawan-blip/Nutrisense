@@ -596,6 +596,18 @@ const en = {
   backToMenus: "Back to the dishes",
   mealSavedFor: "Saved in the meal log of",
   backHome: "Back to home",
+  heroTagline: "Healthy growth, bright future",
+  quickActions: "Quick actions",
+  exploreFeatures: "Explore features",
+  exploreFor: "For the growth of",
+  pkgCardTitle: "Nutrition packages",
+  pkgCardSub: "Support that fits your child",
+  nuriHello: "Hello, Mom! 👋",
+  nuriCanHelp: "How can Nuri help today?",
+  quickTopics: "Quick topics",
+  commonQuestions: "Common questions",
+  growthStatus: "Growth status",
+  groupsShort: "groups",
 };
 
 type Dict = typeof en;
@@ -1196,6 +1208,18 @@ const id: Dict = {
   backToMenus: "Kembali ke pilihan menu",
   mealSavedFor: "Tersimpan di catatan makan",
   backHome: "Kembali ke beranda",
+  heroTagline: "Tumbuh sehat, masa depan cerah",
+  quickActions: "Aksi cepat",
+  exploreFeatures: "Jelajahi fitur",
+  exploreFor: "Untuk tumbuh kembang",
+  pkgCardTitle: "Paket gizi",
+  pkgCardSub: "Bantuan sesuai kebutuhan anak",
+  nuriHello: "Halo, Bunda! 👋",
+  nuriCanHelp: "Ada yang bisa Nuri bantu?",
+  quickTopics: "Topik cepat",
+  commonQuestions: "Pertanyaan umum",
+  growthStatus: "Status pertumbuhan",
+  groupsShort: "kelompok",
 };
 
 export type TKey = keyof Dict;

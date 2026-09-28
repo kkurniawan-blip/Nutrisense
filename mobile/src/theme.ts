@@ -1,98 +1,100 @@
 import { Platform, ViewStyle } from 'react-native';
 
 /**
- * "Digital ikat": a clean, instrument-like interface whose colours come from the natural dyes of
- * East Nusa Tenggara's ikat weaving — tarum indigo (ink and header bands), mengkudu red (actions)
- * and kunyit turmeric (highlights) — on a cool, sunlight-readable grey.
- * Token names are kept from the first design so every screen picks up the new values.
+ * Soft pastel design: a calm lavender for actions, airy white cards on a faint lavender page,
+ * and one gentle tint per feature (blue growth, green food, lavender help, orange packages).
+ * Every text colour keeps at least 4.5:1 contrast on its background (WCAG AA).
  */
 export const colors = {
-  primary: '#B3372B', // mengkudu red: main actions (white text 6.2:1)
-  primaryDark: '#8C2A20',
-  primarySoft: '#F5E3DF',
-  accent: '#D99412', // kunyit turmeric: highlights, never text on white
-  accentSoft: '#FBF1D6',
-  mint: '#1D7A55', // leaf: growth, success
-  mintSoft: '#DDEEE5',
-  lavender: '#4B4FC4', // AI
-  lavenderSoft: '#E6E7FA',
-  sky: '#2266B3',
-  skySoft: '#E0EAF6',
-  pink: '#A8456F',
-  pinkSoft: '#F4E2EA',
-  ink: '#161C33', // tarum indigo: text and header bands
-  inkSoft: '#262E4D',
-  bg: '#EDF0F4',
+  primary: '#6C5CE7', // lavender: main actions (white text 4.9:1)
+  primaryDark: '#5443C9',
+  primarySoft: '#EFECFF',
+  primaryLight: '#9A8FF6', // light end of the button gradient
+  accent: '#F59E0B', // orange highlights, never text on white
+  accentSoft: '#FFF3E0',
+  mint: '#16875A', // green actions (white text 4.5:1)
+  mintSoft: '#E6F6EE',
+  lavender: '#6C5CE7', // AI
+  lavenderSoft: '#EFECFF',
+  sky: '#2F6FE0',
+  skySoft: '#EAF2FF',
+  pink: '#C73E73',
+  pinkSoft: '#FFEEF3',
+  orange: '#C2410C',
+  orangeSoft: '#FFF1E6',
+  ink: '#2D2A4A', // deep text colour
+  inkSoft: '#46426A',
+  bg: '#F7F6FC',
   card: '#FFFFFF',
-  text: '#161C33',
-  muted: '#545C72', // >= 5:1 on white and on bg (WCAG AA)
-  border: '#D5DAE3',
-  line: '#E3E7EE',
-  danger: '#B42318',
-  dangerSoft: '#FCE6E4',
-  warn: '#9A5A00',
-  warnSoft: '#FCEFD6',
-  ok: '#17694A',
-  okSoft: '#DDEEE5',
-  info: '#2F4FB8',
-  infoSoft: '#E4E9FA',
+  text: '#2D2A4A',
+  muted: '#6E6A86', // 5.2:1 on white
+  border: '#ECE9F6',
+  line: '#F1EFF8',
+  danger: '#D23A4B',
+  dangerSoft: '#FFEDEF',
+  warn: '#B45309',
+  warnSoft: '#FFF4E5',
+  ok: '#15803D',
+  okSoft: '#E6F6EE',
+  info: '#1D4ED8',
+  infoSoft: '#EAF2FF',
 };
 
 /**
- * Semantic status colours. Every status is ALWAYS rendered with a marker and a text label too,
+ * Semantic status colours. Every status is ALWAYS shown with a dot and a text label too,
  * never colour alone: green on track, yellow monitor, orange action recommended, red urgent,
- * blue information, violet AI.
+ * blue information, lavender AI.
  */
 export const statusColor = {
-  ok: { fg: '#17694A', bg: '#DDEEE5', dot: '🟢', mark: '#1D7A55' },
-  monitor: { fg: '#6E4E00', bg: '#FBF1D0', dot: '🟡', mark: '#D99412' },
-  action: { fg: '#9A3F07', bg: '#FCE7D6', dot: '🟠', mark: '#E0701B' },
-  urgent: { fg: '#B42318', bg: '#FCE6E4', dot: '🔴', mark: '#C62B1F' },
-  info: { fg: '#1E56A6', bg: '#E0EAF6', dot: 'ℹ️', mark: '#2266B3' },
-  ai: { fg: '#4B4FC4', bg: '#E6E7FA', dot: '🤖', mark: '#4B4FC4' },
-  unknown: { fg: '#545C72', bg: '#E9ECF2', dot: '⚪', mark: '#8A92A6' },
+  ok: { fg: '#15803D', bg: '#E6F6EE', dot: '🟢', mark: '#22C55E' },
+  monitor: { fg: '#8A5A00', bg: '#FEF6D8', dot: '🟡', mark: '#EAB308' },
+  action: { fg: '#C2410C', bg: '#FFF1E6', dot: '🟠', mark: '#F97316' },
+  urgent: { fg: '#C81E3A', bg: '#FFE9EC', dot: '🔴', mark: '#EF4444' },
+  info: { fg: '#1D4ED8', bg: '#EAF2FF', dot: 'ℹ️', mark: '#3B82F6' },
+  ai: { fg: '#5443C9', bg: '#EFECFF', dot: '🤖', mark: '#6C5CE7' },
+  unknown: { fg: '#6E6A86', bg: '#F1EFF8', dot: '⚪', mark: '#A09CB5' },
 } as const;
 export type StatusKey = keyof typeof statusColor;
 
 export const riskColor = {
-  low: { fg: '#17694A', bg: '#DDEEE5' },
-  medium: { fg: '#6E4E00', bg: '#FBF1D0' },
-  high: { fg: '#B42318', bg: '#FCE6E4' },
+  low: { fg: '#15803D', bg: '#E6F6EE' },
+  medium: { fg: '#8A5A00', bg: '#FEF6D8' },
+  high: { fg: '#C81E3A', bg: '#FFE9EC' },
 } as const;
 
-/** Tile and recipe-card colours: calm tints with a strong foreground, one per feature. */
-export const tilePalette = [
-  { fg: colors.primaryDark, bg: colors.primarySoft },
-  { fg: colors.ok, bg: colors.mintSoft },
-  { fg: '#7A5200', bg: colors.accentSoft },
-  { fg: colors.lavender, bg: colors.lavenderSoft },
-  { fg: colors.sky, bg: colors.skySoft },
-  { fg: colors.pink, bg: colors.pinkSoft },
-];
+/**
+ * One pastel family per feature: `from`/`to` for the gradient icon square, `fg` for text and
+ * icons on the tint, `bg` for the soft card tint.
+ */
+export const tones = {
+  lavender: { from: '#A99FFF', to: '#6C5CE7', fg: '#5443C9', bg: '#F1EEFF' },
+  blue: { from: '#7DB4FF', to: '#3B7BF6', fg: '#2F6FE0', bg: '#EDF4FF' },
+  green: { from: '#6FDB9E', to: '#1FA06A', fg: '#15803D', bg: '#EAF8F0' },
+  orange: { from: '#FFC078', to: '#F97316', fg: '#C2410C', bg: '#FFF3E8' },
+  pink: { from: '#FF9CBC', to: '#E0578B', fg: '#C73E73', bg: '#FFF0F5' },
+  yellow: { from: '#FFDA70', to: '#F2A60C', fg: '#8A5A00', bg: '#FFF8E1' },
+} as const;
+export type Tone = keyof typeof tones;
+
+/** Recipe and tile colours, in a fixed order. */
+export const tilePalette = [tones.lavender, tones.green, tones.orange, tones.blue, tones.pink, tones.yellow];
 
 export const fonts = {
-  // Body: Plus Jakarta Sans (designed in Jakarta by Tokotype).
+  // Plus Jakarta Sans (designed in Jakarta by Tokotype): friendly, open and very readable.
   regular: 'PlusJakartaSans_400Regular',
+  medium: 'PlusJakartaSans_500Medium',
   semibold: 'PlusJakartaSans_600SemiBold',
   bold: 'PlusJakartaSans_700Bold',
   extrabold: 'PlusJakartaSans_800ExtraBold',
-  black: 'PlusJakartaSans_800ExtraBold',
-  // Display: Unbounded, for big titles and readouts only.
-  display: 'Unbounded_600SemiBold',
-  displayBold: 'Unbounded_700Bold',
-  // Mono: step counters, units and small labels.
-  mono: 'IBMPlexMono_500Medium',
-  monoBold: 'IBMPlexMono_600SemiBold',
 };
 
-// 'pill' tags are squared-off on purpose: soft rectangles, not capsules.
-export const radius = { sm: 8, md: 12, lg: 16, pill: 10 };
+export const radius = { sm: 10, md: 14, lg: 20, pill: 999 };
 
-/** Panels are separated by hairlines, not soft shadows; only floating elements get a crisp shadow. */
+/** A soft lavender glow under cards and floating buttons. */
 export const shadow: ViewStyle =
   Platform.OS === 'android'
-    ? { elevation: 1 }
-    : { shadowColor: '#161C33', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } };
+    ? { elevation: 2, shadowColor: '#6C5CE7' }
+    : { shadowColor: '#6C5CE7', shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } };
 
 export const space = (n: number) => n * 4;
 

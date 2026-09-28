@@ -29,7 +29,7 @@ function Progress({ status, via }: { status: string; via: string | null }) {
         const emoji = s.key === 'in_transit' && via === 'courier' ? '🛵' : s.key === 'in_transit' && via === 'locker_stock' ? '🏪' : s.emoji;
         return (
           <View key={s.key} style={{ alignItems: 'center', flex: 1 }}>
-            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: done ? colors.mintSoft : '#E9ECF2', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: done ? colors.mint : '#C9CFDA' }}>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: done ? colors.mintSoft : colors.line, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: done ? colors.mint : '#D5D0EA' }}>
               <Text style={{ fontSize: 18, opacity: done ? 1 : 0.4 }}>{emoji}</Text>
             </View>
             <Text style={{ fontSize: 12, textAlign: 'center', color: done ? colors.ok : colors.muted, fontWeight: '700', marginTop: 2 }}>{t(`status_${s.key}`)}</Text>

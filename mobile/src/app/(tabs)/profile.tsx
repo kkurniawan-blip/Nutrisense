@@ -18,7 +18,7 @@ export default function Profile() {
 
   return (
     <Screen>
-      <Card tint="#F5E3DF">
+      <Card>
         <Row style={{ gap: 12 }}>
           <Mascot size={70} mood="cheer" />
           <View style={{ flex: 1 }}>

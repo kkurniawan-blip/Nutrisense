@@ -8,7 +8,7 @@ import { api, errorText } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 import type { Child, Development } from '../../../lib/types';
 import { useApi } from '../../../lib/useApi';
-import { colors, radius, statusColor } from '../../../theme';
+import { colors, radius, statusColor, tones } from '../../../theme';
 
 /** Optional, simple development checklist per domain + this week's play ideas. Not a diagnostic screening. */
 export default function DevelopmentScreen() {
@@ -69,11 +69,13 @@ export default function DevelopmentScreen() {
             ))}
           </Card>
         ))}
-      <Card tint={colors.accentSoft}>
+      <Card tint={tones.yellow.bg}>
         <H2 emoji="🗓️">{t('activitiesThisWeek')}</H2>
         {d.activities.map((a) => (
-          <Row key={a.text} style={{ paddingVertical: 6 }}>
-            <Text style={{ fontSize: 24 }}>{a.emoji}</Text>
+          <Row key={a.text} style={{ paddingVertical: 6, gap: 12 }}>
+            <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: 22 }}>{a.emoji}</Text>
+            </View>
             <Text style={{ flex: 1, fontWeight: '700' }}>{a.text}</Text>
           </Row>
         ))}

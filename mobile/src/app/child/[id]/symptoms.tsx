@@ -14,7 +14,7 @@ import { enqueue, uuid } from '../../../lib/offline';
 import { useSync } from '../../../lib/sync';
 import type { Assessment, Child, SymptomReport } from '../../../lib/types';
 import { useApi } from '../../../lib/useApi';
-import { colors, radius, statusColor } from '../../../theme';
+import { colors, radius, statusColor, tones } from '../../../theme';
 
 const COMMON = ['fever', 'cough', 'diarrhea', 'vomiting', 'runny_nose', 'poor_appetite'];
 const URGENT = ['convulsions', 'fast_breathing', 'unable_to_drink', 'lethargy', 'bloody_stool', 'oedema'];
@@ -23,18 +23,23 @@ const OTHER = ['rash', 'worms', 'weight_loss', 'repeated_illness'];
 function Tile({ k, on, danger, onPress }: { k: string; on: boolean; danger?: boolean; onPress: () => void }) {
   const { lang } = useAuth();
   const tint = danger ? colors.danger : colors.primary;
+  const soft = danger ? colors.dangerSoft : colors.primarySoft;
   return (
     <PressScale
       onPress={onPress}
       accessibilityRole="checkbox"
       accessibilityState={{ checked: on }}
-      style={{ width: '31%', alignItems: 'center', paddingVertical: 12, minHeight: 88, borderRadius: radius.md, backgroundColor: on ? tint : '#fff', borderWidth: 1.5, borderColor: on ? tint : danger ? '#F3B9BE' : colors.border }}
+      style={{ width: '31%', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 4, minHeight: 100, borderRadius: radius.lg, backgroundColor: on ? soft : '#fff', borderWidth: 1.5, borderColor: on ? tint : danger ? '#F8D0D6' : colors.border }}
     >
-      <Text style={{ fontSize: 28 }}>{SYMPTOM_EMOJI[k]}</Text>
-      <Text style={{ fontSize: 13, fontWeight: '800', textAlign: 'center', color: on ? '#fff' : colors.text, marginTop: 4 }}>
-        {on ? '✓ ' : ''}
-        {label(SYMPTOM_LABELS, k, lang)}
-      </Text>
+      {on && (
+        <View style={{ position: 'absolute', top: 6, right: 6 }}>
+          <Ionicons name="checkmark-circle" size={20} color={tint} />
+        </View>
+      )}
+      <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: danger ? colors.dangerSoft : tones.pink.bg, alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ fontSize: 26 }}>{SYMPTOM_EMOJI[k]}</Text>
+      </View>
+      <Text style={{ fontSize: 13, fontWeight: '700', textAlign: 'center', color: on ? tint : colors.text, marginTop: 6, lineHeight: 17 }}>{label(SYMPTOM_LABELS, k, lang)}</Text>
     </PressScale>
   );
 }
@@ -155,7 +160,7 @@ export default function Symptoms() {
       </Card>
 
       <Pressable onPress={() => setShowOther(!showOther)} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center' }}>
-        <Text style={{ fontWeight: '800', color: colors.primaryDark }}>
+        <Text style={{ fontWeight: '800', color: colors.primary }}>
           {showOther ? '▲' : '▼'} {t('otherSymptoms')}
         </Text>
       </Pressable>

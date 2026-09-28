@@ -4,32 +4,25 @@ import { StyleSheet, Text as RNText, TextInput as RNTextInput, TextInputProps, T
 import { colors, fonts } from '../theme';
 
 // Custom fonts need one family per weight (Android ignores fontWeight for custom families).
+// Weights are mapped one step lighter than their names for a calm, airy look.
 function family(weight: TextStyle['fontWeight']): string {
   switch (String(weight ?? '400')) {
     case '900':
     case 'black':
-      return fonts.black;
     case '800':
     case 'heavy':
-      return fonts.extrabold;
+      return fonts.bold;
     case '700':
     case 'bold':
-      return fonts.bold;
     case '600':
-    case '500':
     case 'semibold':
-    case 'medium':
       return fonts.semibold;
+    case '500':
+    case 'medium':
+      return fonts.medium;
     default:
       return fonts.regular;
   }
-}
-
-/** Big, heavy titles use the display face; everything else the body face by weight. */
-function pickFamily(weight: TextStyle['fontWeight'], size: number | undefined): string {
-  const heavy = ['800', '900', 'heavy', 'black'].includes(String(weight ?? ''));
-  if (heavy && size !== undefined && size >= 22) return fonts.display;
-  return family(weight);
 }
 
 /** App-wide text size multiplier chosen in Settings (1 = normal). */
@@ -46,15 +39,11 @@ function withFont(style: TextProps['style'], scale: number, nested: boolean) {
     sized.fontSize = Math.round(rest.fontSize * scale);
     if (typeof rest.lineHeight === 'number') sized.lineHeight = Math.round(rest.lineHeight * scale);
   }
-  const fontFamily = rest.fontFamily ?? pickFamily(fontWeight, rest.fontSize);
-  if (!rest.fontFamily && fontFamily === fonts.display && rest.fontSize !== undefined) {
-    // The display face is wide: set it smaller so lines keep the same length.
-    sized.fontSize = Math.round((sized.fontSize ?? rest.fontSize) * 0.86);
-  }
+  const fontFamily = rest.fontFamily ?? family(fontWeight);
   return [{ color: colors.text }, rest, sized, { fontFamily }];
 }
 
-/** Drop-in replacement for react-native Text that applies the app fonts (Plus Jakarta Sans, Unbounded for big titles) and the chosen text size. */
+/** Drop-in replacement for react-native Text that applies the app font (Plus Jakarta Sans) and the chosen text size. */
 export function Text(props: TextProps) {
   const scale = useContext(TextScaleContext);
   const nested = useContext(InsideText);

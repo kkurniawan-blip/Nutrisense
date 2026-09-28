@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { View } from 'react-native';
@@ -6,7 +7,7 @@ import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 import { AssessmentView } from '../../../components/AssessmentView';
 import { Mascot } from '../../../components/Mascot';
 import { Text } from '../../../components/Text';
-import { Bubble, Button, Card, ErrorBox, Field, PressScale, Row, Screen, StatusPill } from '../../../components/ui';
+import { Bubble, Button, Card, ErrorBox, Field, IconChip, PressScale, Row, Screen, StatusPill, StepDots } from '../../../components/ui';
 import { api, errorText, NetworkError } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 import { formatAge, formatDate } from '../../../lib/fun';
@@ -14,7 +15,7 @@ import { enqueue, uuid } from '../../../lib/offline';
 import { useSync } from '../../../lib/sync';
 import type { Assessment, Child, Measurement } from '../../../lib/types';
 import { useApi } from '../../../lib/useApi';
-import { colors, radius, statusColor } from '../../../theme';
+import { colors, radius, statusColor, Tone, tones } from '../../../theme';
 
 type Pos = 'lying' | 'standing';
 const today = () => new Date().toISOString().slice(0, 10);
@@ -59,17 +60,19 @@ function Illustration({ pos }: { pos: Pos }) {
 
 function Steps({ step }: { step: number }) {
   const { t } = useAuth();
+  return <StepDots total={4} current={step - 1} label={`${t('step')} ${step} ${t('of')} 4`} />;
+}
+
+/** One confirmed number on the review step: icon, value and what it is. */
+function ReviewRow({ icon, tone, value, label }: { icon: 'resize' | 'scale' | 'calendar' | 'body'; tone: Tone; value: string; label: string }) {
   return (
-    <View style={{ marginBottom: 12 }}>
-      <Text style={{ fontWeight: '800', color: colors.muted }}>
-        {t('step')} {step} {t('of')} 4
-      </Text>
-      <Row style={{ marginTop: 6 }}>
-        {[1, 2, 3, 4].map((i) => (
-          <View key={i} style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: i <= step ? colors.primary : colors.border }} />
-        ))}
-      </Row>
-    </View>
+    <Row style={{ gap: 14, paddingVertical: 10 }}>
+      <IconChip icon={icon} tone={tone} size={46} />
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: 22, fontWeight: '900' }}>{value}</Text>
+        <Text style={{ color: colors.muted, fontSize: 13 }}>{label}</Text>
+      </View>
+    </Row>
   );
 }
 
@@ -134,7 +137,7 @@ export default function Measure() {
     const m = result.measurement;
     return (
       <Screen>
-        <Card tint={colors.mintSoft}>
+        <Card tint={tones.green.bg}>
           <Text style={{ fontWeight: '900', color: colors.ok }}>✓ {t('measurementSaved')}</Text>
           <Text style={{ fontSize: 22, fontWeight: '900' }}>
             📏 {m.height_cm} cm · ⚖️ {m.weight_kg} kg
@@ -161,25 +164,33 @@ export default function Measure() {
               {name} · {formatAge(c?.age_months ?? 0, lang)}
             </Text>
           </Bubble>
-          {(['lying', 'standing'] as Pos[]).map((p) => {
-            const on = pos === p;
-            return (
-              <PressScale
-                key={p}
-                onPress={() => setPosition(p)}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: on }}
-                style={{ backgroundColor: on ? colors.primarySoft : '#fff', borderWidth: 3, borderColor: on ? colors.primary : colors.border, borderRadius: radius.lg, padding: 16, marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}
-              >
-                <Text style={{ fontSize: 36 }}>{p === 'lying' ? '🛏️' : '🧍'}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 18, fontWeight: '900' }}>{t(p)}</Text>
-                  <Text style={{ color: colors.muted }}>{p === 'lying' ? t('lyingHint') : t('standingHint')}</Text>
-                </View>
-                {p === recommended && <StatusPill status="ok" label={t('recommended')} />}
-              </PressScale>
-            );
-          })}
+          <Row style={{ gap: 12, alignItems: 'stretch', marginBottom: 8 }}>
+            {(['lying', 'standing'] as Pos[]).map((p) => {
+              const on = pos === p;
+              const tone = p === 'lying' ? tones.blue : tones.green;
+              return (
+                <PressScale
+                  key={p}
+                  onPress={() => setPosition(p)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: on }}
+                  style={{ flex: 1, backgroundColor: on ? colors.primarySoft : '#fff', borderWidth: 2, borderColor: on ? colors.primary : colors.border, borderRadius: radius.lg, padding: 14, alignItems: 'center', gap: 6 }}
+                >
+                  {on && (
+                    <View style={{ position: 'absolute', top: 10, right: 10 }}>
+                      <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
+                    </View>
+                  )}
+                  <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: tone.bg, alignItems: 'center', justifyContent: 'center', marginTop: 4 }}>
+                    <Text style={{ fontSize: 40 }}>{p === 'lying' ? '🛏️' : '🧍'}</Text>
+                  </View>
+                  <Text style={{ fontSize: 17, fontWeight: '900', textAlign: 'center' }}>{t(p)}</Text>
+                  <Text style={{ color: colors.muted, fontSize: 13, textAlign: 'center', lineHeight: 18 }}>{p === 'lying' ? t('lyingHint') : t('standingHint')}</Text>
+                  {p === recommended && <StatusPill status="ok" label={t('recommended')} />}
+                </PressScale>
+              );
+            })}
+          </Row>
           <Button title={t('next')} icon="arrow-forward" onPress={() => setStep(2)} />
         </>
       )}
@@ -188,28 +199,22 @@ export default function Measure() {
         <>
           <Card>
             <Text style={{ fontSize: 18, fontWeight: '900', marginBottom: 4 }}>{t('howToMeasure')}</Text>
-            <Illustration pos={pos} />
+            <View style={{ backgroundColor: tones.blue.bg, borderRadius: radius.lg, marginVertical: 8 }}>
+              <Illustration pos={pos} />
+            </View>
             {(pos === 'standing'
               ? [t('instShoes'), t('instHeadStraight'), t('instBackWall'), t('instLookAhead')]
               : [t('instShoes'), t('instHeadBoard'), t('instLegsStraight'), t('instTwoPeople')]
             ).map((s, i) => (
               <Row key={s} style={{ alignItems: 'flex-start', marginBottom: 8 }}>
-                <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: colors.mint, alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ color: '#fff', fontWeight: '900' }}>{i + 1}</Text>
-                </View>
+                <Ionicons name="checkmark-circle" size={24} color={statusColor.ok.mark} />
                 <Text style={{ flex: 1, fontSize: 16, lineHeight: 23 }}>{s}</Text>
               </Row>
             ))}
             <Text style={{ color: colors.muted, fontSize: 13 }}>⚖️ {t('instWeigh')}</Text>
           </Card>
-          <Row>
-            <View style={{ flex: 1 }}>
-              <Button title={t('back')} variant="ghost" onPress={() => setStep(1)} />
-            </View>
-            <View style={{ flex: 2 }}>
-              <Button title={t('readyToEnter')} icon="arrow-forward" onPress={() => setStep(3)} />
-            </View>
-          </Row>
+          <Button title={t('readyToEnter')} icon="arrow-forward" onPress={() => setStep(3)} />
+          <Button title={t('back')} variant="ghost" onPress={() => setStep(1)} />
         </>
       )}
 
@@ -234,16 +239,16 @@ export default function Measure() {
 
       {step === 4 && (
         <>
-          <Text style={{ fontSize: 19, fontWeight: '900', marginBottom: 10 }}>
-            {t('checkAgain')} {name}
-          </Text>
-          <Card>
-            <Text style={{ fontSize: 30, fontWeight: '900', textAlign: 'center' }}>📏 {height} cm</Text>
-            <Text style={{ fontSize: 30, fontWeight: '900', textAlign: 'center' }}>⚖️ {weight} kg</Text>
-            <Text style={{ textAlign: 'center', color: colors.muted, marginTop: 6 }}>
-              {t(pos)} · {formatDate(date, lang)}
-              {muac ? ` · LiLA ${muac} cm` : ''}
+          <Bubble mood="thinking">
+            <Text style={{ fontWeight: '900', fontSize: 17 }}>
+              {t('checkAgain')} {name}
             </Text>
+          </Bubble>
+          <Card>
+            <ReviewRow icon="resize" tone="blue" value={`${height} cm`} label={`${pos === 'lying' ? t('lengthLbl') : t('heightLbl')} · ${t(pos)}`} />
+            <ReviewRow icon="scale" tone="orange" value={`${weight} kg`} label={t('weight')} />
+            <ReviewRow icon="calendar" tone="lavender" value={formatDate(date, lang)} label={t('measuredAt')} />
+            {muac ? <ReviewRow icon="body" tone="green" value={`${muac} cm`} label={t('muac')} /> : null}
           </Card>
           {warnings.map((w) => (
             <Card key={w} tint={statusColor.monitor.bg}>

@@ -1,12 +1,9 @@
 // Only the weights the app uses, so the phone bundle stays small.
-import { IBMPlexMono_500Medium } from "@expo-google-fonts/ibm-plex-mono/500Medium";
-import { IBMPlexMono_600SemiBold } from "@expo-google-fonts/ibm-plex-mono/600SemiBold";
 import { PlusJakartaSans_400Regular } from "@expo-google-fonts/plus-jakarta-sans/400Regular";
+import { PlusJakartaSans_500Medium } from "@expo-google-fonts/plus-jakarta-sans/500Medium";
 import { PlusJakartaSans_600SemiBold } from "@expo-google-fonts/plus-jakarta-sans/600SemiBold";
 import { PlusJakartaSans_700Bold } from "@expo-google-fonts/plus-jakarta-sans/700Bold";
 import { PlusJakartaSans_800ExtraBold } from "@expo-google-fonts/plus-jakarta-sans/800ExtraBold";
-import { Unbounded_600SemiBold } from "@expo-google-fonts/unbounded/600SemiBold";
-import { Unbounded_700Bold } from "@expo-google-fonts/unbounded/700Bold";
 import { useFonts } from "expo-font";
 import { router, Stack, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -24,9 +21,10 @@ const headerOptions = {
   headerStyle: { backgroundColor: colors.bg },
   headerTintColor: colors.ink,
   headerShadowVisible: false,
+  headerTitleAlign: "left" as const,
   headerTitleStyle: {
-    fontFamily: fonts.display,
-    fontSize: 16,
+    fontFamily: fonts.bold,
+    fontSize: 18,
     color: colors.text,
   },
   contentStyle: { backgroundColor: colors.bg },
@@ -119,13 +117,10 @@ function RootStack() {
 export default function RootLayout() {
   const [loaded] = useFonts({
     PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
     PlusJakartaSans_600SemiBold,
     PlusJakartaSans_700Bold,
     PlusJakartaSans_800ExtraBold,
-    Unbounded_600SemiBold,
-    Unbounded_700Bold,
-    IBMPlexMono_500Medium,
-    IBMPlexMono_600SemiBold,
   });
   if (!loaded) {
     return (

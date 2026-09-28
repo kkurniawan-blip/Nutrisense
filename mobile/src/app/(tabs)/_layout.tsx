@@ -3,7 +3,6 @@ import { Redirect, router, Tabs } from 'expo-router';
 import React from 'react';
 import { Pressable, View } from 'react-native';
 
-import { Text } from '../../components/Text';
 import { Loading } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
 import type { Role } from '../../lib/types';
@@ -22,32 +21,6 @@ const VISIBLE: Record<string, Role[]> = {
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
-/** Raised indigo camera key in the middle of the tab bar: NutriScan is one tap away. */
-function ScanButton({ onPress }: { onPress?: (e: any) => void }) {
-  return (
-    <Pressable onPress={onPress} accessibilityLabel="NutriScan" style={{ flex: 1, alignItems: 'center' }}>
-      <View
-        style={{
-          marginTop: -20,
-          width: 60,
-          height: 60,
-          borderRadius: 18,
-          backgroundColor: colors.ink,
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderWidth: 4,
-          borderColor: '#fff',
-          ...shadow,
-        }}
-      >
-        <Ionicons name="scan-outline" size={30} color="#fff" style={{ position: 'absolute' }} />
-        <Ionicons name="camera" size={14} color={colors.accent} />
-      </View>
-      <Text style={{ fontSize: 12, fontWeight: '700', color: colors.ink, marginTop: 2 }}>NutriScan</Text>
-    </Pressable>
-  );
-}
-
 export default function TabsLayout() {
   const { ready, user, t } = useAuth();
   if (!ready) return <Loading />;
@@ -61,10 +34,9 @@ export default function TabsLayout() {
         title,
         href: shown(name) ? undefined : null,
         tabBarIcon: ({ color, focused }) => (
-          // Obvious selected state: filled icon plus an indicator line, not colour alone.
-          <View style={{ alignItems: 'center' }}>
-            <View style={{ width: 22, height: 3, borderRadius: 2, marginBottom: 4, backgroundColor: focused ? colors.primary : 'transparent' }} />
-            <Ionicons name={focused ? activeIcon : icon} color={color} size={24} />
+          // Obvious selected state: filled icon on a soft lavender pill, not colour alone.
+          <View style={{ backgroundColor: focused ? colors.primarySoft : 'transparent', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 3 }}>
+            <Ionicons name={focused ? activeIcon : icon} color={color} size={23} />
           </View>
         ),
         tabBarAccessibilityLabel: title,
@@ -78,19 +50,20 @@ export default function TabsLayout() {
       screenOptions={{
         headerStyle: { backgroundColor: colors.bg },
         headerShadowVisible: false,
-        headerTitleStyle: { fontFamily: fonts.display, fontSize: 17, color: colors.text },
-        tabBarActiveTintColor: colors.ink,
-        tabBarInactiveTintColor: colors.muted,
-        tabBarLabelStyle: { fontFamily: fonts.bold, fontSize: 12 },
-        tabBarStyle: { height: 76, paddingTop: 2, paddingBottom: 10, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: '#fff' },
+        headerTitleStyle: { fontFamily: fonts.bold, fontSize: 19, color: colors.text },
+        headerTitleAlign: 'left',
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: '#8C88A3',
+        tabBarLabelStyle: { fontFamily: fonts.semibold, fontSize: 11.5 },
+        tabBarStyle: { height: 74, paddingTop: 6, paddingBottom: 10, borderTopWidth: 0, backgroundColor: '#fff', borderTopLeftRadius: 22, borderTopRightRadius: 22, ...shadow },
         sceneStyle: { backgroundColor: colors.bg },
         headerRight: () => (
           <Pressable
             onPress={() => router.push('/notifications')}
-            style={{ marginRight: 14, backgroundColor: '#fff', borderRadius: 12, padding: 9, borderWidth: 1, borderColor: colors.border }}
+            style={{ marginRight: 14, backgroundColor: '#fff', borderRadius: 20, padding: 9, ...shadow }}
             accessibilityLabel={t('notifications')}
           >
-            <Ionicons name="notifications-outline" size={20} color={colors.ink} />
+            <Ionicons name="notifications-outline" size={20} color={colors.primary} />
           </Pressable>
         ),
       }}
@@ -99,14 +72,7 @@ export default function TabsLayout() {
       {tab('dashboard', t('dashboard'), 'stats-chart-outline', 'stats-chart')}
       {tab('cases', t('cases'), 'medkit-outline', 'medkit')}
       {tab('assistant', t('assistant'), 'chatbubble-ellipses-outline', 'chatbubble-ellipses')}
-      <Tabs.Screen
-        name="nutriscan"
-        options={{
-          title: 'NutriScan',
-          href: shown('nutriscan') ? undefined : null,
-          tabBarButton: shown('nutriscan') ? (props) => <ScanButton onPress={props.onPress ?? undefined} /> : undefined,
-        }}
-      />
+      {tab('nutriscan', 'NutriScan', 'scan-outline', 'scan')}
       {tab('logistics', t('logistics'), 'cube-outline', 'cube')}
       {tab('pickups', t('pickups'), 'gift-outline', 'gift')}
       {tab('profile', t('profile'), 'person-circle-outline', 'person-circle')}
