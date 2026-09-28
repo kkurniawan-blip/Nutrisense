@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import { Alert, Linking, Platform, Pressable, View } from 'react-native';
 
 import { AssessmentView, fmtZ } from '../../../components/AssessmentView';
-import { DiversityCard } from '../../../components/Diversity';
 import { ChartData, GrowthChart } from '../../../components/GrowthChart';
 import { SyncBanner } from '../../../components/SyncBanner';
 import { Text } from '../../../components/Text';
@@ -13,12 +12,14 @@ import {
   Card,
   ErrorBox,
   H2,
-  JourneyHeader,
   ListRow,
   Loading,
+  MoreLink,
   P,
+  QuickAction,
   Row,
   Screen,
+  Section,
   Segmented,
   SourceTag,
   StatusMark,
@@ -28,7 +29,7 @@ import { api, errorText } from '../../../lib/api';
 import { isStaff, useAuth } from '../../../lib/auth';
 import { childEmoji, formatAge, formatDate, stickers } from '../../../lib/fun';
 import { clinicalStatus, motherStatus, txt, zWords } from '../../../lib/status';
-import type { Child, Development, Meal, Measurement, TodayChecklist } from '../../../lib/types';
+import type { Child, Development, Meal, Measurement } from '../../../lib/types';
 import { useApi } from '../../../lib/useApi';
 import { colors, statusColor, tones } from '../../../theme';
 
@@ -40,24 +41,28 @@ const METRIC = {
   balance: { tone: tones.green, icon: 'body' },
 } as const;
 
-/** One growth indicator as a small pastel tile: what it is, and how the child is doing in words. */
-function MetricTile({ label, full, z, kind, showZ }: { label: string; full: string; z: number | null; kind: 'height' | 'weight' | 'balance'; showZ: boolean }) {
+/** One growth indicator as a small pastel tile: the number (SD), and underneath it in words. */
+function MetricTile({ label, full, z, kind }: { label: string; full: string; z: number | null; kind: 'height' | 'weight' | 'balance' }) {
   const { lang } = useAuth();
   const w = zWords(z, lang, kind);
   const c = statusColor[w.key];
   const m = METRIC[kind];
   return (
-    <View accessible accessibilityLabel={`${full}: ${w.text}`} style={{ flex: 1, backgroundColor: m.tone.bg, borderRadius: 16, padding: 10, gap: 6 }}>
-      <Row style={{ gap: 6 }}>
-        <Ionicons name={m.icon} size={15} color={m.tone.fg} />
-        <Text style={{ fontSize: 13, fontWeight: '700', color: m.tone.fg }}>{label}</Text>
+    <View accessible accessibilityLabel={`${full}: ${fmtZ(z)} SD, ${w.text}`} style={{ flex: 1, backgroundColor: m.tone.bg, borderRadius: 18, padding: 12, gap: 4 }}>
+      <Row style={{ gap: 5 }}>
+        <Ionicons name={m.icon} size={14} color={m.tone.fg} />
+        <Text style={{ fontSize: 12.5, fontWeight: '600', color: m.tone.fg }}>{label}</Text>
       </Row>
-      {showZ && <Text style={{ fontSize: 20, fontWeight: '900', color: c.fg }}>{fmtZ(z)}</Text>}
+      <Text style={{ fontSize: 20, fontWeight: '900', color: c.fg }}>
+        {fmtZ(z)} <Text style={{ fontSize: 12, fontWeight: '600' }}>SD</Text>
+      </Text>
       <Row style={{ gap: 5, alignItems: 'flex-start' }}>
-        <View style={{ marginTop: 6 }}>
-          <StatusMark status={w.key} />
+        <View style={{ marginTop: 5 }}>
+          <StatusMark status={w.key} size={7} />
         </View>
-        <Text style={{ flex: 1, fontSize: 13, fontWeight: '700', color: c.fg, lineHeight: 18 }}>{w.text}</Text>
+        <Text numberOfLines={2} style={{ flex: 1, fontSize: 11.5, lineHeight: 15, color: c.fg }}>
+          {w.text}
+        </Text>
       </Row>
     </View>
   );
@@ -71,7 +76,7 @@ function GrowthTrend({ childId, name }: { childId: string; name: string }) {
   const d = chart.data;
   return (
     <Card>
-      <H2 emoji="📈">{t('growthTrend')}</H2>
+      <H2 right={<MoreLink label={t('seeAll')} onPress={() => router.push(`/child/${childId}/history`)} />}>{t('growthTrend')}</H2>
       <Segmented<Indicator>
         value={ind}
         onChange={setInd}
@@ -95,57 +100,50 @@ function GrowthTrend({ childId, name }: { childId: string; name: string }) {
           }}
         />
       )}
-      {d?.meaning && (
-        <View style={{ backgroundColor: statusColor.info.bg, borderRadius: 14, padding: 12, marginTop: 10 }}>
-          <Text style={{ fontWeight: '900', color: statusColor.info.fg, marginBottom: 4 }}>💡 {t('whatItMeans')}</Text>
-          <Text style={{ lineHeight: 22 }}>{d.meaning}</Text>
-        </View>
-      )}
-      {d?.details && (
-        <Pressable onPress={() => setMore(!more)} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center' }}>
-          <Text style={{ color: colors.primary, fontWeight: '800' }}>
-            {more ? '▲' : '▼'} {t('learnMore')}
-          </Text>
-        </Pressable>
-      )}
-      {more && d?.details && (
-        <View>
-          <Text style={{ fontWeight: '800' }}>{d.details.label}</Text>
-          <Text style={{ color: colors.muted }}>
-            Z-score: {fmtZ(d.details.z)} · {d.details.class.replace(/_/g, ' ')} · {d.details.reference}
-          </Text>
-          <Text style={{ color: colors.muted, marginTop: 4 }}>{t('zExplain')}</Text>
+      <MoreLink label={t('learnChart')} open={more} onPress={() => setMore(!more)} />
+      {more && (
+        <View style={{ gap: 4 }}>
+          {d?.meaning ? <Text style={{ fontSize: 14, lineHeight: 20 }}>{d.meaning}</Text> : null}
+          {d?.details && (
+            <Text style={{ color: colors.muted, fontSize: 13 }}>
+              {d.details.label}: {fmtZ(d.details.z)} SD · {d.details.reference}
+            </Text>
+          )}
+          <Text style={{ color: colors.muted, fontSize: 13 }}>{t('zExplain')}</Text>
         </View>
       )}
     </Card>
   );
 }
 
-function DevelopmentSummary({ childId, name }: { childId: string; name: string }) {
+const DEV_ICON = { on_track: '✓', monitor: '●', unknown: '○' } as const;
+
+/** Development at a glance: each area with an icon and a tick or a dot, nothing more. */
+function DevelopmentSummary({ childId }: { childId: string }) {
   const { t } = useAuth();
   const dev = useApi<Development>(`/api/children/${childId}/development`);
   if (!dev.data || dev.data.band_months === null) return null;
   const map = { on_track: 'ok', monitor: 'monitor', unknown: 'unknown' } as const;
   return (
     <Card onPress={() => router.push(`/child/${childId}/development`)}>
-      <H2 emoji="🧠">
-        {t('developmentOf')} {name}
-      </H2>
+      <H2 right={<Ionicons name="chevron-forward" size={18} color="#A09CB5" />}>{t('development')}</H2>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
         {dev.data.domains.map((d) => {
           const c = statusColor[map[d.status]];
           return (
-            <View key={d.key} style={{ flexBasis: '47%', flexGrow: 1, backgroundColor: c.bg, borderRadius: 16, padding: 12, flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-              <Text style={{ fontSize: 24 }}>{d.emoji}</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontWeight: '800' }}>{d.label}</Text>
-                <Text style={{ fontSize: 13, fontWeight: '700', color: c.fg }}>{t(`dev_${d.status}`)}</Text>
-              </View>
+            <View
+              key={d.key}
+              accessible
+              accessibilityLabel={`${d.label}: ${t(`dev_${d.status}`)}`}
+              style={{ flexBasis: '47%', flexGrow: 1, backgroundColor: c.bg, borderRadius: 16, paddingVertical: 10, paddingHorizontal: 12, flexDirection: 'row', gap: 8, alignItems: 'center' }}
+            >
+              <Text style={{ fontSize: 20 }}>{d.emoji}</Text>
+              <Text style={{ flex: 1, fontWeight: '600', fontSize: 14 }}>{d.label}</Text>
+              <Text style={{ fontWeight: '900', color: c.mark, fontSize: 16 }}>{DEV_ICON[d.status]}</Text>
             </View>
           );
         })}
       </View>
-      <Text style={{ color: colors.primary, fontWeight: '800', marginTop: 14 }}>{t('openChecklist')} →</Text>
     </Card>
   );
 }
@@ -156,14 +154,14 @@ export default function ChildDetail() {
   const child = useApi<Child>(`/api/children/${id}`);
   const measurements = useApi<Measurement[]>(`/api/children/${id}/measurements`);
   const meals = useApi<Meal[]>(`/api/children/${id}/meals?limit=100`);
-  const today = useApi<TodayChecklist>(`/api/children/${id}/today`);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [more, setMore] = useState(false);
 
   const c = child.data;
   const mom = user?.role === 'caregiver';
 
-  const reload = () => [child, measurements, meals, today].forEach((x) => void x.reload());
+  const reload = () => [child, measurements, meals].forEach((x) => void x.reload());
 
   const exportFhir = async () => {
     try {
@@ -212,7 +210,6 @@ export default function ChildDetail() {
   const name = c.name.split(' ')[0];
   const st = motherStatus(a);
   const girl = c.sex === 'female';
-  const history = [...(measurements.data ?? [])].reverse();
   const kader = c.care_team?.find((x) => x.role === 'kader');
 
   return (
@@ -221,124 +218,82 @@ export default function ChildDetail() {
       <SyncBanner stale={child.stale} />
 
       {/* Who and how they are */}
+      <Row style={{ gap: 14, marginBottom: 18 }}>
+        <View style={{ width: 70, height: 70, borderRadius: 35, backgroundColor: girl ? colors.pinkSoft : colors.skySoft, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 36 }}>{childEmoji(c.sex, c.age_months)}</Text>
+        </View>
+        <View style={{ flex: 1, gap: 4 }}>
+          <Text style={{ fontSize: 21, fontWeight: '900' }}>{c.name}</Text>
+          <Text style={{ color: colors.muted, fontSize: 13 }}>
+            {formatAge(c.age_months, lang)}
+            {c.region?.name ? ` · 📍 ${c.region.name}` : ''}
+          </Text>
+          {mom ? <StatusPill status={st.key} label={txt(st.label, lang)} /> : <StatusPill status={clinicalStatus(a?.risk_level)} label={a ? t(`risk_${a.risk_level}`) : t('notAssessed')} />}
+        </View>
+      </Row>
+
+      {/* The three growth numbers */}
+      {m ? (
+        <Row style={{ gap: 8, alignItems: 'stretch' }}>
+          <MetricTile label={t('height_short')} full={t('fHeightAge')} z={m.haz} kind="height" />
+          <MetricTile label={t('weight_short')} full={t('fWeightAge')} z={m.waz} kind="weight" />
+          <MetricTile label={t('bbtb_short')} full={t('fWeightHeight')} z={m.whz} kind="balance" />
+        </Row>
+      ) : (
+        <P muted>{t('noMeasurementYet')}</P>
+      )}
+      <View style={{ marginTop: 10, marginBottom: 10 }}>
+        <Button title={t('tileMeasure')} icon="add-circle" onPress={() => router.push(`/child/${id}/measure`)} />
+      </View>
+
+      {m && <GrowthTrend childId={id} name={name} />}
+
+      {/* Nuri's short guidance and what to do */}
+      {a && <AssessmentView a={a} />}
+
+      <DevelopmentSummary childId={id} />
+
+      {/* Food shortcuts */}
       <Card>
-        <Row style={{ gap: 14 }}>
-          <View style={{ width: 74, height: 74, borderRadius: 37, backgroundColor: girl ? colors.pinkSoft : colors.skySoft, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: 38 }}>{childEmoji(c.sex, c.age_months)}</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 22, fontWeight: '900' }}>{c.name}</Text>
-            <Text style={{ color: colors.muted, marginBottom: 6 }}>
-              {formatAge(c.age_months, lang)} · 📍 {c.region?.name}
-            </Text>
-            {mom ? <StatusPill status={st.key} label={txt(st.label, lang)} large /> : <StatusPill status={clinicalStatus(a?.risk_level)} label={a ? t(`risk_${a.risk_level}`) : t('notAssessed')} large />}
-          </View>
+        <Row style={{ alignItems: 'flex-start', gap: 4 }}>
+          <QuickAction emoji="📸" tone="orange" label="NutriScan" onPress={() => router.push(`/nutriscan?child=${id}`)} />
+          <QuickAction emoji="✍️" tone="green" label={t('actLogMeal')} onPress={() => router.push(`/child/${id}/meal?action=manual`)} />
+          <QuickAction emoji="🗓️" tone="blue" label={t('nutritionPlan')} onPress={() => router.push(`/child/${id}/nutrition`)} />
+          <QuickAction emoji="👩‍🍳" tone="pink" label={t('recipes')} onPress={() => router.push(`/child/${id}/recipes`)} />
         </Row>
       </Card>
 
-      {/* 1. PANTAU */}
-      <JourneyHeader step={t('stepMonitor')} emoji="🌱" title={t('stepMonitorTitle')} />
-      <Card>
-        {m ? (
-          <>
-            <H2>{t('growthStatus')}</H2>
-            <Row style={{ gap: 12 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 24, fontWeight: '900' }}>
-                  {m.height_cm} <Text style={{ fontSize: 14, color: colors.muted, fontWeight: '600' }}>cm</Text>
-                </Text>
-                <Text style={{ color: colors.muted, fontSize: 13 }}>📏 {t('height_short')}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 24, fontWeight: '900' }}>
-                  {m.weight_kg} <Text style={{ fontSize: 14, color: colors.muted, fontWeight: '600' }}>kg</Text>
-                </Text>
-                <Text style={{ color: colors.muted, fontSize: 13 }}>⚖️ {t('weight_short')}</Text>
-              </View>
-            </Row>
-            <Text style={{ color: colors.muted, fontSize: 13, marginTop: 8 }}>
-              {t('lastMeasured')}: {formatDate(m.measured_at, lang)}
-            </Text>
-          </>
-        ) : (
-          <P muted>{t('noMeasurementYet')}</P>
-        )}
-        <Button title={t('tileMeasure')} icon="add-circle" onPress={() => router.push(`/child/${id}/measure`)} />
-        {m && (
-          <Row style={{ marginTop: 8, gap: 8, alignItems: 'stretch' }}>
-            <MetricTile label={t('height_short')} full={t('fHeightAge')} z={m.haz} kind="height" showZ={!mom} />
-            <MetricTile label={t('weight_short')} full={t('fWeightAge')} z={m.waz} kind="weight" showZ={!mom} />
-            <MetricTile label={t('bbtb_short')} full={t('fWeightHeight')} z={m.whz} kind="balance" showZ={!mom} />
-          </Row>
-        )}
-      </Card>
-      {m && <GrowthTrend childId={id} name={name} />}
-      {history.length > 0 && (
-        <Card>
-          <H2 emoji="🗓️" right={<Button small variant="ghost" title={t('seeAll')} onPress={() => router.push(`/child/${id}/history`)} />}>
-            {t('growthHistory')}
-          </H2>
-          {history.slice(0, 3).map((x, i) => (
-            <Row key={x.id} style={{ paddingVertical: 9, borderBottomWidth: 1, borderColor: colors.line }}>
-              <Text style={{ flex: 1.3, fontWeight: i === 0 ? '900' : '600' }}>{formatDate(x.measured_at, lang)}</Text>
-              <Text style={{ flex: 1 }}>{x.height_cm} cm</Text>
-              <Text style={{ flex: 1 }}>{x.weight_kg} kg</Text>
-            </Row>
-          ))}
-        </Card>
-      )}
-
-      {/* 2. PAHAMI */}
-      {a && (
-        <>
-          <JourneyHeader step={t('stepUnderstand')} emoji="🧠" title={t('stepUnderstandTitle')} />
-          <AssessmentView a={a} />
-        </>
-      )}
-
-      {/* 3. PERBAIKI */}
-      <JourneyHeader step={t('stepImprove')} emoji="🍽️" title={t('stepImproveTitle')} />
-      <Card>
-        <DiversityCard groups={today.data?.groups_today ?? []} />
-      </Card>
-      <Card>
-        <ListRow emoji="📸" title="NutriScan" onPress={() => router.push(`/nutriscan?child=${id}`)} />
-        <ListRow emoji="✍️" title={t('actLogMeal')} onPress={() => router.push(`/child/${id}/meal?action=manual`)} />
-        <ListRow emoji="🗓️" title={t('nutritionPlan')} onPress={() => router.push(`/child/${id}/nutrition`)} />
-        <ListRow emoji="👩‍🍳" title={t('recipes')} onPress={() => router.push(`/child/${id}/recipes`)} />
-      </Card>
-
-      {/* 4. IKUTI */}
-      <JourneyHeader step={t('stepFollow')} emoji="📅" title={t('stepFollowTitle')} />
-      <DevelopmentSummary childId={id} name={name} />
       {mom && (
         <Card>
-          <H2 emoji="🏅">{t('stickersTitle')}</H2>
+          <H2>{t('stickersTitle')}</H2>
           <Row style={{ justifyContent: 'space-between' }}>
             {stickers(meals.data ?? [], measurements.data ?? [], lang).map((s) => (
-              <View key={s.key} style={{ alignItems: 'center', flex: 1 }}>
-                <View style={{ width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', backgroundColor: s.earned ? colors.accentSoft : colors.line, borderWidth: 2, borderColor: s.earned ? colors.accent : '#D5D0EA', borderStyle: s.earned ? 'solid' : 'dashed' }}>
+              <View key={s.key} accessible accessibilityLabel={`${s.title}: ${s.earned ? t('earned') : t('notYet')}`} style={{ alignItems: 'center', flex: 1 }}>
+                <View style={{ width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: s.earned ? colors.accentSoft : colors.line, borderWidth: 2, borderColor: s.earned ? colors.accent : '#D5D0EA', borderStyle: s.earned ? 'solid' : 'dashed' }}>
                   <Text style={{ fontSize: 24, opacity: s.earned ? 1 : 0.4 }}>{s.emoji}</Text>
                 </View>
-                <Text style={{ fontSize: 12, fontWeight: '700', textAlign: 'center', marginTop: 4 }}>{s.title}</Text>
-                <Text style={{ fontSize: 12, color: s.earned ? colors.ok : colors.muted }}>{s.earned ? `✓ ${t('earned')}` : t('notYet')}</Text>
+                <Text style={{ fontSize: 11.5, textAlign: 'center', marginTop: 4, color: s.earned ? colors.text : colors.muted }}>{s.title}</Text>
               </View>
             ))}
           </Row>
         </Card>
       )}
 
-      {/* 5. TINDAK LANJUT */}
-      <JourneyHeader step={t('stepFollowUp')} emoji="👩‍⚕️" title={`${t('teamOf')} ${name}`} />
+      {/* Care team: avatar, name, role, status */}
+      <Section title={`${t('teamOf')} ${name}`} />
       <Card>
-        {c.care_team?.map((mbr) => (
-          <Row key={mbr.role} style={{ paddingVertical: 8, gap: 12 }}>
-            <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: tones.lavender.bg, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 26 }}>{mbr.emoji}</Text>
+        {c.care_team?.map((mbr, i) => (
+          <Row key={mbr.role} style={{ paddingVertical: 8, gap: 12, borderTopWidth: i ? 1 : 0, borderColor: colors.line }}>
+            <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: tones.lavender.bg, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: 24 }}>{mbr.emoji}</Text>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontWeight: '800' }}>{mbr.name}</Text>
-              <Text style={{ color: colors.muted, fontSize: 13 }}>{mbr.label}</Text>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={{ fontWeight: '700' }}>{mbr.name}</Text>
+              <Text style={{ color: colors.muted, fontSize: 12.5 }}>{mbr.label}</Text>
+              <Row style={{ gap: 5 }}>
+                <StatusMark status="ok" size={7} />
+                <Text style={{ fontSize: 12, color: statusColor.ok.fg }}>{t('active')}</Text>
+              </Row>
             </View>
             {mbr.phone ? (
               <Pressable onPress={() => Linking.openURL(`tel:${mbr.phone}`)} accessibilityLabel={`${t('call')} ${mbr.name}`} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.mintSoft, alignItems: 'center', justifyContent: 'center' }}>
@@ -347,34 +302,38 @@ export default function ChildDetail() {
             ) : null}
           </Row>
         ))}
-        <Text style={{ marginTop: 8, color: colors.muted }}>
-          {t('lastReviewed')}: {c.last_reviewed ? `${formatDate(c.last_reviewed.at, lang)} · ${c.last_reviewed.author}` : t('notReviewedYet')}
-        </Text>
+        {c.last_reviewed && (
+          <Text style={{ marginTop: 6, color: colors.muted, fontSize: 12 }}>
+            {t('lastReviewed')}: {formatDate(c.last_reviewed.at, lang)}
+          </Text>
+        )}
       </Card>
       {(c.professional_recommendations ?? []).slice(0, 3).map((r) => (
         <Card key={r.at + r.author} tint={statusColor.info.bg}>
           <SourceTag kind="pro" />
-          <Text style={{ fontWeight: '800', color: statusColor.info.fg }}>
-            {r.author} · {r.role_label}
+          <Text style={{ fontWeight: '700', color: statusColor.info.fg, fontSize: 14 }}>
+            {r.author} · {formatDate(r.at, lang)}
           </Text>
-          <Text style={{ color: statusColor.info.fg, fontSize: 13 }}>{formatDate(r.at, lang, true)}</Text>
-          {r.text ? <P style={{ marginTop: 6 }}>{r.text}</P> : <P muted>{t('reviewConfirmed')}</P>}
+          {r.text ? <P style={{ marginTop: 4 }}>{r.text}</P> : <P muted>{t('reviewConfirmed')}</P>}
         </Card>
       ))}
       {!c.professional_recommendations?.length && kader && (
-        <P muted style={{ marginBottom: 12 }}>
+        <P muted style={{ marginBottom: 12, fontSize: 13 }}>
           {t('askKader')} {kader.name}.
         </P>
       )}
 
-      <Card>
-        <H2 emoji="🔐">{t('dataPrivacy')}</H2>
-        <ListRow emoji="📄" title={t('exportData')} onPress={exportFhir} />
-        {isStaff(user) && <ListRow emoji="☁️" title="SATUSEHAT sync (FHIR)" onPress={syncSatusehat} />}
-        {mom && <ListRow emoji="⚙️" title={t('privacySettings')} onPress={() => router.push('/privacy')} />}
-        {(mom || user?.role === 'admin') && <Button small variant="danger" title={t('deleteChild')} icon="trash-outline" onPress={confirmDelete} loading={busy} />}
-        {msg && <P muted>{msg}</P>}
-      </Card>
+      {/* Data and account actions: out of the way */}
+      <MoreLink label={t('dataPrivacy')} open={more} onPress={() => setMore(!more)} />
+      {more && (
+        <Card>
+          <ListRow emoji="📄" title={t('exportData')} onPress={exportFhir} />
+          {isStaff(user) && <ListRow emoji="☁️" title="SATUSEHAT sync (FHIR)" onPress={syncSatusehat} />}
+          {mom && <ListRow emoji="⚙️" title={t('privacySettings')} onPress={() => router.push('/privacy')} />}
+          {(mom || user?.role === 'admin') && <Button small variant="danger" title={t('deleteChild')} icon="trash-outline" onPress={confirmDelete} loading={busy} />}
+          {msg && <P muted>{msg}</P>}
+        </Card>
+      )}
     </Screen>
   );
 }

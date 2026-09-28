@@ -1,14 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 
 import { useAuth } from '../lib/auth';
 import { FOOD_EMOJI } from '../lib/fun';
 import { rupiah } from '../lib/nutriscan';
 import type { KitchenRecipe, MenuIdea, Recipe } from '../lib/types';
-import { colors, radius, statusColor } from '../theme';
+import { colors, radius, statusColor, tones } from '../theme';
 import { Text } from './Text';
-import { Button, Card, PressScale, Row } from './ui';
+import { Button, Card, H2, MoreLink, PressScale, Row } from './ui';
 
 const emojis = (foods: string[]) => foods.filter((f) => f !== 'asi').map((f) => FOOD_EMOJI[f] ?? '🍽️').join(' ');
 
@@ -20,22 +20,6 @@ function Pill({ text, bg, fg }: { text: string; bg: string; fg: string }) {
   );
 }
 
-/** Time, what it costs to buy the missing foods, and from what age. */
-function Facts({ recipe }: { recipe: KitchenRecipe }) {
-  const { t, lang } = useAuth();
-  return (
-    <Row style={{ flexWrap: 'wrap', gap: 8 }}>
-      <Pill text={`⏱ ${recipe.minutes} ${t('minutes')}`} bg="#ffffffd9" fg={colors.text} />
-      <Pill
-        text={recipe.need_cost_idr > 0 ? `🛒 ${t('buyAbout')} ${rupiah(recipe.need_cost_idr, lang)}` : `✓ ${t('allAtHome')}`}
-        bg="#ffffffd9"
-        fg={recipe.need_cost_idr > 0 ? colors.text : statusColor.ok.fg}
-      />
-      <Pill text={`👶 ${recipe.min_age_months}+ ${t('months')}`} bg="#ffffffd9" fg={colors.text} />
-    </Row>
-  );
-}
-
 /** Foods already at home and the few to buy, with an estimated price and where to get them. */
 function HaveAndNeed({ recipe }: { recipe: KitchenRecipe }) {
   const { t, lang } = useAuth();
@@ -43,7 +27,7 @@ function HaveAndNeed({ recipe }: { recipe: KitchenRecipe }) {
     <View style={{ gap: 10 }}>
       {recipe.have.length > 0 && (
         <View>
-          <Text style={{ fontWeight: '900', fontSize: 17, marginBottom: 8 }}>✓ {t('alreadyHave')}</Text>
+          <Text style={{ fontWeight: '700', fontSize: 14, color: colors.muted, marginBottom: 8 }}>✓ {t('alreadyHave')}</Text>
           <Row style={{ flexWrap: 'wrap', gap: 8 }}>
             {recipe.have.map((f) => (
               <Pill key={f.key} text={`${FOOD_EMOJI[f.key] ?? ''} ${f.name}`} bg={statusColor.ok.bg} fg={statusColor.ok.fg} />
@@ -53,13 +37,13 @@ function HaveAndNeed({ recipe }: { recipe: KitchenRecipe }) {
       )}
       {recipe.need.length > 0 && (
         <View>
-          <Text style={{ fontWeight: '900', fontSize: 17, marginBottom: 4 }}>🛒 {t('needToBuy')}</Text>
+          <Text style={{ fontWeight: '700', fontSize: 14, color: colors.muted, marginBottom: 4 }}>🛒 {t('needToBuy')}</Text>
           {recipe.need.map((f) => (
-            <Row key={f.key} style={{ paddingVertical: 8, borderBottomWidth: 1, borderColor: colors.border, gap: 12 }}>
-              <Text style={{ fontSize: 26 }}>{FOOD_EMOJI[f.key] ?? '🛒'}</Text>
+            <Row key={f.key} style={{ paddingVertical: 8, gap: 12 }}>
+              <Text style={{ fontSize: 24 }}>{FOOD_EMOJI[f.key] ?? '🛒'}</Text>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontWeight: '800', fontSize: 17 }}>{f.name}</Text>
-                <Text style={{ color: colors.muted, fontSize: 15 }}>{f.where}</Text>
+                <Text style={{ fontWeight: '600', fontSize: 15 }}>{f.name}</Text>
+                <Text style={{ color: colors.muted, fontSize: 13 }}>{f.where}</Text>
               </View>
               <Text style={{ fontWeight: '900', fontSize: 17, color: f.price_idr === 0 ? statusColor.ok.fg : colors.text }}>
                 {f.price_idr === 0 ? t('free') : `± ${rupiah(f.price_idr, lang)}`}
@@ -72,50 +56,68 @@ function HaveAndNeed({ recipe }: { recipe: KitchenRecipe }) {
   );
 }
 
-/** The one recommended dish, big and clear, with a single next step. */
+/** Time and age in one quiet line. */
+function Meta({ recipe }: { recipe: KitchenRecipe | Recipe | MenuIdea }) {
+  const { t } = useAuth();
+  const age = 'min_age_months' in recipe ? ` · ${recipe.min_age_months}+ ${t('months')}` : '';
+  return (
+    <Text style={{ color: colors.muted, fontSize: 14 }}>
+      ⏱ {recipe.minutes} {t('minutes')}
+      {age}
+    </Text>
+  );
+}
+
+/** "Everything is at home", or the estimated cost of what is missing. */
+function Availability({ recipe }: { recipe: KitchenRecipe }) {
+  const { t, lang } = useAuth();
+  const all = recipe.need_cost_idr <= 0 && recipe.need.every((f) => f.price_idr === 0);
+  return all || recipe.need.length === 0 ? (
+    <Pill text={`✓ ${t('allAtHome')}`} bg={statusColor.ok.bg} fg={statusColor.ok.fg} />
+  ) : (
+    <Pill text={`🛒 ${t('buyAbout')} ${rupiah(recipe.need_cost_idr, lang)}`} bg="#ffffffcc" fg={colors.text} />
+  );
+}
+
+/** The one recommended dish: name, time and age, what it needs, three small benefit tags, one action. */
 export function BestRecipeCard({ recipe, childName, onCook }: { recipe: KitchenRecipe; childName: string; onCook: () => void }) {
   const { t } = useAuth();
   const [why, setWhy] = useState(false);
   return (
-    <Card style={{ padding: 0, overflow: 'hidden', borderWidth: 3, borderColor: colors.mint }}>
-      <View style={{ backgroundColor: colors.mintSoft, padding: 20, gap: 10 }}>
-        <View style={{ alignSelf: 'flex-start', backgroundColor: colors.mint, borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 6 }}>
-          <Text style={{ color: '#fff', fontWeight: '900', fontSize: 15 }}>
+    <Card style={{ padding: 0, overflow: 'hidden', borderWidth: 2, borderColor: colors.mint }}>
+      <View style={{ backgroundColor: 'rgba(230,246,238,0.9)', padding: 20, gap: 8 }}>
+        <View style={{ alignSelf: 'flex-start', backgroundColor: colors.mint, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 5 }}>
+          <Text style={{ color: '#fff', fontWeight: '800', fontSize: 13 }}>
             ⭐ {t('bestFor')} {childName}
           </Text>
         </View>
-        <Text style={{ fontSize: 36, letterSpacing: 2 }}>{emojis(recipe.foods)}</Text>
-        <Text style={{ fontSize: 25, fontWeight: '900', color: colors.text, lineHeight: 31 }}>{recipe.name}</Text>
-        <Facts recipe={recipe} />
+        <Text style={{ fontSize: 32, letterSpacing: 2 }}>{emojis(recipe.foods)}</Text>
+        <Text style={{ fontSize: 22, fontWeight: '900', color: colors.text, lineHeight: 28 }}>{recipe.name}</Text>
+        <Meta recipe={recipe} />
+        <Row style={{ marginTop: 2 }}>
+          <Availability recipe={recipe} />
+        </Row>
       </View>
-      <View style={{ padding: 20, gap: 18 }}>
+      <View style={{ padding: 20, paddingTop: 16, gap: 12 }}>
         {recipe.highlights.length > 0 && (
-          <Row style={{ flexWrap: 'wrap', gap: 8 }}>
+          <Row style={{ flexWrap: 'wrap', gap: 6 }}>
             {recipe.highlights.map((h) => (
-              <Pill key={h} text={`💪 ${h}`} bg={colors.accentSoft} fg="#8A5A00" />
+              <Pill key={h} text={h} bg={tones.yellow.bg} fg={tones.yellow.fg} />
             ))}
           </Row>
         )}
-        <HaveAndNeed recipe={recipe} />
-        {recipe.benefits.length > 0 && (
-          <Pressable onPress={() => setWhy(!why)} accessibilityRole="button" accessibilityState={{ expanded: why }} style={{ minHeight: 44, justifyContent: 'center' }}>
-            <Row style={{ justifyContent: 'space-between' }}>
-              <Text style={{ fontWeight: '800', fontSize: 16, color: colors.primary }}>💡 {t('whyGood')}</Text>
-              <Ionicons name={why ? 'chevron-up' : 'chevron-down'} size={20} color={colors.primary} />
-            </Row>
-          </Pressable>
-        )}
-        {why && recipe.benefits.length > 0 && (
-          <View style={{ gap: 10, marginTop: -8 }}>
+        {recipe.benefits.length > 0 && <MoreLink label={t('whyGood')} open={why} onPress={() => setWhy(!why)} />}
+        {why && (
+          <View style={{ gap: 8, marginTop: -4 }}>
             {recipe.benefits.map((b) => (
               <Row key={b.key} style={{ alignItems: 'flex-start', gap: 10 }}>
-                <Text style={{ fontSize: 22 }}>{FOOD_EMOJI[b.key] ?? '✨'}</Text>
-                <Text style={{ flex: 1, fontSize: 17, lineHeight: 25 }}>{b.text}</Text>
+                <Text style={{ fontSize: 18 }}>{FOOD_EMOJI[b.key] ?? '✨'}</Text>
+                <Text style={{ flex: 1, fontSize: 14, lineHeight: 20 }}>{b.text}</Text>
               </Row>
             ))}
           </View>
         )}
-        <Button title={`👩‍🍳 ${t('seeHowToCook')}`} onPress={onCook} />
+        <Button title={t('seeRecipe')} icon="arrow-forward" onPress={onCook} />
       </View>
     </Card>
   );
@@ -143,57 +145,59 @@ export function RecipeOptionCard({ recipe, onPress }: { recipe: KitchenRecipe; o
   );
 }
 
-/** Step-by-step cooking view: ingredients, then one big numbered step at a time. */
+/** A step's first clause is its short headline; any detail after the first comma is quieter. */
+function StepText({ text }: { text: string }) {
+  const i = text.search(/[,;]/);
+  const head = i > 0 && i < text.length - 1 ? text.slice(0, i) : text.replace(/\.$/, '');
+  const rest = i > 0 && i < text.length - 1 ? text.slice(i + 1).trim().replace(/\.$/, '') : '';
+  return (
+    <View style={{ flex: 1 }}>
+      <Text style={{ fontSize: 16, fontWeight: '700', lineHeight: 22 }}>{head}</Text>
+      {rest ? <Text style={{ fontSize: 14, color: colors.muted, lineHeight: 20 }}>{rest}</Text> : null}
+    </View>
+  );
+}
+
+/** Recipe page: name, time and age, ingredients, then short numbered steps, all in two light cards. */
 export function CookView({ recipe }: { recipe: KitchenRecipe | Recipe | MenuIdea }) {
   const { t } = useAuth();
   const kitchen = 'need' in recipe ? (recipe as KitchenRecipe) : null;
   const foods = 'foods' in recipe ? recipe.foods : [];
   return (
     <View>
-      <Card tint={colors.mintSoft}>
-        {foods.length > 0 && <Text style={{ fontSize: 36, letterSpacing: 2 }}>{emojis(foods)}</Text>}
-        <Text style={{ fontSize: 25, fontWeight: '900', lineHeight: 31, marginTop: 6 }}>{recipe.name}</Text>
-        {kitchen ? (
-          <View style={{ marginTop: 12 }}>
-            <Facts recipe={kitchen} />
-          </View>
-        ) : (
-          <Text style={{ fontSize: 16, color: colors.muted, marginTop: 6 }}>
-            ⏱ {recipe.minutes} {t('minutes')}
-          </Text>
-        )}
-      </Card>
+      <View style={{ marginBottom: 16, gap: 4 }}>
+        {foods.length > 0 && <Text style={{ fontSize: 34, letterSpacing: 2 }}>{emojis(foods)}</Text>}
+        <Text style={{ fontSize: 22, fontWeight: '900', lineHeight: 28 }}>{recipe.name}</Text>
+        <Meta recipe={recipe} />
+      </View>
 
       <Card>
-        <Text style={{ fontSize: 21, fontWeight: '900', marginBottom: 12 }}>🧺 {t('ingredients')}</Text>
+        <H2>{t('ingredients')}</H2>
         {recipe.ingredients.map((i) => (
-          <Row key={i} style={{ alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
-            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.mint, marginTop: 9 }} />
-            <Text style={{ flex: 1, fontSize: 18, lineHeight: 27 }}>{i}</Text>
+          <Row key={i} style={{ alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
+            <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.mint, marginTop: 8 }} />
+            <Text style={{ flex: 1, fontSize: 15, lineHeight: 22 }}>{i}</Text>
           </Row>
         ))}
         {kitchen && (kitchen.have.length > 0 || kitchen.need.length > 0) && (
-          <View style={{ marginTop: 8, paddingTop: 14, borderTopWidth: 1, borderColor: colors.border }}>
+          <View style={{ marginTop: 8, paddingTop: 14, borderTopWidth: 1, borderColor: colors.line }}>
             <HaveAndNeed recipe={kitchen} />
           </View>
         )}
       </Card>
 
-      <Text style={{ fontSize: 21, fontWeight: '900', marginBottom: 12, marginTop: 4 }}>👩‍🍳 {t('howTo')}</Text>
-      {recipe.steps.map((s, i) => (
-        <Card key={s}>
-          <Row style={{ alignItems: 'flex-start', gap: 14 }}>
-            <View style={{ backgroundColor: colors.primary, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ color: '#fff', fontWeight: '900', fontSize: 19 }}>{i + 1}</Text>
+      <Card>
+        <H2>{t('howTo')}</H2>
+        {recipe.steps.map((s, i) => (
+          <Row key={s} style={{ alignItems: 'flex-start', gap: 12, marginBottom: i < recipe.steps.length - 1 ? 14 : 0 }}>
+            <View style={{ backgroundColor: colors.primary, width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>{i + 1}</Text>
             </View>
-            <Text style={{ flex: 1, fontSize: 18, lineHeight: 27 }}>{s}</Text>
+            <StepText text={s} />
           </Row>
-        </Card>
-      ))}
-
-      <Card tint={colors.accentSoft}>
-        <Text style={{ fontSize: 17, lineHeight: 25, fontWeight: '700' }}>🧼 {t('cookTips')}</Text>
+        ))}
       </Card>
+      <Text style={{ color: colors.muted, fontSize: 12, textAlign: 'center', marginBottom: 8 }}>🧼 {t('cookTips')}</Text>
     </View>
   );
 }

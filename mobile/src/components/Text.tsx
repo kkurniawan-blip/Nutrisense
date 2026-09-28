@@ -29,7 +29,7 @@ function family(weight: TextStyle['fontWeight']): string {
 export const TextScaleContext = createContext(1);
 /** True inside another Text: nested text inherits its parent's size instead of taking the default. */
 const InsideText = createContext(false);
-const BASE_SIZE = 16;
+const BASE_SIZE = 15;
 
 function withFont(style: TextProps['style'], scale: number, nested: boolean) {
   const flat = StyleSheet.flatten(style) ?? {};

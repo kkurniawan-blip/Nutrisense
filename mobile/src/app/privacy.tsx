@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Text } from '../components/Text';
-import { Bubble, Card, ErrorBox, H2, Loading, Row, Screen, StatusPill, Toggle } from '../components/ui';
+import { Button, Card, ErrorBox, Loading, MoreLink, Row, Screen, Toggle } from '../components/ui';
 import { api, errorText } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import type { Lang } from '../lib/types';
 import { useApi } from '../lib/useApi';
-import { colors, type StatusKey } from '../theme';
+import { colors } from '../theme';
 
 type Scope = 'data_processing' | 'ai_analysis' | 'satusehat_sharing' | 'research_use';
 type Consents = Record<Scope, boolean>;
@@ -16,7 +16,6 @@ type L = Record<Lang, string>;
 interface Category {
   scope: Scope;
   emoji: string;
-  badge: { status: StatusKey; label: L };
   title: L;
   why: L;
   shared: L[];
@@ -29,9 +28,8 @@ const CATEGORIES: Category[] = [
   {
     scope: 'data_processing',
     emoji: '📋',
-    badge: { status: 'info', label: { id: 'Wajib', en: 'Required' } },
-    title: { id: 'Data dasar anak', en: "Child's basic data" },
-    why: { id: 'Dibutuhkan agar aplikasi bisa mencatat dan memantau pertumbuhan.', en: 'Needed so the app can record and monitor growth.' },
+    title: { id: 'Data pertumbuhan', en: 'Growth data' },
+    why: { id: 'Wajib, untuk mencatat pertumbuhan.', en: 'Required, to record growth.' },
     shared: [
       { id: 'Nama, tanggal lahir, jenis kelamin', en: 'Name, date of birth, sex' },
       { id: 'Berat, tinggi, lingkar lengan', en: 'Weight, height, arm circumference' },
@@ -46,9 +44,8 @@ const CATEGORIES: Category[] = [
   {
     scope: 'ai_analysis',
     emoji: '🤖',
-    badge: { status: 'ai', label: { id: 'Untuk fitur AI', en: 'For AI features' } },
     title: { id: 'Analisis AI', en: 'AI analysis' },
-    why: { id: 'Untuk NutriScan, cek gejala, Tanya Nuri, dan analisis risiko pertumbuhan.', en: 'For NutriScan, symptom checker, Tanya Nuri and growth risk analysis.' },
+    why: { id: 'Untuk NutriScan, cek gejala dan Tanya Nuri.', en: 'For NutriScan, symptoms and Tanya Nuri.' },
     shared: [
       { id: 'Foto makanan yang Anda ambil', en: 'Food photos you take' },
       { id: 'Gejala dan pertanyaan yang Anda tulis', en: 'Symptoms and questions you type' },
@@ -63,9 +60,8 @@ const CATEGORIES: Category[] = [
   {
     scope: 'satusehat_sharing',
     emoji: '🏥',
-    badge: { status: 'ok', label: { id: 'Untuk layanan kesehatan', en: 'For health services' } },
-    title: { id: 'Berbagi dengan SATUSEHAT', en: 'Share with SATUSEHAT' },
-    why: { id: 'Agar catatan pertumbuhan anak tersambung dengan rekam kesehatan nasional.', en: "So your child's growth records connect with the national health record." },
+    title: { id: 'Berbagi ke SATUSEHAT', en: 'Share with SATUSEHAT' },
+    why: { id: 'Tersambung ke rekam kesehatan nasional.', en: 'Links to the national health record.' },
     shared: [
       { id: 'Identitas anak dan hasil pengukuran', en: 'Child identity and measurements' },
       { id: 'Hasil pemeriksaan yang sudah ditinjau petugas', en: 'Results reviewed by health workers' },
@@ -79,9 +75,8 @@ const CATEGORIES: Category[] = [
   {
     scope: 'research_use',
     emoji: '🔬',
-    badge: { status: 'unknown', label: { id: 'Opsional', en: 'Optional' } },
-    title: { id: 'Penelitian', en: 'Research' },
-    why: { id: 'Membantu peneliti memahami dan mencegah stunting di NTT.', en: 'Helps researchers understand and prevent stunting in NTT.' },
+    title: { id: 'Data penelitian', en: 'Research data' },
+    why: { id: 'Tanpa nama. Opsional.', en: 'Without names. Optional.' },
     shared: [{ id: 'Data tanpa nama dan tanpa alamat (anonim)', en: 'Data without name or address (anonymised)' }],
     who: { id: 'Tim peneliti yang disetujui.', en: 'Approved research teams.' },
     details: {
@@ -91,40 +86,45 @@ const CATEGORIES: Category[] = [
   },
 ];
 
-function CategoryCard({ c, value, onChange }: { c: Category; value: boolean; onChange: (v: boolean) => void }) {
-  const { t, lang } = useAuth();
-  const [open, setOpen] = useState(false);
+/** One permission: a switch with a short title and one line. */
+function PermissionRow({ c, value, onChange, last }: { c: Category; value: boolean; onChange: (v: boolean) => void; last: boolean }) {
+  const { lang } = useAuth();
   const required = c.scope === 'data_processing';
   return (
-    <Card>
-      <StatusPill status={c.badge.status} label={c.badge.label[lang]} />
-      <Row style={{ marginTop: 8 }}>
-        <Text style={{ fontSize: 26 }}>{c.emoji}</Text>
+    <View style={{ paddingVertical: 6, borderBottomWidth: last ? 0 : 1, borderColor: colors.line }}>
+      <Row style={{ gap: 10 }}>
+        <Text style={{ fontSize: 22 }}>{c.emoji}</Text>
         <View style={{ flex: 1 }}>
           <Toggle label={c.title[lang]} value={value} onChange={onChange} disabled={required} />
         </View>
       </Row>
-      <Text style={{ color: colors.muted, lineHeight: 21 }}>{c.why[lang]}</Text>
-      <Pressable onPress={() => setOpen(!open)} accessibilityRole="button" accessibilityState={{ expanded: open }} style={{ minHeight: 44, justifyContent: 'center' }}>
-        <Text style={{ fontWeight: '800', color: colors.primary }}>
-          {open ? '▲' : '▼'} {t('seeDetails')}
-        </Text>
-      </Pressable>
-      {open && (
-        <View style={{ gap: 4 }}>
-          <Text style={{ fontWeight: '800' }}>{t('whatIsShared')}</Text>
-          {c.shared.map((s) => (
-            <Text key={s.en} style={{ lineHeight: 22 }}>
-              • {s[lang]}
-            </Text>
-          ))}
-          <Text style={{ marginTop: 6, lineHeight: 21 }}>
-            <Text style={{ fontWeight: '800' }}>{t('sharedWith')}: </Text>
+      <Text style={{ color: colors.muted, fontSize: 13, marginLeft: 36, marginTop: -4, marginBottom: 4 }}>{c.why[lang]}</Text>
+    </View>
+  );
+}
+
+/** The long version, only when asked: what is shared, with whom, and what switching off means. */
+function DataUse() {
+  const { t, lang } = useAuth();
+  return (
+    <Card>
+      {CATEGORIES.map((c, i) => (
+        <View key={c.scope} style={{ gap: 4, marginTop: i ? 16 : 0 }}>
+          <Text style={{ fontWeight: '800' }}>
+            {c.emoji} {c.title[lang]}
+          </Text>
+          <Text style={{ fontSize: 14, lineHeight: 20 }}>
+            <Text style={{ fontWeight: '700' }}>{t('whatIsShared')}: </Text>
+            {c.shared.map((x) => x[lang]).join(', ')}
+          </Text>
+          <Text style={{ fontSize: 14, lineHeight: 20 }}>
+            <Text style={{ fontWeight: '700' }}>{t('sharedWith')}: </Text>
             {c.who[lang]}
           </Text>
-          <Text style={{ lineHeight: 21, color: colors.muted, marginTop: 6 }}>{c.details[lang]}</Text>
+          <Text style={{ fontSize: 13, lineHeight: 19, color: colors.muted }}>{c.details[lang]}</Text>
         </View>
-      )}
+      ))}
+      <Text style={{ fontSize: 13, lineHeight: 19, color: colors.muted, marginTop: 16 }}>🛡️ {t('yourRightsText')}</Text>
     </Card>
   );
 }
@@ -132,29 +132,56 @@ function CategoryCard({ c, value, onChange }: { c: Category; value: boolean; onC
 export default function Privacy() {
   const { t } = useAuth();
   const consents = useApi<Consents>('/api/consents');
+  const [draft, setDraft] = useState<Partial<Consents>>({});
+  const [learn, setLearn] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const current = consents.data ? { ...consents.data, ...draft } : null;
+  const changed = consents.data ? (Object.keys(draft) as Scope[]).filter((k) => draft[k] !== consents.data![k]) : [];
 
-  const set = async (scope: Scope, granted: boolean) => {
+  const save = async () => {
+    setBusy(true);
     setError(null);
     try {
-      consents.setData(await api<Consents>('/api/consents', { body: { scope, granted } }));
+      let last: Consents | null = null;
+      for (const scope of changed) last = await api<Consents>('/api/consents', { body: { scope, granted: draft[scope] } });
+      if (last) consents.setData(last);
+      setDraft({});
+      setSaved(true);
     } catch (e) {
       setError(errorText(e));
+    } finally {
+      setBusy(false);
     }
   };
 
   return (
     <Screen>
-      <Bubble mood="caring">{t('privacyIntro')}</Bubble>
       {error && <ErrorBox message={error} />}
       {consents.error && <ErrorBox message={consents.error} onRetry={consents.reload} />}
-      {!consents.data ? (
+      {!current ? (
         <Loading />
       ) : (
-        CATEGORIES.map((c) => <CategoryCard key={c.scope} c={c} value={consents.data![c.scope]} onChange={(v) => set(c.scope, v)} />)
+        <Card>
+          {CATEGORIES.map((c, i) => (
+            <PermissionRow
+              key={c.scope}
+              c={c}
+              value={current[c.scope]}
+              last={i === CATEGORIES.length - 1}
+              onChange={(v) => {
+                setSaved(false);
+                setDraft((d) => ({ ...d, [c.scope]: v }));
+              }}
+            />
+          ))}
+        </Card>
       )}
-      <H2 emoji="🛡️">{t('yourRights')}</H2>
-      <Text style={{ lineHeight: 22, color: colors.muted, marginBottom: 20 }}>{t('yourRightsText')}</Text>
+      <MoreLink label={t('learnDataUse')} open={learn} onPress={() => setLearn(!learn)} />
+      {learn && <DataUse />}
+      {saved && !changed.length && <Text style={{ color: colors.ok, fontWeight: '700', textAlign: 'center', marginTop: 8 }}>✓ {t('savedChanges')}</Text>}
+      <Button title={t('save')} icon="checkmark" onPress={save} loading={busy} disabled={!changed.length} />
     </Screen>
   );
 }

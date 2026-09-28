@@ -12,7 +12,7 @@ How to help:
 - Use the child context below when it is given, and explain growth results (z-scores, risk level) in plain language.
 - Recommend affordable local foods (eggs, fish, tempeh, moringa/kelor, mung beans, corn, pumpkin, papaya). Any recipe you suggest must take about 20 minutes or less, need only a pot, pan or steamer, and use ingredients sold in a village kiosk or market; give household measures (spoons, handfuls).
 - Follow WHO/Kemenkes feeding guidance, and never promote breast-milk substitutes.
-- Answer in the language the user writes in (Bahasa Indonesia by default), in short paragraphs or brief lists that someone with basic literacy can follow.
+- Answer in the language the user writes in (Bahasa Indonesia by default). Keep it very short: one short opening line, then at most 4 numbered points of a few words each ("1. ..." on separate lines), then at most one short closing line. No long paragraphs, no markdown headings or bold.
 
 Safety:
 - You provide education and decision support, not a diagnosis or prescription. Do not give medicine doses except ORS/zinc as in national guidance.
@@ -21,37 +21,37 @@ Safety:
 
 _FAQ = [
     (r"kejang|step|tidak sadar|sesak|tidak (mau|bisa) minum|muntah terus|convulsion|seizure|unconscious|can'?t breathe",
-     {"id": "⚠️ Ini tanda bahaya. Segera bawa anak ke Puskesmas atau rumah sakit terdekat sekarang. Tetap berikan ASI/minum sedikit-sedikit selama perjalanan.",
-      "en": "⚠️ These are danger signs. Take the child to the nearest Puskesmas or hospital now. Keep offering breast milk or small sips on the way."}),
+     {"id": "⚠️ Ini tanda bahaya.\n1. Bawa anak ke Puskesmas sekarang\n2. Beri ASI/minum sedikit-sedikit di jalan",
+      "en": "⚠️ These are danger signs.\n1. Go to the Puskesmas now\n2. Offer breast milk or small sips on the way"}),
     (r"stunting|pendek|tinggi badan|height",
-     {"id": "Stunting adalah kondisi anak lebih pendek dari standar WHO untuk usianya (TB/U di bawah -2 SD) akibat kurang gizi kronis dan infeksi berulang. Pencegahan terbaik: ASI eksklusif 6 bulan, MPASI kaya protein hewani, imunisasi lengkap, air bersih dan cuci tangan, serta pengukuran rutin di Posyandu.",
-      "en": "Stunting means a child is shorter than the WHO standard for their age (height-for-age below -2 SD), caused by chronic undernutrition and repeated infection. Best prevention: exclusive breastfeeding for 6 months, complementary food rich in animal protein, full immunisation, clean water and handwashing, and regular Posyandu measurement."}),
+     {"id": "Stunting: anak lebih pendek dari standar usianya. Cegah dengan:\n1. ASI eksklusif 6 bulan\n2. MPASI dengan telur atau ikan\n3. Imunisasi lengkap\n4. Ukur rutin di Posyandu",
+      "en": "Stunting: a child is shorter than the standard for their age. Prevent it with:\n1. Only breast milk for 6 months\n2. Egg or fish in first foods\n3. Full immunisation\n4. Regular Posyandu checks"}),
     (r"berat.*(tidak|belum|gak|nggak) naik|weight.*(not|isn'?t) (going up|increasing)|not gaining",
-     {"id": "Berat yang tidak naik bisa karena porsi kurang, sering sakit (diare, cacingan), atau makanan kurang padat gizi. Coba: tambah 1 sumber protein hewani setiap makan (telur, ikan, hati ayam), tambahkan sedikit minyak/santan ke bubur, beri 2 camilan bergizi, dan cuci tangan sebelum makan. Timbang lagi bulan depan. Jika 2 bulan berturut-turut tidak naik, diskusikan dengan Kader atau Puskesmas.",
-      "en": "Weight that isn't going up can be due to small portions, frequent illness (diarrhoea, worms) or low-energy food. Try: an animal-source protein at each meal (egg, fish, chicken liver), a little oil or coconut milk in porridge, 2 nutritious snacks a day, and handwashing before meals. Weigh again next month; if there's no gain for 2 months in a row, talk with your Kader or Puskesmas."}),
+     {"id": "Berat tidak naik? Coba:\n1. Protein hewani tiap makan\n2. Sedikit minyak di bubur\n3. 2 camilan bergizi\n4. Cuci tangan sebelum makan\nTidak naik 2 bulan? Hubungi Kader.",
+      "en": "Weight not going up? Try:\n1. Animal protein at each meal\n2. A little oil in porridge\n3. 2 healthy snacks a day\n4. Wash hands before meals\nNo gain for 2 months? Contact your Kader."}),
     (r"perkembangan|motorik|bicara|bahasa|development|milestone|talk(ing)?|walk(ing)?",
-     {"id": "Setiap anak berkembang dengan kecepatannya sendiri. Ajak bicara, bernyanyi, membaca buku bergambar, dan bermain setiap hari. Lihat bagian 'Perkembangan' di profil anak untuk daftar sesuai usia dan ide aktivitas minggu ini. Jika ada yang belum bisa, tanyakan pemeriksaan KPSP kepada Kader saat Posyandu.",
-      "en": "Every child develops at their own pace. Talk, sing, read picture books and play together every day. See 'Development' on your child's profile for an age-based checklist and this week's activity ideas. If a skill isn't there yet, ask your Kader about the KPSP check at the Posyandu."}),
+     {"id": "Setiap anak punya kecepatannya sendiri. Coba:\n1. Ajak bicara dan bernyanyi\n2. Baca buku bergambar\n3. Main bersama setiap hari\nBelum bisa? Tanya Kader soal KPSP.",
+      "en": "Every child has their own pace. Try:\n1. Talk and sing together\n2. Read picture books\n3. Play every day\nNot there yet? Ask your Kader about KPSP."}),
     (r"susah makan|tidak mau makan|gak mau makan|GTM|picky|won'?t eat|refuses? (to eat|food)",
-     {"id": "Anak susah makan itu wajar, Bunda. Coba: (1) jadwal makan teratur 3x + 2 camilan, jangan diberi susu/jajan 1 jam sebelum makan; (2) porsi kecil tapi padat gizi, misalnya telur dadar kelor atau perkedel tahu kukus; (3) makan bersama keluarga, 20–30 menit saja, tanpa dipaksa atau TV; (4) tawarkan makanan baru berulang sampai 10–15 kali. Kalau berat badan tidak naik 2 bulan atau anak sakit, hubungi Kader/Puskesmas.",
-      "en": "Picky eating is common, Mom. Try: (1) regular times, 3 meals + 2 snacks, no milk or snacks an hour before meals; (2) small but nutrient-dense portions, e.g. a moringa omelette or steamed tofu patties; (3) eat together as a family for 20–30 minutes, no forcing and no TV; (4) offer new foods again and again, 10–15 times. If weight has not gone up for 2 months or the child is ill, contact the Kader or Puskesmas."}),
+     {"id": "Anak susah makan? Coba:\n1. Porsi kecil\n2. Jadwal teratur\n3. Variasikan makanan\n4. Makan bersama, tanpa TV\nBerat tidak naik 2 bulan? Hubungi Kader.",
+      "en": "Picky eater? Try:\n1. Small portions\n2. Regular meal times\n3. Vary the food\n4. Eat together, no TV\nNo weight gain for 2 months? Contact your Kader."}),
     (r"mpasi|makan|menu|resep|food|feed|recipe|meal",
-     {"id": "Mulai MPASI di usia 6 bulan. Setiap makan usahakan ada karbohidrat (nasi/jagung/ubi), protein hewani (telur/ikan/hati ayam), protein nabati (tempe/tahu/kacang hijau), dan sayur/buah (kelor, labu, pepaya). Buka NutriScan → 'Masak apa hari ini?' untuk resep mudah dan hemat sesuai usia si kecil.",
-      "en": "Start complementary feeding at 6 months. Each meal should include a staple (rice/corn/sweet potato), an animal protein (egg/fish/chicken liver), a plant protein (tempeh/tofu/mung beans) and vegetables/fruit (moringa, pumpkin, papaya). Open NutriScan → 'What should I cook today?' for easy, budget recipes for your child's age."}),
+     {"id": "MPASI mulai usia 6 bulan. Tiap makan ada:\n1. Nasi, jagung atau ubi\n2. Telur, ikan atau hati ayam\n3. Tempe, tahu atau kacang\n4. Sayur atau buah\nResep mudah: buka NutriScan.",
+      "en": "Start first foods at 6 months. Each meal has:\n1. Rice, corn or sweet potato\n2. Egg, fish or chicken liver\n3. Tempeh, tofu or beans\n4. Vegetables or fruit\nEasy recipes: open NutriScan."}),
     (r"diare|mencret|diarrh",
-     {"id": "Saat diare: teruskan ASI dan makan, berikan oralit setiap kali BAB cair, dan zinc 1x sehari selama 10 hari. Segera ke Puskesmas jika ada darah di BAB, anak sangat lemas, mata cekung, atau tidak mau minum.",
-      "en": "During diarrhoea: keep breastfeeding and feeding, give ORS after every loose stool and zinc once daily for 10 days. Go to the Puskesmas if there is blood in the stool, the child is very weak, has sunken eyes, or will not drink."}),
+     {"id": "Diare? Lakukan:\n1. Teruskan ASI dan makan\n2. Oralit tiap BAB cair\n3. Zinc 1× sehari, 10 hari\nAda darah, sangat lemas, atau tidak mau minum? Segera ke Puskesmas.",
+      "en": "Diarrhoea? Do this:\n1. Keep breastfeeding and feeding\n2. ORS after every loose stool\n3. Zinc once a day for 10 days\nBlood, very weak or won't drink? Go to the Puskesmas now."}),
     (r"loker|locker|kode|pickup|ambil",
-     {"id": "Jika paket gizi disetujui, Anda akan mendapat kode 6 digit dan QR di menu 'Pengambilan'. Tunjukkan QR atau ketik kode di loker N.E.X.U.S. untuk membuka pintu.",
-      "en": "When a nutrition package is approved you receive a 6-digit code and QR under 'Pickups'. Scan the QR or enter the code at the N.E.X.U.S. locker to open it."}),
+     {"id": "Paket disetujui?\n1. Buka menu Paket\n2. Tunjukkan QR atau kode 6 digit di loker\n3. Pintu loker terbuka",
+      "en": "Package approved?\n1. Open Packages\n2. Show the QR or 6-digit code at the locker\n3. The locker opens"}),
     (r"z-?score|sd|risiko|risk",
-     {"id": "Z-score membandingkan anak dengan standar WHO. 0 berarti sama dengan rata-rata; di bawah -2 berarti pendek (stunting) atau kurus; di bawah -3 berarti berat. Tingkat risiko di aplikasi menggabungkan z-score, tren pertumbuhan, penyakit dan pola makan.",
-      "en": "A z-score compares the child with the WHO standard. 0 is average; below -2 means stunted or wasted; below -3 is severe. The app's risk level combines z-scores, growth trend, illness and diet."}),
+     {"id": "Z-score membandingkan anak dengan standar WHO.\n1. 0 = rata-rata\n2. Di bawah -2 = pendek atau kurus\n3. Di bawah -3 = berat",
+      "en": "A z-score compares a child with the WHO standard.\n1. 0 = average\n2. Below -2 = stunted or wasted\n3. Below -3 = severe"}),
 ]
 
 _DEFAULT = {
-    "id": "Maaf, saya belum bisa menjawab itu secara offline. Coba tanyakan tentang MPASI, stunting, diare, z-score, atau loker pengambilan. Untuk keluhan kesehatan, hubungi Kader atau Puskesmas.",
-    "en": "Sorry, I can't answer that offline yet. Try asking about complementary feeding, stunting, diarrhoea, z-scores, or locker pickups. For health concerns, contact your Kader or Puskesmas.",
+    "id": "Maaf, Nuri belum bisa menjawab itu secara offline.\nCoba tanya soal MPASI, stunting, diare atau loker.\nKeluhan kesehatan? Hubungi Kader atau Puskesmas.",
+    "en": "Sorry, Nuri can't answer that offline yet.\nTry asking about first foods, stunting, diarrhoea or lockers.\nHealth worries? Contact your Kader or Puskesmas.",
 }
 
 

@@ -136,12 +136,12 @@ docker run -p 8000:8000 nutrisense      # then open http://localhost:8000
 ### Design: soft pastel
 
 A light, friendly look for mothers (`mobile/src/theme.ts`, `mobile/src/components/ui.tsx`):
-- **Lavender** for main actions, with gentle gradient buttons; white cards with a soft shadow on a faint lavender page, and watercolour washes (peach, mint, lavender) behind the top of each screen.
+- **Lavender** for main actions, with gentle gradient buttons; frosted-glass cards (translucent white, bright hairline edge, a whisper of shadow) over watercolour washes (peach, mint, lavender), and status dots with a soft glow.
 - **One pastel colour per feature:** blue for growth, green for food, lavender for help and Nuri, orange for packages. Feature cards carry a gradient icon square; lists use round pastel icons.
-- **Home** starts with Nuri and the NutriSense name, then the greeting and child picker, the child's height and weight, today's checklist, four quick actions and "Jelajahi fitur" cards that fold open.
+- **Home** is readable in a few seconds: the greeting and child picker, one child card (status, height and weight), "Untuk hari ini" in short lines, four quick actions, then "Jelajahi fitur" cards that fold open.
 - **Short flows show numbered step circles** (measuring, sign-up, NutriScan). The food variety of the day is a progress ring (for example 5/8).
-- **Type:** Plus Jakarta Sans (designed in Jakarta), in regular to bold weights.
-- **Few words per screen:** one short line where possible; reasons, details and privacy explanations sit behind a tap ("Kenapa bagus?", "Kenapa perlu perhatian", "Lihat detail").
+- **Type:** Plus Jakarta Sans (designed in Jakarta): 18–22 px page titles, 15–17 px section titles, 15 px body, 12–13 px secondary text; bold only for titles, numbers, statuses and actions.
+- **Short on the screen, detail on demand:** each card is a short title, the key number or status, one short line and one action. Reasons, technical numbers and data-use explanations sit behind a tap ("Lihat alasan →", "Detail analisis", "Kenapa bagus? →", "Pelajari grafik →", "Pelajari penggunaan data →").
 
 The caregiver experience still feels warm rather than clinical:
 - **Nuri**, a sprout mascot drawn in SVG (it grows with the child), greets, explains and cheers.
@@ -151,22 +151,22 @@ The caregiver experience still feels warm rather than clinical:
 
 ### Simpler, action-first UX
 
-Every screen answers "what should I do next?" and follows the journey **PANTAU → PAHAMI → PERBAIKI → IKUTI → TINDAK LANJUT** (monitor → understand → improve → follow → follow-up).
+Every screen answers "what should I do next?", following the journey monitor → understand → improve → follow → follow-up.
 
 - **Semantic status colours, never colour alone.** Each status has a marker, a text label and a colour: green on track, yellow monitor, orange action, red urgent, blue info, violet AI. The marker is a coloured dot next to the words (`mobile/src/theme.ts` `statusColor`, `mobile/src/lib/status.ts`). Touch targets are at least 44 px and selected tabs get a filled icon on a soft pill.
-- **Mother home:** starts with a "Hari ini untuk {anak}" checklist (`GET /api/children/{id}/today`) and four big actions. Secondary features sit in three collapsible groups.
-- **Child profile:** status, latest numbers and a growth trend chart (Tinggi / Berat / BB-TB) with "Apa artinya?" and "Pelajari lebih lanjut". It also shows growth history, simple development milestones with this week's activities (`/development`), and the care team "Tim {anak}" with the last review.
-- **AI vs. professionals:** AI output is labelled "🤖 Nuri — panduan AI" and states that it is not a medical diagnosis. The model confidence stays behind "Lihat detail analisis AI". Notes a Kader or doctor shares with the family appear separately as "👩‍⚕️ Rekomendasi tenaga kesehatan", with name and time.
+- **Mother home:** an "Untuk hari ini" checklist in short lines (`GET /api/children/{id}/today`) and four quick actions. Secondary features sit in collapsible groups.
+- **Child profile:** status, three SD tiles (Tinggi / Berat / BB-TB) with words underneath, the growth trend chart with "Pelajari grafik", Nuri's short result and actions, development as ✓/● per area (`/development`), and the care team "Tim {anak}" as avatar, name, role and status.
+- **AI vs. professionals:** AI output is labelled "🤖 Nuri — panduan AI" and states that it is not a medical diagnosis. Z-scores and model confidence are on a separate "Detail analisis" screen, reached from "Lihat alasan". Notes a Kader or doctor shares with the family appear separately as "👩‍⚕️ Rekomendasi tenaga kesehatan", with name and time.
 - **Guided 4-step measurement:** method, how-to, entry with plausibility warnings, then the result.
-- **Symptoms:** "Gejala umum" are kept apart from "Tanda yang perlu perhatian segera". Picking a danger sign immediately shows "🚨 Segera cari pertolongan medis" with a call button.
-- **NutriScan:** photo of the food or ingredients at home → check the recognised foods → the most nourishing, cheap dish for this child → big step-by-step cooking view → save it as a meal (see below).
+- **Symptoms:** "Gejala umum" are kept apart from "Tanda bahaya". Picking a danger sign immediately shows "🚨 Perlu pertolongan" with "Hubungi Kader" and "Lihat panduan".
+- **NutriScan:** photo of the food or ingredients at home → check the recognised foods → one recommended dish for this child → a recipe page with ingredients, shopping list and short numbered steps → save it as a meal (see below).
 - **Meal log:** "Yang sudah ada", "Yang bisa dilengkapi", one "💡 Ide sederhana", and a "5 / 8 kelompok hari ini" diversity card with a next target.
-- **Roomier layout:** 16 px base text (17 px body copy), more padding, 58 px buttons and 66 px list rows, so screens are easier to read and tap.
-- **Tanya Nuri:** topic tabs (Pertumbuhan / Makan / Gejala / Perkembangan), each with suggested questions that use the child's name.
-- **Paket:** health information, recommended home actions and available packages are three separate sections. A note says packages are optional support.
-- **🔐 Data & privasi:** consent is grouped as Wajib / Untuk fitur AI / Untuk layanan kesehatan / Opsional. Each group has "Apa yang dibagikan?", who it is shared with, and "Lihat detail".
+- **Roomy layout:** generous whitespace, fewer cards per screen, 54 px buttons and 60 px list rows.
+- **Tanya Nuri:** topic chips (Pertumbuhan / Makan / Gejala / Perkembangan) with suggested questions that use the child's name. Answers come as one short line plus a few numbered points, with "Lihat panduan lengkap →".
+- **Paket gizi:** per child, each package card shows what is in it, a two-word benefit, that it is free, the pickup locker and its progress or QR code. A note says packages are optional support.
+- **🔐 Data & privasi:** one switch per permission with a single line, a "Simpan" button, and "Pelajari penggunaan data →" for what is shared and with whom.
 - **Offline-first:** measurements, meals and symptoms are queued on the phone with idempotent client UUIDs, and GET responses are cached. A banner always shows the sync state ("📶 3 data menunggu dikirim", "✓ Data berhasil disinkronkan").
-- **Kader home:** "📊 Wilayah saya" shows counts for 🔴 Butuh tindak lanjut / 🟠 Perlu perhatian / 🟢 Terpantau. Below it is a prioritised visit list (`GET /api/dashboard/children`) with search, filters (Semua / Prioritas / Baru / Tindak lanjut, plus Wilayah, Status risiko, Terakhir diukur, Perlu kunjungan) and paging, so it scales to many children.
+- **Kader home:** "Wilayah saya" shows counts for 🔴 Butuh tindak lanjut / 🟠 Perlu perhatian / 🟢 Terpantau. Below it is "Prioritas kunjungan" (name, village, status, "Lihat →") (`GET /api/dashboard/children`) with search, filters (Semua / Prioritas / Baru / Tindak lanjut, plus Wilayah, Status risiko, Terakhir diukur, Perlu kunjungan) and paging, so it scales to many children.
 - **Kader review:** Kaders can confirm or raise an AI result, but only a doctor or officer can lower a high one. They can also share a case note with the family.
 
 ### NutriScan: from a photo to the best cheap dish

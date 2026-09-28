@@ -36,41 +36,41 @@ def today_checklist(child_id: int, lang: str | None = None, user: User = Depends
     last = child.measurements[-1] if child.measurements else None
     if last and (date.today() - last.measured_at).days <= 30:
         items.append({"key": "measure", "status": "ok", "action": "measure",
-                      "text": {"id": "Pengukuran bulan ini sudah tercatat", "en": "This month's measurement is recorded"}[L]})
+                      "text": {"id": "Ukuran tercatat", "en": "Measured this month"}[L]})
     else:
         items.append({"key": "measure", "status": "action", "action": "measure",
-                      "text": {"id": f"Belum ada pengukuran {name} bulan ini", "en": f"{name} hasn't been measured this month"}[L]})
+                      "text": {"id": "Belum diukur bulan ini", "en": "Not measured this month"}[L]})
 
     meals = db.scalars(select(MealLog).where(MealLog.child_id == child.id, MealLog.eaten_at >= now - timedelta(days=2))).all()
     today_meals = [m for m in meals if _aware(m.eaten_at).date() == now.date()]
     groups = {g for m in today_meals for g in (m.food_groups or []) if g != "breast_milk"}
     if today_meals:
         items.append({"key": "meals", "status": "ok", "action": "meal",
-                      "text": {"id": f"Sudah mencatat makan hari ini ({len(today_meals)}x)", "en": f"Meals logged today ({len(today_meals)})"}[L]})
+                      "text": {"id": f"Makan {len(today_meals)}×", "en": f"Ate {len(today_meals)}×"}[L]})
         n = len(groups)
         items.append({"key": "diversity", "status": "ok" if n >= 5 else "monitor", "action": "meal", "count": n,
-                      "text": {"id": f"Keragaman makanan: {n}/8 kelompok", "en": f"Food diversity: {n}/8 groups"}[L]})
+                      "text": {"id": f"{n}/8 kelompok makanan", "en": f"{n}/8 food groups"}[L]})
     elif age_in_months(child.birth_date, date.today()) >= 6:
         items.append({"key": "meals", "status": "action", "action": "meal",
-                      "text": {"id": "Belum mencatat makan hari ini", "en": "No meals logged today yet"}[L]})
+                      "text": {"id": "Belum catat makan", "en": "No meals logged yet"}[L]})
 
     week = db.scalars(select(SymptomReport).where(SymptomReport.child_id == child.id, SymptomReport.created_at >= now - timedelta(days=7))
                       .order_by(SymptomReport.id.desc())).all()
     danger = [r for r in week if r.danger_signs]
     if danger:
         items.append({"key": "symptoms", "status": "urgent", "action": "symptoms",
-                      "text": {"id": "Ada tanda bahaya yang dilaporkan. Segera ke Puskesmas.", "en": "Danger signs reported. Go to the Puskesmas now."}[L]})
+                      "text": {"id": "Tanda bahaya! Segera ke Puskesmas", "en": "Danger sign! Go to the Puskesmas"}[L]})
     elif week:
         items.append({"key": "symptoms", "status": "monitor", "action": "symptoms",
-                      "text": {"id": "Ada gejala minggu ini. Pantau kondisinya ya.", "en": "Symptoms this week. Keep watching."}[L]})
+                      "text": {"id": "Ada gejala. Pantau ya", "en": "Symptoms this week"}[L]})
     else:
         items.append({"key": "symptoms", "status": "ok", "action": "symptoms",
-                      "text": {"id": "Tidak ada gejala yang dilaporkan", "en": "No symptoms reported"}[L]})
+                      "text": {"id": "Tidak ada gejala", "en": "No symptoms"}[L]})
 
     ready = db.scalar(select(SupplyRequest).where(SupplyRequest.child_id == child.id, SupplyRequest.status == "ready_for_pickup"))
     if ready:
         items.append({"key": "package", "status": "info", "action": "pickups",
-                      "text": {"id": "Paket gizi siap diambil di loker", "en": "A nutrition package is ready at the locker"}[L]})
+                      "text": {"id": "Paket siap diambil", "en": "Package ready"}[L]})
     return {"child_id": child.id, "items": items, "groups_today": sorted(groups)}
 
 

@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { api, errorText } from '../lib/api';
 import { useAuth } from '../lib/auth';
-import { childEmoji, formatAge, greeting } from '../lib/fun';
+import { childEmoji, greeting } from '../lib/fun';
 import { KADER_GROUPS, txt } from '../lib/status';
 import type { AreaChildRow, AreaChildren, AreaGroup, RiskLevel } from '../lib/types';
 import { useApi } from '../lib/useApi';
@@ -14,49 +14,31 @@ import { colors, radius, shadow, statusColor, tones } from '../theme';
 import { SyncBanner } from './SyncBanner';
 import { Text, TextInput } from './Text';
 import { Mascot } from './Mascot';
-import { Button, Card, Chip, ErrorBox, H2, Loading, Row, Segmented, StatusPill, Toggle, Wash } from './ui';
+import { Button, Card, Chip, ErrorBox, H2, Loading, Row, Section, Segmented, StatusMark, StatusPill, Toggle, Wash } from './ui';
 
 type Filter = 'all' | 'priority' | 'new' | 'followup';
-const GROUP_ICON = { followup: 'alert-circle', attention: 'time', monitored: 'checkmark-circle' } as const;
 const PAGE = 30;
 
-/** One child in the Kader's list: status (icon + text + colour), why, when last measured, and one clear action. */
+/** One child in the Kader's list: name, place, status and one action. Reasons live on the child's page. */
 function ChildRow({ r, n }: { r: AreaChildRow; n: number }) {
   const { t, lang } = useAuth();
   const g = KADER_GROUPS[r.group];
   const urgent = r.urgency === 'emergency';
   return (
-    <Card style={urgent ? { borderColor: colors.danger, borderWidth: 2 } : undefined}>
-      <Row style={{ alignItems: 'flex-start', gap: 12 }}>
-        <View>
-          <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: r.sex === 'female' ? colors.pinkSoft : colors.skySoft, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: 23 }}>{childEmoji(r.sex, r.age_months)}</Text>
-          </View>
-          <View style={{ position: 'absolute', top: -6, left: -6, minWidth: 24, height: 24, borderRadius: 12, paddingHorizontal: 5, backgroundColor: tones.orange.bg, borderWidth: 2, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: 12, fontWeight: '800', color: tones.orange.fg }}>{n}</Text>
-          </View>
+    <Card onPress={() => router.push(`/child/${r.child_id}`)} style={{ paddingVertical: 14, marginBottom: 10, ...(urgent ? { borderColor: colors.danger, borderWidth: 2 } : {}) }}>
+      <Row style={{ gap: 12 }}>
+        <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: tones.orange.bg, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 13, fontWeight: '800', color: tones.orange.fg }}>{n}</Text>
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontWeight: '800', fontSize: 17 }}>{r.name}</Text>
-          <Text style={{ color: colors.muted, fontSize: 13 }}>
-            {formatAge(r.age_months, lang)}
-            {r.region ? ` · 📍 ${r.region}` : ''}
+        <View style={{ flex: 1, gap: 3 }}>
+          <Text style={{ fontWeight: '700', fontSize: 15 }}>
+            {childEmoji(r.sex, r.age_months)} {r.name}
           </Text>
-          <View style={{ marginTop: 6 }}>
-            <StatusPill status={urgent ? 'urgent' : g.key} label={urgent ? t('urgentReferral') : txt(g.label, lang)} />
-          </View>
+          {r.region ? <Text style={{ color: colors.muted, fontSize: 12.5 }}>📍 {r.region}</Text> : null}
+          <StatusPill status={urgent ? 'urgent' : g.key} label={urgent ? t('urgentReferral') : txt(g.label, lang)} />
         </View>
+        <Text style={{ color: colors.primary, fontWeight: '700' }}>{t('seeArrow')} →</Text>
       </Row>
-      {r.reason ? <Text style={{ marginTop: 8, lineHeight: 21, fontWeight: '600' }}>{r.reason}</Text> : null}
-      <Row style={{ flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-        <Text style={{ color: r.days_since_measured === null || r.days_since_measured > 35 ? statusColor.action.fg : colors.muted, fontSize: 13, fontWeight: '700' }}>
-          📏 {r.days_since_measured === null ? t('neverMeasured') : r.days_since_measured === 0 ? t('measuredToday') : `${t('measured')} ${r.days_since_measured} ${t('daysAgo')}`}
-        </Text>
-        {r.open_case && <StatusPill status="info" label={`📂 ${t('openCase')}`} />}
-        {r.needs_visit && <StatusPill status="monitor" label={`🏠 ${t('needsVisit')}`} />}
-        {r.is_new && <StatusPill status="ai" label={`✨ ${t('filterNew')}`} />}
-      </Row>
-      <Button small variant="secondary" title={t('seeChild')} icon="arrow-forward" onPress={() => router.push(`/child/${r.child_id}`)} />
     </Card>
   );
 }
@@ -141,7 +123,7 @@ export function KaderHome() {
 
         {/* 📊 My area */}
         <Card>
-          <H2 emoji="👥" right={d ? <Text style={{ color: colors.muted, fontWeight: '700' }}>{d.counts.total} {t('childrenCount')}</Text> : null}>
+          <H2 right={d ? <Text style={{ fontSize: 15, fontWeight: '800' }}>{d.counts.total} {t('childrenCount')}</Text> : null}>
             {t('myArea')}
           </H2>
           <Row style={{ gap: 8 }}>
@@ -153,13 +135,13 @@ export function KaderHome() {
                   onPress={() => pickGroup(g)}
                   accessibilityRole="button"
                   accessibilityLabel={`${d?.counts[g] ?? 0} ${txt(KADER_GROUPS[g].label, lang)}`}
-                  style={{ flex: 1, backgroundColor: c.bg, borderRadius: radius.lg, paddingVertical: 12, paddingHorizontal: 6, minHeight: 112, alignItems: 'center' }}
+                  style={{ flex: 1, backgroundColor: c.bg, borderRadius: 18, paddingVertical: 12, paddingHorizontal: 10, minHeight: 84 }}
                 >
-                  <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
-                    <Ionicons name={GROUP_ICON[g]} size={20} color={c.mark} />
-                  </View>
-                  <Text style={{ fontSize: 26, fontWeight: '900', color: c.fg, marginTop: 4 }}>{d?.counts[g] ?? '–'}</Text>
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: c.fg, textAlign: 'center', lineHeight: 17 }}>{txt(KADER_GROUPS[g].label, lang)}</Text>
+                  <Row style={{ gap: 6 }}>
+                    <StatusMark status={KADER_GROUPS[g].key} size={9} />
+                    <Text style={{ fontSize: 24, fontWeight: '900', color: c.fg }}>{d?.counts[g] ?? '–'}</Text>
+                  </Row>
+                  <Text style={{ fontSize: 12.5, color: c.fg, lineHeight: 16, marginTop: 2 }}>{txt(KADER_GROUPS[g].label, lang)}</Text>
                 </Pressable>
               );
             })}
@@ -181,7 +163,7 @@ export function KaderHome() {
         </Row>
 
         {/* Priority list with filters */}
-        <H2 emoji="🏠">{t('visitList')}</H2>
+        <Section title={t('visitList')} />
         <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: radius.pill, paddingHorizontal: 16, marginBottom: 12, borderWidth: 1.5, borderColor: '#E4E0F3', minHeight: 48 }}>
           <Ionicons name="search" size={18} color={colors.muted} />
           <TextInput

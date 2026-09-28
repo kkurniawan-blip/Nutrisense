@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -50,6 +50,30 @@ function BotRow({ children }: { children: React.ReactNode }) {
     <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginBottom: 10, maxWidth: '88%' }}>
       <Mascot size={36} />
       <View style={[{ backgroundColor: '#fff', borderRadius: 18, borderBottomLeftRadius: 6, padding: 12, marginLeft: 6, flexShrink: 1, borderWidth: 1, borderColor: colors.border }, shadow]}>{children}</View>
+    </View>
+  );
+}
+
+/** Nuri's answer as short lines: numbered points become a small list, the first line leads. */
+function Answer({ text }: { text: string }) {
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+  return (
+    <View style={{ gap: 6 }}>
+      {lines.map((l, i) => {
+        const m = l.match(/^(\d+)[.)]\s*(.*)$/);
+        return m ? (
+          <View key={i} style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
+            <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
+              <Text style={{ fontSize: 12, fontWeight: '800', color: colors.primaryDark }}>{m[1]}</Text>
+            </View>
+            <Text style={{ flex: 1, fontSize: 15, lineHeight: 22 }}>{m[2]}</Text>
+          </View>
+        ) : (
+          <Text key={i} style={{ fontSize: 15, lineHeight: 22, fontWeight: i === 0 && lines.length > 1 ? '700' : '400' }}>
+            {l}
+          </Text>
+        );
+      })}
     </View>
   );
 }
@@ -152,9 +176,11 @@ export default function Assistant() {
             ) : (
               <BotRow>
                 {item.generated_by ? <SourceTag kind="ai" /> : null}
-                <Text style={{ fontSize: 15, lineHeight: 22 }}>{item.content}</Text>
+                <Answer text={item.content} />
                 {item.generated_by && (
-                  <Text style={{ color: colors.muted, fontSize: 12, marginTop: 4 }}>{item.generated_by === 'claude' ? `✨ ${t('aiBy_claude')}` : '📚 FAQ'}</Text>
+                  <Pressable onPress={() => router.push('/guide')} accessibilityRole="button" style={{ minHeight: 36, justifyContent: 'center', marginTop: 4 }}>
+                    <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>{t('seeFullGuide')} →</Text>
+                  </Pressable>
                 )}
               </BotRow>
             )
@@ -167,9 +193,8 @@ export default function Assistant() {
             ) : null
           }
         />
-        <View style={{ backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 12, borderWidth: 1, borderBottomWidth: 0, borderColor: colors.border }}>
-          <Text style={{ fontWeight: '800', paddingHorizontal: 16, marginBottom: 8 }}>{t('quickTopics')}</Text>
-          <View style={{ flexDirection: 'row', paddingHorizontal: 12, gap: 6, paddingBottom: 8 }}>
+        <View style={{ backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, borderWidth: 1, borderBottomWidth: 0, borderColor: colors.border }}>
+          <ScrollView horizontal style={{ flexGrow: 0 }} showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, gap: 6, paddingBottom: 8 }}>
             {TOPICS.map((tp) => {
               const on = topic === tp.key;
               return (
@@ -178,16 +203,13 @@ export default function Assistant() {
                   onPress={() => setTopic(tp.key)}
                   accessibilityRole="tab"
                   accessibilityState={{ selected: on }}
-                  style={{ flex: 1, minHeight: 44, paddingVertical: 6, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: on ? colors.primarySoft : 'transparent', borderWidth: 1.5, borderColor: on ? colors.primary : 'transparent' }}
+                  style={{ minHeight: 40, paddingHorizontal: 14, borderRadius: radius.pill, justifyContent: 'center', backgroundColor: on ? colors.primary : tones[tp.tone].bg }}
                 >
-                  <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: tones[tp.tone].bg, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontSize: 19 }}>{tp.emoji}</Text>
-                  </View>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: on ? colors.primaryDark : colors.text }}>{t(`topic_${tp.key}`)}</Text>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: on ? '#fff' : tones[tp.tone].fg }}>{t(`topic_${tp.key}`)}</Text>
                 </Pressable>
               );
             })}
-          </View>
+          </ScrollView>
           <ScrollView horizontal style={{ flexGrow: 0 }} showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, gap: 8, paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
             {suggestions.map((s) => (
               <Pressable key={s} onPress={() => send(s)} accessibilityRole="button" style={{ backgroundColor: tones.lavender.bg, borderRadius: radius.pill, paddingLeft: 14, paddingRight: 10, minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 4 }}>

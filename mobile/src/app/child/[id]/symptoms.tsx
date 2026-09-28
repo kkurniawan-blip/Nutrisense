@@ -5,7 +5,7 @@ import { Linking, Pressable, View } from 'react-native';
 
 import { AssessmentView } from '../../../components/AssessmentView';
 import { Text } from '../../../components/Text';
-import { Bubble, Button, Card, Chip, ErrorBox, Field, H2, PressScale, Row, Screen, SourceTag } from '../../../components/ui';
+import { Bubble, Button, Card, Chip, ErrorBox, Field, H2, PressScale, Screen, SourceTag } from '../../../components/ui';
 import { api, errorText, NetworkError } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 import { SYMPTOM_EMOJI } from '../../../lib/fun';
@@ -44,19 +44,15 @@ function Tile({ k, on, danger, onPress }: { k: string; on: boolean; danger?: boo
   );
 }
 
-function Escalation({ phone, kaderName }: { phone?: string | null; kaderName?: string }) {
+/** The emergency state: short title, one line, call the Kader, and the guide as a second choice. */
+function Escalation({ phone }: { phone?: string | null }) {
   const { t } = useAuth();
   return (
     <Card tint={statusColor.urgent.bg} style={{ borderColor: colors.danger, borderWidth: 2 }}>
-      <Row>
-        <Ionicons name="warning" size={28} color={colors.danger} />
-        <Text style={{ flex: 1, fontSize: 19, fontWeight: '900', color: colors.danger }}>🚨 {t('seekHelpNow')}</Text>
-      </Row>
-      <Text style={{ marginTop: 6, fontSize: 16, lineHeight: 23 }}>{t('urgentExplain')}</Text>
-      {phone ? (
-        <Button variant="danger" title={`${t('call')} ${kaderName ?? 'Kader'}`} icon="call" onPress={() => Linking.openURL(`tel:${phone}`)} />
-      ) : null}
-      <Button variant="ghost" title={t('healthGuide')} icon="book" onPress={() => router.push('/guide')} />
+      <Text style={{ fontSize: 19, fontWeight: '900', color: colors.danger }}>🚨 {t('seekHelpNow')}</Text>
+      <Text style={{ marginTop: 4, fontSize: 15 }}>{t('urgentExplain')}</Text>
+      {phone ? <Button variant="danger" title={t('actDiscuss')} icon="call" onPress={() => Linking.openURL(`tel:${phone}`)} /> : null}
+      <Button variant="ghost" title={t('seeGuide')} icon="book-outline" onPress={() => router.push('/guide')} />
     </Card>
   );
 }
@@ -99,7 +95,7 @@ export default function Symptoms() {
   if (offlineSaved)
     return (
       <Screen>
-        {urgentSelected && <Escalation phone={kader?.phone} kaderName={kader?.name} />}
+        {urgentSelected && <Escalation phone={kader?.phone} />}
         <Card tint={statusColor.info.bg}>
           <Text style={{ fontWeight: '900', color: statusColor.info.fg }}>📶 {t('savedOnPhone')}</Text>
           <Text style={{ color: statusColor.info.fg }}>{t('symptomOfflineNote')}</Text>
@@ -112,11 +108,10 @@ export default function Symptoms() {
     const r = result.report;
     return (
       <Screen>
-        {r.danger_signs.length > 0 && <Escalation phone={kader?.phone} kaderName={kader?.name} />}
+        {r.danger_signs.length > 0 && <Escalation phone={kader?.phone} />}
         <Card>
           <SourceTag kind="ai" />
           <H2 emoji="🧠">{t('interpretedAs')}</H2>
-          {r.summary && <Text style={{ marginBottom: 8 }}>{r.summary}</Text>}
           <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
             {r.symptoms.map((s) => (
               <Chip key={s} emoji={SYMPTOM_EMOJI[s]} label={label(SYMPTOM_LABELS, s, lang)} selected tone={r.danger_signs.includes(s) ? 'danger' : undefined} />
@@ -124,7 +119,7 @@ export default function Symptoms() {
           </View>
           {r.duration_days ? <Text style={{ color: colors.muted }}>⏳ {r.duration_days} {lang === 'id' ? 'hari' : 'days'}</Text> : null}
           {result.other_concerns.map((c) => (
-            <Text key={c} style={{ color: colors.muted }}>
+            <Text key={c} style={{ color: colors.muted, fontSize: 13 }}>
               • {c}
             </Text>
           ))}
@@ -140,7 +135,7 @@ export default function Symptoms() {
       <Bubble mood="caring">
         {t('howIs')} {name} {t('today')}?
       </Bubble>
-      {urgentSelected && <Escalation phone={kader?.phone} kaderName={kader?.name} />}
+      {urgentSelected && <Escalation phone={kader?.phone} />}
 
       <H2 emoji="🤒">{t('commonSymptoms')}</H2>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
@@ -151,7 +146,6 @@ export default function Symptoms() {
 
       <Card tint={statusColor.urgent.bg}>
         <H2 emoji="🚨">{t('urgentSigns')}</H2>
-        <Text style={{ color: statusColor.urgent.fg, marginTop: -4, marginBottom: 10 }}>{t('urgentSignsSub')}</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           {URGENT.map((k) => (
             <Tile key={k} k={k} danger on={selected.includes(k)} onPress={() => toggle(k)} />

@@ -20,7 +20,7 @@ import { useAuth } from '../lib/auth';
 import { FOOD_GROUPS, FRIENDLY_RISK } from '../lib/fun';
 import { clinicalStatus } from '../lib/status';
 import type { RiskLevel } from '../lib/types';
-import { colors, fonts, radius, shadow, StatusKey, statusColor, Tone, tones, TOUCH } from '../theme';
+import { colors, fonts, glass, radius, shadow, StatusKey, statusColor, Tone, tones, TOUCH } from '../theme';
 import { Mascot, Mood } from './Mascot';
 import { Text, TextInput } from './Text';
 
@@ -80,9 +80,9 @@ export function Gradient({ from, to, r = 0 }: { from: string; to: string; r?: nu
 export function Wash({ height = 340, colorsList = ['#FFE2CF', '#D9F2E6', '#E4DEFF'], fadeTop }: { height?: number; colorsList?: string[]; fadeTop?: boolean }) {
   const id = useSvgId('wash');
   const spots = [
-    { cx: '8%', cy: '4%', r: '62%' },
-    { cx: '96%', cy: '12%', r: '58%' },
-    { cx: '55%', cy: '70%', r: '55%' },
+    { cx: '6%', cy: '6%', r: '66%' },
+    { cx: '98%', cy: '14%', r: '60%' },
+    { cx: '50%', cy: '78%', r: '60%' },
   ];
   return (
     <Svg style={{ position: 'absolute', top: 0, left: 0, right: 0 }} width="100%" height={height} pointerEvents="none">
@@ -407,7 +407,7 @@ export function Chip({ label, selected, onPress, tone, emoji }: { label: string;
   const on = tone === 'danger' ? { bg: colors.dangerSoft, border: colors.danger, fg: colors.danger } : { bg: colors.primarySoft, border: colors.primary, fg: colors.primaryDark };
   return (
     <PressScale onPress={onPress} style={[styles.chip, { backgroundColor: selected ? on.bg : '#fff', borderColor: selected ? on.border : '#E4E0F3' }]}>
-      <Text style={{ color: selected ? on.fg : colors.text, fontSize: 15, fontWeight: selected ? '700' : '600' }}>
+      <Text style={{ color: selected ? on.fg : colors.text, fontSize: 14, fontWeight: selected ? '700' : '500' }}>
         {emoji ? `${emoji} ` : ''}
         {label}
       </Text>
@@ -447,7 +447,29 @@ export function RiskBadge({ level, large, clinical }: { level: RiskLevel | null 
 
 /** The status marker on its own: a coloured dot. */
 export function StatusMark({ status, size = 8 }: { status: StatusKey; size?: number }) {
-  return <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: statusColor[status].mark }} />;
+  const c = statusColor[status].mark;
+  return <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: c, shadowColor: c, shadowOpacity: 0.7, shadowRadius: 4, shadowOffset: { width: 0, height: 0 } }} />;
+}
+
+/** "Lihat detail →" style link: the way into detail on demand. */
+export function MoreLink({ label, onPress, open, center }: { label: string; onPress: () => void; open?: boolean; center?: boolean }) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={open === undefined ? undefined : { expanded: open }} style={{ minHeight: 44, justifyContent: 'center', alignSelf: center ? 'center' : 'flex-start' }}>
+      <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 14 }}>
+        {label} {open === undefined ? '→' : open ? '↑' : '→'}
+      </Text>
+    </Pressable>
+  );
+}
+
+/** Section title outside a card: short, with whitespace instead of a box. */
+export function Section({ title, right }: { title: string; right?: React.ReactNode }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, marginBottom: 10 }}>
+      <Text style={{ fontSize: 16, fontWeight: '800' }}>{title}</Text>
+      {right}
+    </View>
+  );
 }
 
 /** Semantic status: a dot + text label in a soft pill, never colour alone. */
@@ -459,7 +481,7 @@ export function StatusPill({ status, label, large }: { status: StatusKey; label:
       style={[styles.badge, { backgroundColor: c.bg, flexDirection: 'row', alignItems: 'center', gap: 6 }, large && { paddingHorizontal: 14, paddingVertical: 7 }]}
     >
       <StatusMark status={status} size={large ? 9 : 8} />
-      <Text style={{ color: c.fg, fontWeight: '700', fontSize: large ? 16 : 14 }}>{label}</Text>
+      <Text style={{ color: c.fg, fontWeight: '700', fontSize: large ? 15 : 13 }}>{label}</Text>
     </View>
   );
 }
@@ -480,10 +502,10 @@ export function SourceTag({ kind }: { kind: 'ai' | 'pro' }) {
 export function ListRow({ emoji, title, subtitle, onPress, right }: { emoji: string; title: string; subtitle?: string; onPress?: () => void; right?: React.ReactNode }) {
   return (
     <PressScale onPress={onPress} accessibilityRole="button" style={styles.listRow}>
-      <IconChip emoji={emoji} size={44} />
+      <IconChip emoji={emoji} size={42} />
       <View style={{ flex: 1 }}>
-        <Text style={{ fontWeight: '700', fontSize: 16 }}>{title}</Text>
-        {subtitle ? <Text style={{ color: colors.muted, fontSize: 14, lineHeight: 19 }}>{subtitle}</Text> : null}
+        <Text style={{ fontWeight: '600', fontSize: 15 }}>{title}</Text>
+        {subtitle ? <Text style={{ color: colors.muted, fontSize: 13, lineHeight: 18 }}>{subtitle}</Text> : null}
       </View>
       {right ?? <Ionicons name="chevron-forward" size={18} color="#A09CB5" />}
     </PressScale>
@@ -498,7 +520,7 @@ export function JourneyHeader({ step, emoji, title }: { step: string; emoji: str
         {iconFor(emoji) ? <Ionicons name={iconFor(emoji)!} size={14} color={colors.primary} /> : <Text style={{ fontSize: 13 }}>{emoji}</Text>}
         <Eyebrow>{step}</Eyebrow>
       </Row>
-      <Text style={{ fontSize: 19, fontWeight: '800', marginTop: 2 }}>{title}</Text>
+      <Text style={{ fontSize: 17, fontWeight: '800', marginTop: 2 }}>{title}</Text>
     </View>
   );
 }
@@ -552,8 +574,8 @@ export function Tile({
     >
       <IconChip emoji={emoji} tone={tone ?? toneFor(emoji)} gradient size={52} />
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text }}>{title}</Text>
-        {subtitle ? <Text style={{ fontSize: 14, color: colors.muted, marginTop: 2, lineHeight: 19 }}>{subtitle}</Text> : null}
+        <Text style={{ fontSize: 16, fontWeight: '800', color: colors.text }}>{title}</Text>
+        {subtitle ? <Text style={{ fontSize: 13, color: colors.muted, marginTop: 2, lineHeight: 18 }}>{subtitle}</Text> : null}
       </View>
       <View style={styles.tileArrow}>
         <Ionicons name={open === undefined ? 'chevron-forward' : open ? 'chevron-up' : 'chevron-down'} size={18} color={t.fg} />
@@ -566,8 +588,8 @@ export function Tile({
 export function QuickAction({ emoji, label, onPress, tone }: { emoji: string; label: string; onPress: () => void; tone?: Tone }) {
   return (
     <PressScale onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={{ flex: 1, alignItems: 'center', gap: 8, minHeight: TOUCH }}>
-      <IconChip emoji={emoji} tone={tone} size={58} />
-      <Text style={{ fontSize: 13, fontWeight: '700', textAlign: 'center', lineHeight: 17 }}>{label}</Text>
+      <IconChip emoji={emoji} tone={tone} size={54} />
+      <Text style={{ fontSize: 12.5, fontWeight: '600', textAlign: 'center', lineHeight: 16 }}>{label}</Text>
     </PressScale>
   );
 }
@@ -579,7 +601,7 @@ export function Bubble({ children, mood = 'happy', tint = colors.card }: { child
   return (
     <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginBottom: 14 }}>
       <Mascot size={56} mood={mood} />
-      <View style={[styles.bubble, { backgroundColor: tint }, tint === colors.card && { borderWidth: 1, borderColor: colors.border }]}>
+      <View style={[styles.bubble, tint === colors.card ? glass : { backgroundColor: tint }]}>
         {plain ? <Text style={[styles.p, { fontWeight: '600' }]}>{children}</Text> : children}
       </View>
     </View>
@@ -651,26 +673,26 @@ export function Bar({ pct, color = colors.mint, warnBelow = 70 }: { pct: number;
 export const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   padded: { paddingHorizontal: 18, paddingTop: 18 },
-  card: { backgroundColor: colors.card, borderRadius: radius.lg, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: colors.border, ...shadow },
-  h1: { fontSize: 25, fontWeight: '900', color: colors.text, marginBottom: 8, letterSpacing: -0.3 },
+  card: { borderRadius: radius.lg, padding: 20, marginBottom: 16, ...glass },
+  h1: { fontSize: 21, fontWeight: '900', color: colors.text, marginBottom: 8, letterSpacing: -0.3 },
   h2Row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, marginTop: 2, gap: 8 },
-  h2: { fontSize: 18, fontWeight: '800', color: colors.text, flexShrink: 1, lineHeight: 24 },
-  p: { fontSize: 16, color: colors.text, lineHeight: 24 },
-  label: { fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 8, marginLeft: 2 },
+  h2: { fontSize: 16, fontWeight: '800', color: colors.text, flexShrink: 1, lineHeight: 22 },
+  p: { fontSize: 15, color: colors.text, lineHeight: 22 },
+  label: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 8, marginLeft: 2 },
   input: { borderWidth: 1.5, borderColor: '#E4E0F3', borderRadius: radius.md, paddingHorizontal: 16, paddingVertical: 13, fontSize: 16, backgroundColor: '#FFFFFF', color: colors.text },
   // Radius = half the minimum height: a pill on one line, a soft rounded box if the label wraps.
   button: { borderRadius: 27, paddingVertical: 15, paddingHorizontal: 22, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', marginVertical: 6, minHeight: 54, overflow: 'hidden' },
   buttonSmall: { paddingVertical: 9, paddingHorizontal: 16, minHeight: 46, borderRadius: 23 },
   buttonInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  buttonText: { fontSize: 17, fontWeight: '800', textAlign: 'center', flexShrink: 1 },
+  buttonText: { fontSize: 16, fontWeight: '800', textAlign: 'center', flexShrink: 1 },
   toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, minHeight: TOUCH },
   chip: { borderWidth: 1.5, borderRadius: radius.pill, paddingHorizontal: 16, paddingVertical: 9, marginRight: 8, marginBottom: 10, minHeight: 44, justifyContent: 'center' },
-  listRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, minHeight: 68 },
-  segment: { flexDirection: 'row', backgroundColor: '#F1EFF8', borderRadius: radius.pill, padding: 4, marginBottom: 14 },
+  listRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 10, minHeight: 60 },
+  segment: { flexDirection: 'row', backgroundColor: 'rgba(236,233,246,0.8)', borderRadius: radius.pill, padding: 4, marginBottom: 14 },
   segmentItem: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 9, paddingHorizontal: 4, minHeight: 44, borderRadius: radius.pill },
   segmentActive: { backgroundColor: '#fff', ...shadow },
   badge: { borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4, alignSelf: 'flex-start' },
-  stat: { flex: 1, minWidth: 96, backgroundColor: colors.card, borderRadius: radius.md, padding: 14, borderWidth: 1, borderColor: colors.border },
+  stat: { flex: 1, minWidth: 96, borderRadius: radius.md, padding: 14, ...glass },
   statValue: { fontSize: 22, fontWeight: '900' },
   statLabel: { fontSize: 12, color: colors.muted, marginTop: 2, fontWeight: '600' },
   errorBox: { backgroundColor: colors.dangerSoft, borderRadius: radius.md, padding: 14, marginVertical: 8 },

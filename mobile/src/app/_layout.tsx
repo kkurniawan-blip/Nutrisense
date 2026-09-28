@@ -92,6 +92,10 @@ function RootStack() {
         />
         <Stack.Screen name="food/[id]" options={{ title: "NutriScan" }} />
         <Stack.Screen
+          name="child/[id]/analysis"
+          options={{ title: t("analysisDetail") }}
+        />
+        <Stack.Screen
           name="privacy"
           options={{ title: t("dataPrivacy") }}
         />

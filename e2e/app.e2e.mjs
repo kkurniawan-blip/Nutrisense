@@ -171,7 +171,7 @@ await session('mother', 'ibu.maria@nutrisense.id', async (h) => {
   const { page, step, go, scroll, text, field } = h;
   await step('home today checklist', async () => {
     await go('/home');
-    await text(`Hari ini untuk ${first(kid1)}`, false).waitFor();
+    await text('Untuk hari ini').waitFor();
   });
   await step('child profile', async () => {
     await go(`/child/${kid1.id}`);
@@ -202,14 +202,14 @@ await session('mother', 'ibu.maria@nutrisense.id', async (h) => {
   await step('symptoms: tapping a danger sign warns at once', async () => {
     await go(`/child/${kid1.id}/symptoms`);
     await text('Kejang').click();
-    await text('Segera cari pertolongan medis', false).waitFor();
+    await text('🚨 Perlu pertolongan').waitFor();
   });
   await step('symptoms: typed danger sign gives one clear warning', async () => {
     await go(`/child/${kid2.id}/symptoms`);
     await field(SYMPTOM_BOX).fill('badannya panas sejak kemarin dan napasnya cepat sekali');
     await text('Periksa gejala').click();
     await text('Dipahami sebagai', false).waitFor({ timeout: 20000 });
-    const warnings = await page.getByText('Segera cari pertolongan medis', { exact: false }).count();
+    const warnings = await page.getByText('🚨 Perlu pertolongan', { exact: true }).count();
     if (warnings !== 1) throw new Error(`expected 1 red warning, found ${warnings}`);
     if (await page.getByText('Tidak apa-apa, Bunda', { exact: false }).count()) throw new Error('reassuring text shown in an emergency');
     await text('Bunda tidak sendiri', false).waitFor();
@@ -219,31 +219,31 @@ await session('mother', 'ibu.maria@nutrisense.id', async (h) => {
     await field(SYMPTOM_BOX).fill('tidak demam, tidak sesak, cuma pilek');
     await text('Periksa gejala').click();
     await text('Dipahami sebagai', false).waitFor({ timeout: 20000 });
-    if (await page.getByText('Segera cari pertolongan medis', { exact: false }).count()) throw new Error('false emergency');
+    if (await page.getByText('🚨 Perlu pertolongan', { exact: true }).count()) throw new Error('false emergency');
   });
   await step('nutriscan start screen', async () => {
     await go('/nutriscan');
-    await text('Foto makanan, dapat resep bergizi', false).waitFor();
+    await text('Foto makanan').waitFor();
     await text('kelompok hari ini', false).waitFor();
   });
   await step('nutriscan: foods on hand to the best dish', async () => {
     await go(`/food/${kid1.id}?action=pick`);
     for (const f of ['Telur ayam rebus', 'Bayam', 'Nasi putih']) await field(f).click();
     await text('✨ Cari menu terbaik').click();
-    await text(`Paling bergizi untuk ${first(kid1)}`, false).waitFor({ timeout: 20000 });
-    await text('Semua bahan sudah ada', false).waitFor();
+    await text(`Cocok untuk ${first(kid1)}`, false).waitFor({ timeout: 20000 });
+    await text('Semua bahan tersedia', false).waitFor();
   });
-  await step('nutriscan: shopping list, noodle swap and cooking steps', async () => {
+  await step('nutriscan: noodle swap, recipe and shopping list', async () => {
     await go(`/food/${kid1.id}?action=pick`);
     for (const f of ['Nasi putih', 'Mi instan (matang)']) await field(f).click();
     await text('✨ Cari menu terbaik').click();
     await text('Mi instan sedikit gizinya', false).waitFor({ timeout: 20000 });
+    await text('Lihat resep').click();
+    await text('Cara membuat', false).waitFor();
     await text('Perlu dibeli atau dipetik', false).waitFor();
-    await text('👩‍🍳 Lihat cara memasak').click();
-    await text('Cara memasak', false).waitFor();
   });
   await step('nutriscan: cooked dish is logged as a meal', async () => {
-    await text(`✅ Sudah dimasak? Catat untuk ${first(kid1)}`).click();
+    await text('✓ Sudah dimasak? Catat').click();
     await text('Tersimpan di catatan makan', false).waitFor({ timeout: 15000 });
   });
   await step('tanya nuri', async () => {
@@ -254,7 +254,7 @@ await session('mother', 'ibu.maria@nutrisense.id', async (h) => {
   });
   await step('packages', async () => {
     await go('/pickups');
-    await text('Paket yang tersedia', false).waitFor();
+    await text('Paket gizi').waitFor();
   });
   await step('privacy switches', async () => {
     await go('/privacy');
@@ -295,7 +295,7 @@ await session('kader', 'kader.oesapa@nutrisense.id', async (h) => {
     await page.waitForTimeout(1500);
     const code = page.getByText(/[a-z]+_[a-z]+/);
     if (await code.count()) throw new Error(`raw code visible: ${await code.first().innerText()}`);
-    await text('Lihat anak').click();
+    await text('Lihat →').click();
   });
   await step('cases', () => go('/cases'));
   await step('share a note with the family', async () => {

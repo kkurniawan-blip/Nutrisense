@@ -55,7 +55,7 @@ export default function TabsLayout() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: '#8C88A3',
         tabBarLabelStyle: { fontFamily: fonts.semibold, fontSize: 11.5 },
-        tabBarStyle: { height: 74, paddingTop: 6, paddingBottom: 10, borderTopWidth: 0, backgroundColor: '#fff', borderTopLeftRadius: 22, borderTopRightRadius: 22, ...shadow },
+        tabBarStyle: { height: 74, paddingTop: 6, paddingBottom: 10, borderTopWidth: 0, backgroundColor: 'rgba(255,255,255,0.94)', borderTopLeftRadius: 22, borderTopRightRadius: 22, ...shadow },
         sceneStyle: { backgroundColor: colors.bg },
         headerRight: () => (
           <Pressable

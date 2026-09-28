@@ -7,18 +7,13 @@ import { ChildPicker } from '../../components/ChildPicker';
 import { DiversityCard } from '../../components/Diversity';
 import { Mascot } from '../../components/Mascot';
 import { Text } from '../../components/Text';
-import { Button, Card, Empty, Gradient, IconChip, Loading, PressScale, Row, Screen } from '../../components/ui';
+import { Button, Card, Empty, Gradient, Loading, MoreLink, PressScale, Row, Screen } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
 import { groupsToday } from '../../lib/fun';
 import type { Child, Meal } from '../../lib/types';
 import { useApi } from '../../lib/useApi';
-import { colors, radius, shadow, tones } from '../../theme';
+import { colors, radius, shadow } from '../../theme';
 
-const HOW = [
-  { emoji: '📸', key: 'howStep1' },
-  { emoji: '✅', key: 'howStep2' },
-  { emoji: '👩‍🍳', key: 'howStep3' },
-];
 
 /** NutriScan start: one big photo button, two alternatives, and how it works in three steps. */
 export default function NutriScanTab() {
@@ -43,69 +38,46 @@ export default function NutriScanTab() {
 
   return (
     <Screen refreshing={meals.loading} onRefresh={meals.reload}>
-      <Row style={{ gap: 14, marginBottom: 18, alignItems: 'center' }}>
-        <Mascot size={76} mood="cheer" bounce />
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 24, fontWeight: '900', lineHeight: 30 }}>{t('scanTitle')}</Text>
-        </View>
+      <Row style={{ gap: 12, marginBottom: 20, alignItems: 'center' }}>
+        <Mascot size={56} mood="cheer" bounce />
+        <Text style={{ flex: 1, fontSize: 21, fontWeight: '900' }}>{t('scanTitle')}</Text>
       </Row>
 
       {children.data.length > 1 && (
-        <View style={{ marginBottom: 8 }}>
-          <Text style={{ fontSize: 17, fontWeight: '900', marginBottom: 8 }}>{t('forWhom')}</Text>
+        <View style={{ marginBottom: 12 }}>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.muted, marginBottom: 8 }}>{t('forWhom')}</Text>
           <ChildPicker items={children.data} value={childId} onChange={setPicked} />
         </View>
       )}
 
+      {/* One big primary action */}
       <PressScale
         onPress={() => start('camera')}
         accessibilityRole="button"
         accessibilityLabel={t('takePhoto')}
-        style={[{ backgroundColor: colors.primary, borderRadius: radius.lg, paddingVertical: 26, paddingHorizontal: 20, alignItems: 'center', marginBottom: 14, overflow: 'hidden' }, shadow]}
+        style={[{ backgroundColor: colors.primary, borderRadius: radius.lg, paddingVertical: 34, paddingHorizontal: 20, alignItems: 'center', marginBottom: 12, overflow: 'hidden' }, shadow]}
       >
         <Gradient from={colors.primaryLight} to={colors.primary} r={radius.lg} />
-        <View style={{ backgroundColor: '#ffffff33', width: 84, height: 84, borderRadius: 42, alignItems: 'center', justifyContent: 'center' }}>
-          <View style={{ backgroundColor: '#fff', width: 62, height: 62, borderRadius: 31, alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="camera" size={30} color={colors.primary} />
+        <View style={{ backgroundColor: '#ffffff33', width: 92, height: 92, borderRadius: 46, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ backgroundColor: '#fff', width: 66, height: 66, borderRadius: 33, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="camera" size={32} color={colors.primary} />
           </View>
         </View>
-        <Text style={{ color: '#fff', fontSize: 23, fontWeight: '900', marginTop: 12 }}>{t('takePhoto')}</Text>
-        <Text style={{ color: '#ffffffe6', fontSize: 16, marginTop: 4, textAlign: 'center', lineHeight: 22 }}>
+        <Text style={{ color: '#fff', fontSize: 21, fontWeight: '900', marginTop: 14 }}>{t('takePhoto')}</Text>
+        <Text style={{ color: '#ffffffe6', fontSize: 14, marginTop: 2 }}>
           {t('forChild')} {name}
         </Text>
       </PressScale>
 
-      <Row style={{ gap: 12, marginBottom: 20 }}>
-        <View style={{ flex: 1 }}>
-          <Button title={t('choosePhoto')} icon="images" variant="secondary" onPress={() => start('library')} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Button title={t('noPhotoPick')} icon="list" variant="ghost" onPress={() => start('pick')} />
-        </View>
-      </Row>
+      <Button title={t('choosePhoto')} icon="images" variant="secondary" onPress={() => start('library')} />
+      <View style={{ marginBottom: 12 }}>
+        <MoreLink center label={t('noPhotoPick')} onPress={() => start('pick')} />
+      </View>
 
+      {/* Today's plate, one line */}
       <Card>
-        <Text style={{ fontSize: 20, fontWeight: '900', marginBottom: 14 }}>{t('howItWorks')}</Text>
-        {HOW.map((s, i) => (
-          <Row key={s.key} style={{ gap: 14, marginBottom: i < HOW.length - 1 ? 18 : 0, alignItems: 'center' }}>
-            <IconChip emoji={s.emoji} size={50} tone={(['lavender', 'green', 'orange'] as const)[i]} />
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 17, fontWeight: '700', lineHeight: 24 }}>{t(s.key)}</Text>
-            </View>
-          </Row>
-        ))}
-      </Card>
-
-      <Card tint={tones.yellow.bg}>
-        <Text style={{ fontSize: 17, lineHeight: 25, fontWeight: '700' }}>💡 {t('cheapPromise')}</Text>
-      </Card>
-
-      <Card>
-        <Text style={{ fontSize: 19, fontWeight: '900', marginBottom: 12 }}>
-          🍽️ {t('mealsTodayOf')} {name}
-        </Text>
         <DiversityCard groups={groupsToday(meals.data ?? [])} compact />
-        <Button title={t('logMealManually')} icon="create-outline" variant="ghost" onPress={() => router.push(`/child/${childId}/meal?action=manual`)} />
+        <MoreLink label={t('logMealManually')} onPress={() => router.push(`/child/${childId}/meal?action=manual`)} />
       </Card>
     </Screen>
   );

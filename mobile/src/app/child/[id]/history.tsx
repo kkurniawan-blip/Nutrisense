@@ -4,7 +4,7 @@ import { View } from 'react-native';
 
 import { ChartData, GrowthChart } from '../../../components/GrowthChart';
 import { Text } from '../../../components/Text';
-import { Button, Card, Empty, H2, Loading, Row, Screen, Segmented, StatusPill } from '../../../components/ui';
+import { Button, Card, Empty, Loading, MoreLink, Row, Screen, Segmented, StatusMark } from '../../../components/ui';
 import { useAuth } from '../../../lib/auth';
 import { formatDate } from '../../../lib/fun';
 import { zWords } from '../../../lib/status';
@@ -16,7 +16,8 @@ import { colors } from '../../../theme';
 export default function History() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t, lang } = useAuth();
-  const [ind, setInd] = useState<'hfa' | 'wfa'>('hfa');
+  const [ind, setInd] = useState<'hfa' | 'wfa' | 'wfh'>('hfa');
+  const [learn, setLearn] = useState(false);
   const child = useApi<Child>(`/api/children/${id}`);
   const ms = useApi<Measurement[]>(`/api/children/${id}/measurements`);
   const chart = useApi<ChartData>(`/api/children/${id}/growth-chart?indicator=${ind}`);
@@ -40,63 +41,61 @@ export default function History() {
 
   return (
     <Screen refreshing={ms.loading} onRefresh={() => [ms.reload(), chart.reload()]}>
-      <Card tint={colors.mintSoft}>
-        <Text style={{ fontWeight: '900', color: colors.ok }}>{t('latestMeasurement')}</Text>
-        <Text style={{ fontSize: 22, fontWeight: '900' }}>
-          📏 {latest.height_cm} cm · ⚖️ {latest.weight_kg} kg
+      {/* Where the child is now, and the change since last time */}
+      <View style={{ marginBottom: 18, gap: 2 }}>
+        <Text style={{ fontSize: 15, color: colors.muted, fontWeight: '600' }}>
+          {t('growthOf')} {name}
         </Text>
-        <Text style={{ color: colors.muted }}>{formatDate(latest.measured_at, lang)}</Text>
+        <Text style={{ fontSize: 26, fontWeight: '900' }}>
+          {latest.height_cm} <Text style={{ fontSize: 15, color: colors.muted, fontWeight: '500' }}>cm</Text>
+          <Text style={{ color: '#C9C4DD' }}> · </Text>
+          {latest.weight_kg} <Text style={{ fontSize: 15, color: colors.muted, fontWeight: '500' }}>kg</Text>
+        </Text>
         {dH !== null && dW !== null && (
-          <Text style={{ marginTop: 4, fontWeight: '700' }}>
-            {t('sinceLast')}: {sign(dH)} cm · {sign(dW)} kg
+          <Text style={{ fontSize: 13, color: colors.ok, fontWeight: '700' }}>
+            {sign(dH)} cm · {sign(dW)} kg <Text style={{ color: colors.muted, fontWeight: '400' }}>{t('sinceLast').toLowerCase()}</Text>
           </Text>
         )}
-      </Card>
+      </View>
 
       <Card>
-        <H2 emoji="📈">{t('growthTrend')}</H2>
         <Segmented
           value={ind}
           onChange={setInd}
           options={[
             { value: 'hfa', label: t('height_short') },
             { value: 'wfa', label: t('weight_short') },
+            { value: 'wfh', label: t('bbtb_short') },
           ]}
         />
         {chart.data ? (
           <GrowthChart
             data={chart.data}
-            labels={{ child: name, average: t('average'), lowerLimit: t('lowerLimit'), farBelow: t('farBelow'), projection: t('projectionLbl'), xAxis: t('axisAge') }}
+            labels={{ child: name, average: t('average'), lowerLimit: t('lowerLimit'), farBelow: t('farBelow'), projection: t('projectionLbl'), xAxis: chart.data.x_unit === 'cm' ? t('axisHeight') : t('axisAge') }}
           />
         ) : (
           <Loading />
         )}
+        <MoreLink label={t('learnChart')} open={learn} onPress={() => setLearn(!learn)} />
+        {learn && (
+          <Text style={{ color: colors.muted, fontSize: 13, lineHeight: 19 }}>
+            {chart.data?.meaning ? `${chart.data.meaning} ` : ''}
+            {t('zExplain')}
+          </Text>
+        )}
       </Card>
 
+      {/* Every measurement, one line each */}
       <Card>
-        <Row style={{ paddingBottom: 8, borderBottomWidth: 2, borderColor: colors.border }}>
-          <Text style={{ flex: 1.3, fontWeight: '900', color: colors.muted }}>{t('date')}</Text>
-          <Text style={{ flex: 1, fontWeight: '900', color: colors.muted }}>{t('height_short')}</Text>
-          <Text style={{ flex: 1, fontWeight: '900', color: colors.muted }}>{t('weight_short')}</Text>
-        </Row>
-        {rows.map((x, i) => {
-          const w = zWords(x.haz, lang, 'height');
-          return (
-            <View key={x.id} style={{ paddingVertical: 10, borderBottomWidth: 1, borderColor: colors.border, backgroundColor: i === 0 ? '#FFFFFF' : undefined }}>
-              <Row>
-                <Text style={{ flex: 1.3, fontWeight: i === 0 ? '900' : '600' }}>
-                  {formatDate(x.measured_at, lang)}
-                  {i === 0 ? ` · ${t('newest')}` : ''}
-                </Text>
-                <Text style={{ flex: 1 }}>{x.height_cm} cm</Text>
-                <Text style={{ flex: 1 }}>{x.weight_kg} kg</Text>
-              </Row>
-              <View style={{ marginTop: 4 }}>
-                <StatusPill status={w.key} label={w.text} />
-              </View>
-            </View>
-          );
-        })}
+        {rows.map((x, i) => (
+          <Row key={x.id} style={{ paddingVertical: 10, borderTopWidth: i ? 1 : 0, borderColor: colors.line }}>
+            <StatusMark status={zWords(x.haz, lang, 'height').key} />
+            <Text style={{ flex: 1, fontSize: 14, fontWeight: i === 0 ? '700' : '400' }}>{formatDate(x.measured_at, lang)}</Text>
+            <Text style={{ fontSize: 14, fontWeight: '600' }}>
+              {x.height_cm} cm · {x.weight_kg} kg
+            </Text>
+          </Row>
+        ))}
       </Card>
       <Button title={t('tileMeasure')} icon="add-circle" onPress={() => router.push(`/child/${id}/measure`)} />
     </Screen>

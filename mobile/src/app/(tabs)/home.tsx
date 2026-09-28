@@ -8,13 +8,13 @@ import { KaderHome } from '../../components/KaderHome';
 import { Mascot } from '../../components/Mascot';
 import { SyncBanner } from '../../components/SyncBanner';
 import { Text } from '../../components/Text';
-import { Button, Card, Empty, ErrorBox, H2, ListRow, Loading, PressScale, QuickAction, Row, StatusPill, Tile, Wash, Wordmark } from '../../components/ui';
+import { Button, Card, Empty, ErrorBox, ListRow, Loading, PressScale, QuickAction, Row, Section, StatusPill, Tile, Wash } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
-import { childEmoji, formatAge, formatDate, greeting, tipOfTheDay } from '../../lib/fun';
+import { childEmoji, formatAge, greeting } from '../../lib/fun';
 import { motherStatus, txt } from '../../lib/status';
 import type { Child, TodayChecklist } from '../../lib/types';
 import { useApi } from '../../lib/useApi';
-import { colors, radius, shadow, statusColor, Tone, tones } from '../../theme';
+import { colors, glass, radius, statusColor, Tone } from '../../theme';
 
 /** A big pastel feature card that folds open to show its shortcuts. */
 function FeatureGroup({ emoji, tone, title, children }: { emoji: string; tone: Tone; title: string; children: React.ReactNode }) {
@@ -57,61 +57,55 @@ function MotherHome() {
 
   return (
     <ScrollView refreshControl={<RefreshControl refreshing={children.loading} onRefresh={refresh} tintColor={colors.primary} />} contentContainerStyle={{ paddingBottom: 40 }}>
-      <Wash height={440} />
-      {/* Hero: Nuri and the NutriSense name */}
-      <View style={{ paddingTop: insets.top + 8, paddingHorizontal: 18, alignItems: 'center' }}>
-        <View style={{ alignSelf: 'stretch', alignItems: 'flex-end' }}>
-          <Pressable onPress={() => router.push('/notifications')} accessibilityLabel={t('notifications')} style={[{ backgroundColor: '#fff', borderRadius: 22, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }, shadow]}>
+      <Wash height={420} />
+      <View style={{ paddingTop: insets.top + 10, paddingHorizontal: 18 }}>
+        {/* Greeting */}
+        <Row style={{ gap: 10 }}>
+          <Mascot size={46} mood="cheer" />
+          <Text style={{ flex: 1, fontSize: 19, fontWeight: '800', lineHeight: 25 }}>
+            {greeting(lang)}, {t('mom')} {first} 👋
+          </Text>
+          <Pressable onPress={() => router.push('/notifications')} accessibilityLabel={t('notifications')} style={[{ borderRadius: 22, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }, glass]}>
             <Ionicons name="notifications-outline" size={21} color={colors.primary} />
           </Pressable>
-        </View>
-        <View style={{ marginTop: -18 }}>
-          <Mascot size={84} mood="cheer" />
-        </View>
-        <Wordmark size={32} />
-        <Text style={{ color: colors.muted, fontWeight: '600', marginTop: -2 }}>{t('heroTagline')}</Text>
+        </Row>
+
+        {/* Child selector */}
+        {kids.length > 0 && (
+          <Row style={{ marginTop: 16, flexWrap: 'wrap', gap: 8 }}>
+            {kids.map((c) => {
+              const on = c.id === child?.id;
+              return (
+                <PressScale
+                  key={c.id}
+                  onPress={() => setPicked(c.id)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                  style={[{ flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: radius.pill, paddingLeft: 5, paddingRight: 16, minHeight: 44 }, on ? { backgroundColor: colors.primary } : glass]}
+                >
+                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: on ? '#ffffff33' : c.sex === 'female' ? colors.pinkSoft : colors.skySoft, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 18 }}>{childEmoji(c.sex, c.age_months)}</Text>
+                  </View>
+                  <Text style={{ fontWeight: '700', color: on ? '#fff' : colors.text }}>{c.name.split(' ')[0]}</Text>
+                </PressScale>
+              );
+            })}
+            <Pressable
+              onPress={() => router.push('/child/new')}
+              accessibilityRole="button"
+              accessibilityLabel={t('addChild')}
+              style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: '#CFC8F2', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Ionicons name="add" size={22} color={colors.primary} />
+            </Pressable>
+          </Row>
+        )}
       </View>
 
-      <View style={{ padding: 16 }}>
+      <View style={{ padding: 18, paddingTop: 16 }}>
         <SyncBanner stale={children.stale || today.stale} />
         {children.error && <ErrorBox message={children.error} onRetry={children.reload} />}
         {!children.data && children.loading && <Loading />}
-
-        {/* Greeting + child selector */}
-        <Card>
-          <Text style={{ fontSize: 18, fontWeight: '800' }}>
-            {greeting(lang)}, {t('mom')} {first} 👋
-          </Text>
-          {kids.length > 0 && (
-            <Row style={{ marginTop: 12, flexWrap: 'wrap', gap: 10 }}>
-              {kids.map((c) => {
-                const on = c.id === child?.id;
-                return (
-                  <PressScale
-                    key={c.id}
-                    onPress={() => setPicked(c.id)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: on }}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: on ? colors.primarySoft : '#fff', borderWidth: 1.5, borderColor: on ? colors.primary : '#E4E0F3', borderRadius: radius.pill, paddingLeft: 5, paddingRight: 16, minHeight: 46 }}
-                  >
-                    <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: c.sex === 'female' ? colors.pinkSoft : colors.skySoft, alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ fontSize: 19 }}>{childEmoji(c.sex, c.age_months)}</Text>
-                    </View>
-                    <Text style={{ fontWeight: '700', color: on ? colors.primaryDark : colors.text }}>{c.name.split(' ')[0]}</Text>
-                  </PressScale>
-                );
-              })}
-              <Pressable
-                onPress={() => router.push('/child/new')}
-                accessibilityRole="button"
-                accessibilityLabel={t('addChild')}
-                style={{ width: 46, height: 46, borderRadius: 23, borderWidth: 1.5, borderColor: '#DCD6F5', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' }}
-              >
-                <Ionicons name="add" size={22} color={colors.primary} />
-              </Pressable>
-            </Row>
-          )}
-        </Card>
 
         {children.data?.length === 0 && (
           <Card>
@@ -122,58 +116,41 @@ function MotherHome() {
 
         {child && (
           <>
-            {/* The child at a glance */}
+            {/* How is my child? */}
             <Card onPress={() => router.push(`/child/${child.id}`)} style={st.key === 'urgent' ? { borderColor: colors.danger, borderWidth: 2 } : undefined}>
-              <Row style={{ gap: 14, alignItems: 'flex-start' }}>
-                <View style={{ width: 62, height: 62, borderRadius: 31, backgroundColor: child.sex === 'female' ? colors.pinkSoft : colors.skySoft, alignItems: 'center', justifyContent: 'center' }}>
+              <Row style={{ gap: 14 }}>
+                <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: child.sex === 'female' ? colors.pinkSoft : colors.skySoft, alignItems: 'center', justifyContent: 'center' }}>
                   <Text style={{ fontSize: 32 }}>{childEmoji(child.sex, child.age_months)}</Text>
                 </View>
                 <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={{ fontSize: 18, fontWeight: '800' }}>{child.name}</Text>
-                  <Text style={{ color: colors.muted, fontSize: 14 }}>{formatAge(child.age_months, lang)}</Text>
-                  <View style={{ marginTop: 4 }}>
-                    <StatusPill status={st.key} label={txt(st.headline, lang)} />
-                  </View>
+                  <Text style={{ fontSize: 20, fontWeight: '800' }}>{name}</Text>
+                  <Text style={{ color: colors.muted, fontSize: 13 }}>{formatAge(child.age_months, lang)}</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#A09CB5" />
               </Row>
+              <View style={{ marginTop: 14 }}>
+                <StatusPill status={st.key} label={txt(st.headline, lang)} large />
+              </View>
               {m ? (
-                <>
-                  <View style={{ flexDirection: 'row', marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderColor: colors.line }}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 22, fontWeight: '800' }}>
-                        {m.height_cm} <Text style={{ fontSize: 14, color: colors.muted, fontWeight: '600' }}>cm</Text>
-                      </Text>
-                      <Text style={{ color: colors.muted, fontSize: 13 }}>{t('height_short')}</Text>
-                    </View>
-                    <View style={{ width: 1, backgroundColor: colors.line, marginHorizontal: 12 }} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 22, fontWeight: '800' }}>
-                        {m.weight_kg} <Text style={{ fontSize: 14, color: colors.muted, fontWeight: '600' }}>kg</Text>
-                      </Text>
-                      <Text style={{ color: colors.muted, fontSize: 13 }}>{t('weight_short')}</Text>
-                    </View>
-                  </View>
-                  <Text style={{ color: colors.muted, fontSize: 13, marginTop: 10 }}>
-                    {t('lastMeasured')}: {formatDate(m.measured_at, lang)}
-                  </Text>
-                </>
+                <Text style={{ fontSize: 22, fontWeight: '900', marginTop: 12 }}>
+                  {m.height_cm} <Text style={{ fontSize: 14, color: colors.muted, fontWeight: '500' }}>cm</Text>
+                  <Text style={{ color: '#C9C4DD' }}> · </Text>
+                  {m.weight_kg} <Text style={{ fontSize: 14, color: colors.muted, fontWeight: '500' }}>kg</Text>
+                </Text>
               ) : null}
             </Card>
 
-            {/* Today checklist */}
+            {/* What should I do today? */}
+            <Section title={t('forToday')} />
             <Card>
-              <H2>
-                {t('todayFor')} {name}
-              </H2>
               {!today.data && today.loading && <Loading />}
               {today.data?.items.map((item) => {
                 const c = statusColor[item.status];
                 const done = item.status === 'ok';
                 return (
-                  <Pressable key={item.key} onPress={() => go(item.action)} accessibilityRole="button" style={{ minHeight: 48, justifyContent: 'center' }}>
+                  <Pressable key={item.key} onPress={() => go(item.action)} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center' }}>
                     <Row style={{ gap: 10 }}>
-                      <Ionicons name={done ? 'checkmark-circle' : 'alert-circle'} size={22} color={c.mark} />
+                      <Ionicons name={done ? 'checkmark-circle' : 'alert-circle'} size={21} color={c.mark} />
                       <Text style={{ flex: 1, fontSize: 15, fontWeight: done ? '400' : '700', color: done ? colors.text : c.fg }}>{item.text}</Text>
                       {!done && <Ionicons name="chevron-forward" size={18} color={c.fg} />}
                     </Row>
@@ -183,20 +160,15 @@ function MotherHome() {
             </Card>
 
             {/* Quick actions */}
-            <Card>
-              <H2>{t('quickActions')}</H2>
-              <Row style={{ alignItems: 'flex-start', gap: 4 }}>
-                <QuickAction emoji="📸" tone="orange" label="NutriScan" onPress={() => router.push(`/nutriscan?child=${child.id}`)} />
-                <QuickAction emoji="📏" tone="blue" label={t('tileMeasure')} onPress={() => router.push(`/child/${child.id}/measure`)} />
-                <QuickAction emoji="🤒" tone="pink" label={t('actCheckSymptoms')} onPress={() => router.push(`/child/${child.id}/symptoms`)} />
-                <QuickAction emoji="💬" tone="lavender" label={t('tileConsult')} onPress={() => router.push('/assistant')} />
-              </Row>
-            </Card>
+            <Row style={{ alignItems: 'flex-start', gap: 4, marginTop: 4, marginBottom: 20 }}>
+              <QuickAction emoji="📸" tone="orange" label={t('actLogMeal')} onPress={() => router.push(`/child/${child.id}/meal?action=manual`)} />
+              <QuickAction emoji="📏" tone="blue" label={t('tileMeasure')} onPress={() => router.push(`/child/${child.id}/measure`)} />
+              <QuickAction emoji="🤒" tone="pink" label={t('actCheckSymptoms')} onPress={() => router.push(`/child/${child.id}/symptoms`)} />
+              <QuickAction emoji="💬" tone="lavender" label={t('tileConsult')} onPress={() => router.push('/assistant')} />
+            </Row>
 
             {/* Explore features */}
-            <View style={{ marginTop: 8, marginBottom: 12 }}>
-              <Text style={{ fontSize: 20, fontWeight: '800' }}>{t('exploreFeatures')}</Text>
-            </View>
+            <Section title={t('exploreFeatures')} />
             <FeatureGroup emoji="📈" tone="blue" title={t('jMonitor')}>
               <ListRow emoji="📏" title={t('tileMeasure')} onPress={() => router.push(`/child/${child.id}/measure`)} />
               <ListRow emoji="📈" title={t('growthHistory')} onPress={() => router.push(`/child/${child.id}/history`)} />
@@ -215,15 +187,6 @@ function MotherHome() {
             </FeatureGroup>
             <Tile emoji="🎁" tone="orange" title={t('pkgCardTitle')} onPress={() => router.push('/pickups')} />
 
-            <Card tint={tones.yellow.bg} style={{ marginTop: 4 }}>
-              <Row style={{ alignItems: 'flex-start', gap: 12 }}>
-                <Mascot size={46} />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontWeight: '800', color: tones.yellow.fg }}>💡 {t('tipTitle')}</Text>
-                  <Text style={{ lineHeight: 22 }}>{tipOfTheDay(lang)}</Text>
-                </View>
-              </Row>
-            </Card>
           </>
         )}
       </View>

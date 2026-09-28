@@ -1,7 +1,6 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 
 import { useAuth } from '../lib/auth';
 import { formatDate } from '../lib/fun';
@@ -11,7 +10,7 @@ import type { Assessment } from '../lib/types';
 import { colors, statusColor, StatusKey } from '../theme';
 import { Mascot } from './Mascot';
 import { Text } from './Text';
-import { Bar, Card, H2, ListRow, P, RiskBadge, Row, SourceTag, StatusPill } from './ui';
+import { Bar, Card, H2, ListRow, MoreLink, P, RiskBadge, Row, SourceTag, StatusPill } from './ui';
 
 export function fmtZ(z: number | null | undefined) {
   return z === null || z === undefined ? '–' : `${z > 0 ? '+' : ''}${z.toFixed(1)}`;
@@ -53,27 +52,24 @@ function FactorRow({ name, value, status }: { name: string; value: string; statu
 
 function MotherResult({ a, compact, hideEmergency }: { a: Assessment; compact?: boolean; hideEmergency?: boolean }) {
   const { t, lang } = useAuth();
-  const [details, setDetails] = useState(false);
+  const [why, setWhy] = useState(false);
   const st = motherStatus(a);
   const f = a.features as Record<string, number | null | string[]>;
   const codes = new Set(a.triage.actions.map((x) => x.code));
   const emergency = a.triage.urgency === 'emergency';
   const id = a.child_id;
 
-  const actions: { emoji: string; title: string; subtitle?: string; go?: () => void }[] = [];
+  // One line each: an icon and a few words. The long triage text stays in "Kenapa?".
+  const actions: { emoji: string; title: string; go?: () => void }[] = [];
   if (emergency) {
-    actions.push({ emoji: '🏥', title: t('actGoNow'), subtitle: a.triage.actions[0]?.text });
+    actions.push({ emoji: '🏥', title: t('actGoNow') });
     if (codes.has('keep_breastfeeding')) actions.push({ emoji: '🤱', title: t('actKeepFeeding') });
   } else {
-    actions.push({ emoji: '📏', title: t('actMeasureNext'), subtitle: codes.has('remeasure_2w') ? t('in2Weeks') : undefined, go: () => router.push(`/child/${id}/measure`) });
+    actions.push({ emoji: '📏', title: codes.has('remeasure_2w') ? `${t('actMeasureNext')} · ${t('in2Weeks')}` : t('actMeasureNext'), go: () => router.push(`/child/${id}/measure`) });
     actions.push({ emoji: '🍽️', title: t('actWatchMeals'), go: () => router.push(`/child/${id}/meal?action=manual`) });
-    actions.push({ emoji: '🥗', title: t('actFollowPlan'), go: () => router.push(`/child/${id}/nutrition`) });
-    if (codes.has('ors_zinc')) actions.push({ emoji: '💧', title: t('actOrs') });
-    actions.push({
-      emoji: '👩‍⚕️',
-      title: t('actDiscuss'),
-      subtitle: a.triage.urgency === 'doctor_48h' ? t('urgency_doctor_48h') : undefined,
-    });
+    actions.push({ emoji: '📅', title: t('actFollowPlan'), go: () => router.push(`/child/${id}/nutrition`) });
+    if (codes.has('ors_zinc')) actions.push({ emoji: '💊', title: t('actOrs') });
+    actions.push({ emoji: '👩‍⚕️', title: t('actDiscuss') });
   }
 
   const diarrhea = f.diarrhea ? t('fDiarrhea') : f.fever ? t('fFever') : f.respiratory ? t('fCough') : null;
@@ -81,76 +77,68 @@ function MotherResult({ a, compact, hideEmergency }: { a: Assessment; compact?: 
   const trend = TREND[a.trend?.status ?? 'no_data'] ?? TREND.no_data;
   const hz = zWords(f.haz as number | null, lang, 'height');
   const wz = zWords(f.waz as number | null, lang, 'weight');
+  // The one short explanation: the first growth sign that is not on track, in plain words.
+  const line = emergency
+    ? t('urgentSupportive')
+    : hz.key !== 'ok' && hz.key !== 'unknown'
+      ? `${t('height_short')} ${hz.text.toLowerCase()}.`
+      : wz.key !== 'ok' && wz.key !== 'unknown'
+        ? `${t('weight_short')} ${wz.text.toLowerCase()}.`
+        : st.key === 'ok'
+          ? t('celebrate')
+          : t('supportive');
 
   return (
     <>
       {/* One red warning per screen: skip it when the screen already shows its own (e.g. symptom checker with a call button). */}
       {emergency && !hideEmergency && (
         <Card tint={statusColor.urgent.bg} style={{ borderColor: colors.danger, borderWidth: 2 }}>
-          <Row>
-            <Ionicons name="warning" size={28} color={colors.danger} />
-            <Text style={{ color: colors.danger, fontWeight: '900', fontSize: 18, flex: 1 }}>🚨 {t('seekHelpNow')}</Text>
-          </Row>
-          <Text style={{ marginTop: 6, fontWeight: '700' }}>{a.triage.actions[0]?.text}</Text>
+          <Text style={{ color: colors.danger, fontWeight: '900', fontSize: 18 }}>🚨 {t('seekHelpNow')}</Text>
+          <Text style={{ marginTop: 4 }}>{t('urgentExplain')}</Text>
         </Card>
       )}
 
       <Card>
         <SourceTag kind="ai" />
-        <Row style={{ gap: 12 }}>
-          <Mascot size={60} mood={st.key === 'ok' ? 'cheer' : st.key === 'urgent' ? 'caring' : 'thinking'} />
-          <View style={{ flex: 1 }}>
-            {/* In an emergency the red card already says what to do; the pill only names the state. */}
-            <StatusPill status={st.key} label={txt(emergency ? st.label : st.headline, lang)} large />
-            <Text style={{ marginTop: 6, fontWeight: emergency ? '800' : '400' }}>
-              {st.key === 'ok' ? t('celebrate') : emergency ? t('urgentSupportive') : t('supportive')}
-            </Text>
+        <Row style={{ gap: 12, alignItems: 'flex-start' }}>
+          <Mascot size={54} mood={st.key === 'ok' ? 'cheer' : st.key === 'urgent' ? 'caring' : 'thinking'} />
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={{ fontSize: 17, fontWeight: '800', color: statusColor[st.key].fg }}>{txt(emergency ? st.label : st.headline, lang)}</Text>
+            <Text style={{ color: colors.muted }}>{line}</Text>
           </View>
         </Row>
+        {!compact && <MoreLink label={t('seeReasons')} open={why} onPress={() => setWhy(!why)} />}
+        {why && (
+          <View>
+            <FactorRow name={t('fHeightAge')} value={hz.text} status={hz.key} />
+            <FactorRow name={t('fWeightAge')} value={wz.text} status={wz.key} />
+            <FactorRow name={t('fTrend')} value={trend[lang]} status={trend.key} />
+            <FactorRow
+              name={t('fDiet')}
+              value={imputed.includes('dietary_diversity') ? t('fNoMeals') : `${Math.round(Number(f.dietary_diversity))}/8 ${t('groups')}`}
+              status={imputed.includes('dietary_diversity') ? 'unknown' : (f.dietary_diversity as number) >= 5 ? 'ok' : 'monitor'}
+            />
+            {diarrhea && <FactorRow name={t('fSymptoms')} value={diarrhea} status="monitor" />}
+            <MoreLink label={t('analysisDetail')} onPress={() => router.push(`/child/${id}/analysis`)} />
+          </View>
+        )}
       </Card>
 
       <Card>
-        <H2 emoji="✅">{t('whatMomCanDo')}</H2>
-        {actions.map((x, i) => (
-          <ListRow key={x.title} emoji={x.emoji} title={x.title} subtitle={i === 0 || !emergency ? x.subtitle : undefined} onPress={x.go} right={x.go ? undefined : <View />} />
+        <H2>{t('whatMomCanDo')}</H2>
+        {actions.map((x) => (
+          <ListRow key={x.title} emoji={x.emoji} title={x.title} onPress={x.go} right={x.go ? undefined : <View />} />
         ))}
       </Card>
 
-      {/* Everything below the actions is optional reading: one tap away, not on the page. */}
-      {!compact && (
-        <Card>
-          <Pressable onPress={() => setDetails(!details)} accessibilityRole="button" accessibilityState={{ expanded: details }} style={{ minHeight: 44, justifyContent: 'center' }}>
-            <Row style={{ justifyContent: 'space-between' }}>
-              <Text style={{ fontWeight: '800', color: colors.primary }}>🔍 {t('whyAttention')}</Text>
-              <Ionicons name={details ? 'chevron-up' : 'chevron-down'} size={20} color={colors.primary} />
-            </Row>
-          </Pressable>
-          {details && (
-            <View style={{ marginTop: 8 }}>
-              <FactorRow name={t('fHeightAge')} value={hz.text} status={hz.key} />
-              <FactorRow name={t('fWeightAge')} value={wz.text} status={wz.key} />
-              <FactorRow name={t('fTrend')} value={trend[lang]} status={trend.key} />
-              <FactorRow name={t('fSymptoms')} value={diarrhea ?? t('fNoSymptoms')} status={diarrhea ? 'monitor' : 'ok'} />
-              <FactorRow
-                name={t('fDiet')}
-                value={imputed.includes('dietary_diversity') ? t('fNoMeals') : `${Math.round(Number(f.dietary_diversity))}/8 ${t('groups')}`}
-                status={imputed.includes('dietary_diversity') ? 'unknown' : (f.dietary_diversity as number) >= 5 ? 'ok' : 'monitor'}
-              />
-              <Text style={{ fontWeight: '800', color: statusColor.ai.fg, marginTop: 16 }}>🤖 {t('seeAIDetails')}</Text>
-              <TechnicalDetails a={a} />
-            </View>
-          )}
-        </Card>
-      )}
-
-      <Text style={{ color: colors.muted, fontSize: 13, textAlign: 'center', marginBottom: 14 }}>ℹ️ {t('notDiagnosis')}</Text>
+      <Text style={{ color: colors.muted, fontSize: 12, textAlign: 'center', marginBottom: 14 }}>{t('notDiagnosis')}</Text>
       <ProReviewCard a={a} />
     </>
   );
 }
 
 /** Z-scores, model confidence and feature contributions: only for those who want them. */
-function TechnicalDetails({ a }: { a: Assessment }) {
+export function TechnicalDetails({ a }: { a: Assessment }) {
   const { t, lang } = useAuth();
   const f = a.features as Record<string, number | null>;
   const maxC = Math.max(...a.explanation.map((e) => Math.abs(e.contribution)), 0.01);

@@ -88,13 +88,22 @@ export const fonts = {
   extrabold: 'PlusJakartaSans_800ExtraBold',
 };
 
-export const radius = { sm: 10, md: 14, lg: 20, pill: 999 };
+export const radius = { sm: 10, md: 14, lg: 22, pill: 999 };
 
-/** A soft lavender glow under cards and floating buttons. */
+/** A very soft lavender glow under cards and floating buttons. */
 export const shadow: ViewStyle =
   Platform.OS === 'android'
     ? { elevation: 2, shadowColor: '#6C5CE7' }
-    : { shadowColor: '#6C5CE7', shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } };
+    : { shadowColor: '#6C5CE7', shadowOpacity: 0.07, shadowRadius: 20, shadowOffset: { width: 0, height: 8 } };
+
+/**
+ * Frosted-glass surface: translucent white over the page washes, a bright hairline edge and a
+ * whisper of shadow. Android draws elevation through translucent views, so it gets a solid card.
+ */
+export const glass: ViewStyle =
+  Platform.OS === 'android'
+    ? { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#ECE9F6', elevation: 1 }
+    : { backgroundColor: 'rgba(255,255,255,0.74)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.95)', ...shadow };
 
 export const space = (n: number) => n * 4;
 

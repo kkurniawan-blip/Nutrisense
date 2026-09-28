@@ -7,7 +7,7 @@ import { BestRecipeCard, CookView, RecipeOptionCard } from '../../components/Coo
 import { DiversityCard } from '../../components/Diversity';
 import { Mascot } from '../../components/Mascot';
 import { Text } from '../../components/Text';
-import { Bubble, Button, Card, ErrorBox, Loading, PressScale, Row, StepDots } from '../../components/ui';
+import { Bubble, Button, Card, ErrorBox, Loading, PressScale, Row, StepDots, Wash } from '../../components/ui';
 import { api, errorText, NetworkError } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { FOOD_EMOJI, groupsToday } from '../../lib/fun';
@@ -21,12 +21,12 @@ import { colors, radius, statusColor } from '../../theme';
 type Phase = 'check' | 'results' | 'cook' | 'done';
 type ScanState = 'idle' | 'scanning' | 'found' | 'nothing' | 'no_ai' | 'failed';
 
-function StepHeader({ step, title }: { step: 1 | 2 | 3; title: string }) {
+function StepHeader({ step, title }: { step: 1 | 2 | 3; title?: string }) {
   const { t } = useAuth();
   return (
     <View style={{ marginBottom: 16 }}>
       <StepDots total={3} current={step - 1} label={`${t('step')} ${step} ${t('of')} 3`} />
-      <Text style={{ fontSize: 23, fontWeight: '900' }}>{title}</Text>
+      {title ? <Text style={{ fontSize: 21, fontWeight: '900' }}>{title}</Text> : null}
     </View>
   );
 }
@@ -41,14 +41,14 @@ function FoodTile({ food, on, onPress }: { food: Food; on: boolean; onPress: () 
       accessibilityLabel={food.name}
       style={{
         width: '31%',
-        minHeight: 104,
+        minHeight: 86,
         borderRadius: radius.md,
-        paddingVertical: 12,
+        paddingVertical: 10,
         paddingHorizontal: 6,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: on ? colors.mintSoft : '#fff',
-        borderWidth: on ? 3 : 2,
+        backgroundColor: on ? colors.mintSoft : 'rgba(255,255,255,0.8)',
+        borderWidth: on ? 2 : 1,
         borderColor: on ? colors.mint : colors.border,
       }}
     >
@@ -57,8 +57,8 @@ function FoodTile({ food, on, onPress }: { food: Food; on: boolean; onPress: () 
           <Text style={{ color: '#fff', fontWeight: '900', fontSize: 14 }}>✓</Text>
         </View>
       )}
-      <Text style={{ fontSize: 34 }}>{FOOD_EMOJI[food.key] ?? '🍽️'}</Text>
-      <Text numberOfLines={2} style={{ fontSize: 14, fontWeight: '800', textAlign: 'center', marginTop: 6, color: on ? statusColor.ok.fg : colors.text }}>
+      <Text style={{ fontSize: 28 }}>{FOOD_EMOJI[food.key] ?? '🍽️'}</Text>
+      <Text numberOfLines={2} style={{ fontSize: 12.5, fontWeight: on ? '700' : '500', textAlign: 'center', marginTop: 4, color: on ? statusColor.ok.fg : colors.text }}>
         {food.name}
       </Text>
     </PressScale>
@@ -207,12 +207,13 @@ export default function NutriScanFlow() {
     phase === 'check' ? (
       <Button title={`✨ ${t('findBestMenu')}`} onPress={findRecipes} disabled={!selected.length || scan === 'scanning'} />
     ) : phase === 'cook' && cooking && 'foods' in cooking ? (
-      <Button title={`✅ ${t('cookedLog')} ${name}`} variant="mint" onPress={logMeal} loading={busy} />
+      <Button title={`✓ ${t('cookedLog')}`} variant="mint" onPress={logMeal} loading={busy} />
     ) : null;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['left', 'right', 'bottom']}>
       <Stack.Screen options={{ title: 'NutriScan' }} />
+      <Wash height={300} fadeTop />
       <ScrollView ref={scroller} contentContainerStyle={{ padding: 18, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
         {phase === 'check' && (
           <>
@@ -245,13 +246,11 @@ export default function NutriScanFlow() {
             )}
             {scan === 'nothing' && <Bubble mood="thinking">{t('nuriSawNothing')}</Bubble>}
             {scan === 'no_ai' && <Bubble mood="caring">{t('nuriCannotSee')}</Bubble>}
-            {scan === 'idle' && !photo && <Bubble mood="happy">{t('pickWhatYouHave')}</Bubble>}
             {scanNote && scan === 'found' ? <Text style={{ color: colors.muted, fontSize: 16, marginBottom: 12 }}>💬 {scanNote}</Text> : null}
             {error && <ErrorBox message={error} />}
 
-            <Text style={{ fontSize: 19, fontWeight: '900', marginBottom: 14 }}>{t('whatFoodsHave')}</Text>
             {!foodList.data && <Loading />}
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between' }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between' }}>
               {foods.map((f) => (
                 <FoodTile key={f.key} food={f} on={selected.includes(f.key)} onPress={() => toggle(f.key)} />
               ))}
@@ -276,14 +275,14 @@ export default function NutriScanFlow() {
             {result && (
               <>
                 {result.swaps.map((s) => (
-                  <Card key={s.key} tint={statusColor.monitor.bg}>
-                    <Text style={{ fontSize: 17, lineHeight: 25, color: statusColor.monitor.fg, fontWeight: '700' }}>💡 {s.text}</Text>
+                  <Card key={s.key} tint={statusColor.monitor.bg} style={{ padding: 14 }}>
+                    <Text style={{ fontSize: 14, lineHeight: 20, color: statusColor.monitor.fg, fontWeight: '600' }}>💡 {s.text}</Text>
                   </Card>
                 ))}
                 {result.best && <BestRecipeCard recipe={result.best} childName={name} onCook={() => openRecipe(result.best!)} />}
                 {result.others.length > 0 && (
                   <>
-                    <Text style={{ fontSize: 20, fontWeight: '900', marginTop: 8, marginBottom: 12 }}>{t('otherChoices')}</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '800', marginTop: 12, marginBottom: 10 }}>{t('otherChoices')}</Text>
                     {result.others.map((r) => (
                       <RecipeOptionCard key={r.key} recipe={r} onPress={() => openRecipe(r)} />
                     ))}
@@ -291,13 +290,12 @@ export default function NutriScanFlow() {
                 )}
                 {result.ai_ideas.map((idea) => (
                   <Card key={idea.name} tint={colors.lavenderSoft} onPress={() => openRecipe(idea)}>
-                    <Text style={{ color: statusColor.ai.fg, fontWeight: '900', fontSize: 15 }}>🤖 {t('nuriIdea')}</Text>
-                    <Text style={{ fontSize: 20, fontWeight: '900', marginTop: 6 }}>{idea.name}</Text>
-                    <Text style={{ fontSize: 16, marginTop: 4, lineHeight: 23 }}>{idea.why}</Text>
-                    <Text style={{ fontSize: 17, fontWeight: '900', color: colors.primary, marginTop: 8 }}>{t('seeRecipe')} ›</Text>
+                    <Text style={{ color: statusColor.ai.fg, fontWeight: '800', fontSize: 13 }}>🤖 {t('nuriIdea')}</Text>
+                    <Text style={{ fontSize: 17, fontWeight: '800', marginTop: 4 }}>{idea.name}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary, marginTop: 6 }}>{t('seeRecipe')} →</Text>
                   </Card>
                 ))}
-                <Text style={{ color: colors.muted, fontSize: 14, lineHeight: 20, marginTop: 4 }}>ℹ️ {result.price_note}</Text>
+                <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 17, marginTop: 4 }}>{result.price_note}</Text>
               </>
             )}
             <Button title={`‹ ${t('changeFoods')}`} variant="ghost" onPress={() => setPhase('check')} />
@@ -306,7 +304,7 @@ export default function NutriScanFlow() {
 
         {phase === 'cook' && cooking && (
           <>
-            <StepHeader step={3} title={t('howToCookTitle')} />
+            <StepHeader step={3} />
             <CookView recipe={cooking} />
             {error && <ErrorBox message={error} />}
             <Button title={`‹ ${t('backToMenus')}`} variant="ghost" onPress={() => setPhase('results')} />
@@ -333,7 +331,7 @@ export default function NutriScanFlow() {
         )}
       </ScrollView>
       {footer && (
-        <View style={{ paddingHorizontal: 18, paddingTop: 10, paddingBottom: 12, backgroundColor: '#fff', borderTopWidth: 1, borderColor: colors.border }}>
+        <View style={{ paddingHorizontal: 18, paddingTop: 8, paddingBottom: 10, backgroundColor: 'rgba(255,255,255,0.92)', borderTopWidth: 1, borderColor: colors.line }}>
           {footer}
         </View>
       )}
