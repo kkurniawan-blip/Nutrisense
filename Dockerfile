@@ -1,7 +1,6 @@
 # One image with the API and the web app, served from the same address.
 #   docker build -t nutrisense .
-#   docker run -p 8000:8000 -e NUTRISENSE_ENVIRONMENT=production \
-#     -e NUTRISENSE_JWT_SECRET=<random> -e NUTRISENSE_ENCRYPTION_KEY=<random> nutrisense
+#   docker run -p 8000:8000 nutrisense
 # Then open http://localhost:8000 (app) or http://localhost:8000/docs (API).
 
 # 1. Build the web version of the mobile app.
@@ -25,6 +24,12 @@ COPY backend/app ./app
 # with the deployment's own encryption key.
 RUN python -m app.cli train > /dev/null
 COPY --from=web /web ./web
+# Some hosts (e.g. Hugging Face Spaces) run the container as a non-root user: keep /app writable.
+RUN mkdir -p uploads && chmod -R a+rwX /app
 
+# Secrets: pass NUTRISENSE_JWT_SECRET and NUTRISENSE_ENCRYPTION_KEY to keep them across restarts
+# (required with a persistent database). When they are missing, random ones are made at start,
+# which suits a demo whose data is re-seeded on every start.
+ENV NUTRISENSE_ENVIRONMENT=production
 EXPOSE 8000
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'"]
+CMD ["sh", "-c", "export NUTRISENSE_JWT_SECRET=\"${NUTRISENSE_JWT_SECRET:-$(python -c 'import secrets; print(secrets.token_hex(32))')}\" NUTRISENSE_ENCRYPTION_KEY=\"${NUTRISENSE_ENCRYPTION_KEY:-$(python -c 'import secrets; print(secrets.token_hex(32))')}\"; exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'"]

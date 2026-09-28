@@ -1,0 +1,34 @@
+# Deploys the app to a free Hugging Face Space on every push to these branches.
+# One-time setup: add a Hugging Face access token (with write permission) as the repository
+# secret HF_TOKEN. Optional: set the repository variable HF_SPACE (e.g. yourname/nutrisense).
+name: Deploy to Hugging Face
+
+on:
+  push:
+    branches: [main, claude/nutrisense-mobile-ai-backend-ve7e0m]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-hf
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Deploy and wait until live
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE: ${{ vars.HF_SPACE }}
+        run: |
+          if [ -z "$HF_TOKEN" ]; then
+            echo "::warning::No HF_TOKEN secret yet. Add a Hugging Face write token as the repository secret HF_TOKEN, then re-run this workflow."
+            exit 0
+          fi
+          pip install --quiet "huggingface_hub>=0.25"
+          python deploy/hf_space.py

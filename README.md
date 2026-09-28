@@ -69,25 +69,31 @@ Or create your own mother/caregiver account with **Daftar sebagai Ibu / pengasuh
 
 ### Put it online
 
-The root `Dockerfile` builds a single image. The backend serves both the API and the web version of the app, so one link works on any phone's browser. `render.yaml` deploys that image to [Render](https://render.com) (free plan).
+The root `Dockerfile` builds a single image. The backend serves both the API and the web version of the app, so one link works on any phone's browser.
 
-1. Sign in to Render with your GitHub account and allow it to read this repository.
-2. In the Render dashboard, choose **New → Blueprint**, pick this repository and the branch to deploy, then **Apply**. Render generates the secrets. `NUTRISENSE_ANTHROPIC_API_KEY` is optional; leave it empty to run without Claude.
-3. The first build takes about 5–10 minutes. You then get an address like `https://nutrisense-xxxx.onrender.com`. Open it on any phone and log in with a demo account.
+**Free, no credit card: Hugging Face Spaces.** The workflow `.github/workflows/deploy-hf.yml` deploys the app on every push, using `deploy/hf_space.py`.
 
-Good to know about the free plan:
-- It sleeps after 15 minutes without visitors. The first visit after that takes about a minute to wake it.
-- Its disk is temporary, so every restart or redeploy starts again from fresh demo data. That is fine for demos.
-- For real use, add a PostgreSQL database (`NUTRISENSE_DATABASE_URL`) and follow the production checklist below.
-- The demo accounts and their password are public. Do not enter real children's data on a demo deployment.
+1. Create a free account at [huggingface.co](https://huggingface.co/join). No card is needed.
+2. On Hugging Face, open **Settings → Access Tokens → Create new token**. Choose **Write**, create it, and copy it.
+3. On GitHub, open this repository's **Settings → Secrets and variables → Actions → New repository secret**. Name it `HF_TOKEN`, paste the token, and save.
+4. Open the **Actions** tab → **Deploy to Hugging Face** → the latest run → **Re-run all jobs**. The next push also deploys automatically.
+5. After about 5–10 minutes the run's summary shows the link, e.g. `https://yourname-nutrisense.hf.space`. Open it on any phone and log in with a demo account.
 
-To run the same image on any server with Docker:
+The Space is called `<your username>/nutrisense`. Set the repository variable `HF_SPACE` to use another name. You can also deploy from your own computer: `HF_TOKEN=hf_... python deploy/hf_space.py`.
+
+**With a card: Render.** `render.yaml` is a Render Blueprint: **New → Blueprint** → pick this repository. Render asks for card details for Blueprints.
+
+Good to know about free hosting:
+- A free Space sleeps after about two days without visitors (a Render free service after 15 minutes). The next visit wakes it within a minute or two.
+- The disk is temporary, so every restart or redeploy starts again from fresh demo data, with new secrets. That is fine for demos.
+- For real use, add a PostgreSQL database (`NUTRISENSE_DATABASE_URL`), set fixed `NUTRISENSE_JWT_SECRET` and `NUTRISENSE_ENCRYPTION_KEY`, and follow the production checklist below.
+- The demo accounts and their password are public, and a Space is public. Do not enter real children's data on a demo deployment.
+
+To run the same image on any computer or server with Docker:
 ```bash
 docker build -t nutrisense .
-docker run -p 8000:8000 -e NUTRISENSE_ENVIRONMENT=production \
-  -e NUTRISENSE_JWT_SECRET="$(openssl rand -hex 32)" -e NUTRISENSE_ENCRYPTION_KEY="$(openssl rand -hex 32)" nutrisense
+docker run -p 8000:8000 nutrisense      # then open http://localhost:8000
 ```
-Then open `http://<server>:8000`.
 
 ---
 
