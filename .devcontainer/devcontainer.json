@@ -1,0 +1,19 @@
+{
+  // GitHub Codespaces: runs the full app (API + web app on one address) in the cloud, free on
+  // personal accounts. Code → Codespaces → Create codespace. See .devcontainer/README.md.
+  "name": "NutriSense",
+  "image": "mcr.microsoft.com/devcontainers/python:1-3.11-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "22" }
+  },
+  "hostRequirements": { "cpus": 2, "memory": "4gb" },
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+  "postStartCommand": "bash .devcontainer/start.sh",
+  "forwardPorts": [8000],
+  "portsAttributes": {
+    "8000": { "label": "NutriSense app", "onAutoForward": "notify" }
+  },
+  "customizations": {
+    "codespaces": { "openFiles": [".devcontainer/README.md"] }
+  }
+}

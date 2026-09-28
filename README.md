@@ -71,23 +71,25 @@ Or create your own mother/caregiver account with **Daftar sebagai Ibu / pengasuh
 
 The root `Dockerfile` builds a single image. The backend serves both the API and the web version of the app, so one link works on any phone's browser.
 
-**Free, no credit card: Hugging Face Spaces.** The workflow `.github/workflows/deploy-hf.yml` deploys the app on every push, using `deploy/hf_space.py`.
+**Free, no credit card: GitHub Codespaces.** A codespace is a cloud computer from GitHub, free for about 60 hours a month on personal accounts. `.devcontainer/` sets it up to build and start the app by itself.
 
-1. Create a free account at [huggingface.co](https://huggingface.co/join). No card is needed.
-2. On Hugging Face, open **Settings → Access Tokens → Create new token**. Choose **Write**, create it, and copy it.
-3. On GitHub, open this repository's **Settings → Secrets and variables → Actions → New repository secret**. Name it `HF_TOKEN`, paste the token, and save.
-4. Open the **Actions** tab → **Deploy to Hugging Face** → the latest run → **Re-run all jobs**. The next push also deploys automatically.
-5. After about 5–10 minutes the run's summary shows the link, e.g. `https://yourname-nutrisense.hf.space`. Open it on any phone and log in with a demo account.
+1. On this repository's GitHub page, click **Code → Codespaces → Create codespace on** the branch you want.
+2. Wait about 5–10 minutes the first time.
+3. In the **Ports** tab, right-click port **8000** → **Port Visibility → Public**, then copy the **Forwarded Address**. It looks like `https://…-8000.app.github.dev`.
+4. Open that link on any phone and log in with a demo account.
 
-The Space is called `<your username>/nutrisense`. Set the repository variable `HF_SPACE` to use another name. You can also deploy from your own computer: `HF_TOKEN=hf_... python deploy/hf_space.py`.
+The link works while the codespace is running. Codespaces stop after 30 minutes of inactivity by default (up to 4 hours in GitHub settings), and restarting one starts the app again. Details: [.devcontainer/README.md](.devcontainer/README.md).
 
-**With a card: Render.** `render.yaml` is a Render Blueprint: **New → Blueprint** → pick this repository. Render asks for card details for Blueprints.
+**Always-on hosting (needs a card or a paid plan):**
+- **Render:** `render.yaml` is a Render Blueprint. Choose **New → Blueprint** and pick this repository. Render asks for card details. Its free services sleep after 15 minutes without visitors, and the next visit wakes them within about a minute.
+- **Hugging Face Spaces:** Docker Spaces need a Hugging Face PRO subscription; the free plan only hosts static pages. With PRO:
+  1. Add a write token as the repository secret `HF_TOKEN`.
+  2. Run **Actions → Deploy to Hugging Face**, or run `HF_TOKEN=hf_... python deploy/hf_space.py`.
 
-Good to know about free hosting:
-- A free Space sleeps after about two days without visitors (a Render free service after 15 minutes). The next visit wakes it within a minute or two.
-- The disk is temporary, so every restart or redeploy starts again from fresh demo data, with new secrets. That is fine for demos.
+Good to know about demo hosting:
+- On Render and Hugging Face the disk is temporary. Every restart starts again from fresh demo data, with new secrets. That is fine for demos.
 - For real use, add a PostgreSQL database (`NUTRISENSE_DATABASE_URL`), set fixed `NUTRISENSE_JWT_SECRET` and `NUTRISENSE_ENCRYPTION_KEY`, and follow the production checklist below.
-- The demo accounts and their password are public, and a Space is public. Do not enter real children's data on a demo deployment.
+- The demo accounts and their password are public. Do not enter real children's data on a public demo.
 
 To run the same image on any computer or server with Docker:
 ```bash

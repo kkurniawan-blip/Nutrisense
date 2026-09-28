@@ -1,11 +1,11 @@
-# Deploys the app to a free Hugging Face Space on every push to these branches.
-# One-time setup: add a Hugging Face access token (with write permission) as the repository
-# secret HF_TOKEN. Optional: set the repository variable HF_SPACE (e.g. yourname/nutrisense).
+# Deploys the app to a Hugging Face Space. Docker Spaces need a Hugging Face PRO subscription
+# (their free plan hosts static pages only), so this runs only when started by hand:
+# Actions → Deploy to Hugging Face → Run workflow.
+# Setup: add a Hugging Face access token (with write permission) as the repository secret HF_TOKEN.
+# Optional: set the repository variable HF_SPACE (e.g. yourname/nutrisense).
 name: Deploy to Hugging Face
 
 on:
-  push:
-    branches: [main, claude/nutrisense-mobile-ai-backend-ve7e0m]
   workflow_dispatch:
 
 concurrency:

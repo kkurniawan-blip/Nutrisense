@@ -1,4 +1,6 @@
-"""Deploy NutriSense to a free Hugging Face Space (Docker), then wait until it is live.
+"""Deploy NutriSense to a Hugging Face Space (Docker), then wait until it is live.
+
+Docker Spaces need a Hugging Face PRO subscription; the free plan only hosts static pages.
 
     HF_TOKEN=hf_... python deploy/hf_space.py            # deploy to <your-username>/nutrisense
     HF_TOKEN=hf_... HF_SPACE=me/other python deploy/hf_space.py
