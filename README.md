@@ -6,6 +6,8 @@ An AI-driven health and logistics ecosystem for early stunting prevention in Ind
 |---|---|
 | `backend/` | FastAPI + SQLAlchemy API, AI engine (WHO z-scores, scikit-learn risk model, triage, nutrition, Claude integration), N.E.X.U.S. logistics simulation, SATUSEHAT/FHIR mapping |
 | `mobile/` | Expo (React Native) app for Android and iOS (also runs in a browser). One app, role-based screens for caregivers, Kaders, health officers and doctors |
+| `e2e/` | Browser test that walks through the app for every role ([how to run](e2e/README.md)) |
+| `docs/` | **[User guide](docs/USER_GUIDE.md)**: how to use the app, with screenshots |
 
 AI output is decision support, not a medical diagnosis. The app says so on every result screen, and a clinician can confirm or override any assessment.
 
@@ -187,6 +189,7 @@ cd backend && pytest -q            # 114 tests: WHO z-scores vs published tables
                                    # symptom lexicon, the full caregiver→Kader→officer→locker workflow,
                                    # RBAC, consent, encryption at rest, FHIR, offline sync
 cd mobile && npx tsc --noEmit && npx eslint src
+cd e2e && npm test                 # 45-step browser walkthrough for every role (see e2e/README.md)
 ```
 
 The test suite runs on SQLite by default. Set `NUTRISENSE_TEST_DATABASE_URL` to an empty PostgreSQL database to run it there.
