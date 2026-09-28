@@ -72,7 +72,7 @@ Four steps:
 3. Enter weight and length/height. The app warns you if a number looks wrong.
 4. Check the numbers and save.
 
-The result is in plain words, for example 🟢 *Pertumbuhan baik* (growing well), 🟡 *Perlu dipantau* (keep an eye on it) or 🟠 *Perlu perhatian* (needs attention). Below it is a short list of what you can do. The detailed AI numbers are under **Lihat detail analisis AI**.
+The result is in plain words, for example 🟢 *Pertumbuhan baik* (growing well), 🟡 *Perlu dipantau* (keep an eye on it) or 🟠 *Perlu perhatian* (needs attention). Below it is a short list of what you can do. Tap **Kenapa perlu perhatian** (why) to see the reasons and the detailed AI numbers.
 
 ### NutriScan: from a photo of your food to a healthy recipe
 
@@ -85,7 +85,7 @@ Tap **NutriScan** in the middle of the tab bar, or the NutriScan shortcut under 
    - Tap a tile to add or remove a food, then tap **Cari menu terbaik** (find the best dish).
    - Recognising foods in a photo needs the Claude AI key on the server. Without it, the app says so, and you tap the foods you can see in your photo instead.
 3. **Menu terbaik untuk …** (best dish for …): the most nourishing dish you can make for your child from these foods. It shows:
-   - why it is good, e.g. *Telur: protein untuk tumbuh tinggi dan otak* (egg: protein to grow tall and for the brain);
+   - why it is good: tap **Kenapa bagus?**, e.g. *Telur: protein untuk tumbuh tinggi dan otak* (egg: protein to grow tall and for the brain);
    - **Sudah ada di rumah** (already at home) and **Perlu dibeli atau dipetik** (to buy or pick), with an estimated price and where to find it. Leaves like moringa (kelor) are often free from a garden.
    - a tip when a food is not a good choice for a child, e.g. instant noodles, with a cheap better option;
    - other dishes you can make.

@@ -1,5 +1,6 @@
-import React from 'react';
-import { View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import { Pressable, View } from 'react-native';
 
 import { useAuth } from '../lib/auth';
 import { FOOD_EMOJI } from '../lib/fun';
@@ -74,6 +75,7 @@ function HaveAndNeed({ recipe }: { recipe: KitchenRecipe }) {
 /** The one recommended dish, big and clear, with a single next step. */
 export function BestRecipeCard({ recipe, childName, onCook }: { recipe: KitchenRecipe; childName: string; onCook: () => void }) {
   const { t } = useAuth();
+  const [why, setWhy] = useState(false);
   return (
     <Card style={{ padding: 0, overflow: 'hidden', borderWidth: 3, borderColor: colors.mint }}>
       <View style={{ backgroundColor: colors.mintSoft, padding: 20, gap: 10 }}>
@@ -86,7 +88,7 @@ export function BestRecipeCard({ recipe, childName, onCook }: { recipe: KitchenR
         <Text style={{ fontSize: 25, fontWeight: '900', color: colors.text, lineHeight: 31 }}>{recipe.name}</Text>
         <Facts recipe={recipe} />
       </View>
-      <View style={{ padding: 20, gap: 16 }}>
+      <View style={{ padding: 20, gap: 18 }}>
         {recipe.highlights.length > 0 && (
           <Row style={{ flexWrap: 'wrap', gap: 8 }}>
             {recipe.highlights.map((h) => (
@@ -94,9 +96,17 @@ export function BestRecipeCard({ recipe, childName, onCook }: { recipe: KitchenR
             ))}
           </Row>
         )}
+        <HaveAndNeed recipe={recipe} />
         {recipe.benefits.length > 0 && (
-          <View style={{ gap: 8 }}>
-            <Text style={{ fontWeight: '900', fontSize: 17 }}>{t('whyGood')}</Text>
+          <Pressable onPress={() => setWhy(!why)} accessibilityRole="button" accessibilityState={{ expanded: why }} style={{ minHeight: 44, justifyContent: 'center' }}>
+            <Row style={{ justifyContent: 'space-between' }}>
+              <Text style={{ fontWeight: '800', fontSize: 16, color: colors.primary }}>💡 {t('whyGood')}</Text>
+              <Ionicons name={why ? 'chevron-up' : 'chevron-down'} size={20} color={colors.primary} />
+            </Row>
+          </Pressable>
+        )}
+        {why && recipe.benefits.length > 0 && (
+          <View style={{ gap: 10, marginTop: -8 }}>
             {recipe.benefits.map((b) => (
               <Row key={b.key} style={{ alignItems: 'flex-start', gap: 10 }}>
                 <Text style={{ fontSize: 22 }}>{FOOD_EMOJI[b.key] ?? '✨'}</Text>
@@ -105,7 +115,6 @@ export function BestRecipeCard({ recipe, childName, onCook }: { recipe: KitchenR
             ))}
           </View>
         )}
-        <HaveAndNeed recipe={recipe} />
         <Button title={`👩‍🍳 ${t('seeHowToCook')}`} onPress={onCook} />
       </View>
     </Card>
@@ -116,14 +125,20 @@ export function BestRecipeCard({ recipe, childName, onCook }: { recipe: KitchenR
 export function RecipeOptionCard({ recipe, onPress }: { recipe: KitchenRecipe; onPress: () => void }) {
   const { t, lang } = useAuth();
   return (
-    <PressScale onPress={onPress} accessibilityRole="button" style={{ backgroundColor: '#fff', borderRadius: radius.lg, padding: 18, marginBottom: 14, borderWidth: 1.5, borderColor: colors.border, gap: 6 }}>
-      <Text style={{ fontSize: 28 }}>{emojis(recipe.foods)}</Text>
-      <Text style={{ fontSize: 20, fontWeight: '900' }}>{recipe.name}</Text>
-      <Text style={{ fontSize: 16, color: colors.muted }}>
-        ⏱ {recipe.minutes} {t('minutes')} · {recipe.need_cost_idr > 0 ? `🛒 ${t('buyAbout')} ${rupiah(recipe.need_cost_idr, lang)}` : `✓ ${t('allAtHome')}`}
-      </Text>
-      {recipe.highlights[0] ? <Text style={{ fontSize: 16, fontWeight: '800', color: '#8A5A00' }}>💪 {recipe.highlights.join(' · ')}</Text> : null}
-      <Text style={{ fontSize: 17, fontWeight: '900', color: colors.primaryDark, marginTop: 4 }}>{t('seeRecipe')} ›</Text>
+    <PressScale
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${recipe.name}, ${t('seeRecipe')}`}
+      style={{ backgroundColor: '#fff', borderRadius: radius.lg, padding: 18, marginBottom: 14, borderWidth: 1.5, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 12 }}
+    >
+      <View style={{ flex: 1, gap: 6 }}>
+        <Text style={{ fontSize: 26 }}>{emojis(recipe.foods)}</Text>
+        <Text style={{ fontSize: 19, fontWeight: '900' }}>{recipe.name}</Text>
+        <Text style={{ fontSize: 15, color: colors.muted }}>
+          ⏱ {recipe.minutes} {t('minutes')} · {recipe.need_cost_idr > 0 ? `🛒 ${rupiah(recipe.need_cost_idr, lang)}` : `✓ ${t('allAtHome')}`}
+        </Text>
+      </View>
+      <Ionicons name="chevron-forward" size={22} color={colors.primary} />
     </PressScale>
   );
 }

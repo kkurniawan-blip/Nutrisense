@@ -179,10 +179,10 @@ export function Eyebrow({ children, color = colors.primary, style }: { children:
   return <Text style={[{ fontFamily: fonts.bold, fontSize: 12, letterSpacing: 1, color, textTransform: 'uppercase' }, style]}>{children}</Text>;
 }
 
-/** Numbered step circles joined by a line: where you are in a short flow. */
+/** Numbered step circles joined by a line: where you are in a short flow (the label is read aloud, not shown). */
 export function StepDots({ total, current, label }: { total: number; current: number; label?: string }) {
   return (
-    <View style={{ marginBottom: 16 }} accessibilityLabel={label}>
+    <View style={{ marginBottom: 20 }} accessible accessibilityLabel={label}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         {Array.from({ length: total }, (_, i) => {
           const done = i < current;
@@ -212,7 +212,6 @@ export function StepDots({ total, current, label }: { total: number; current: nu
           );
         })}
       </View>
-      {label ? <Text style={{ color: colors.muted, fontWeight: '600', fontSize: 14, marginTop: 8 }}>{label}</Text> : null}
     </View>
   );
 }
@@ -651,10 +650,10 @@ export function Bar({ pct, color = colors.mint, warnBelow = 70 }: { pct: number;
 
 export const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  padded: { paddingHorizontal: 18, paddingTop: 16 },
-  card: { backgroundColor: colors.card, borderRadius: radius.lg, padding: 18, marginBottom: 14, borderWidth: 1, borderColor: colors.border, ...shadow },
+  padded: { paddingHorizontal: 18, paddingTop: 18 },
+  card: { backgroundColor: colors.card, borderRadius: radius.lg, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: colors.border, ...shadow },
   h1: { fontSize: 25, fontWeight: '900', color: colors.text, marginBottom: 8, letterSpacing: -0.3 },
-  h2Row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, marginTop: 2, gap: 8 },
+  h2Row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, marginTop: 2, gap: 8 },
   h2: { fontSize: 18, fontWeight: '800', color: colors.text, flexShrink: 1, lineHeight: 24 },
   p: { fontSize: 16, color: colors.text, lineHeight: 24 },
   label: { fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 8, marginLeft: 2 },
@@ -666,7 +665,7 @@ export const styles = StyleSheet.create({
   buttonText: { fontSize: 17, fontWeight: '800', textAlign: 'center', flexShrink: 1 },
   toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, minHeight: TOUCH },
   chip: { borderWidth: 1.5, borderRadius: radius.pill, paddingHorizontal: 16, paddingVertical: 9, marginRight: 8, marginBottom: 10, minHeight: 44, justifyContent: 'center' },
-  listRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 10, minHeight: 64 },
+  listRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, minHeight: 68 },
   segment: { flexDirection: 'row', backgroundColor: '#F1EFF8', borderRadius: radius.pill, padding: 4, marginBottom: 14 },
   segmentItem: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 9, paddingHorizontal: 4, minHeight: 44, borderRadius: radius.pill },
   segmentActive: { backgroundColor: '#fff', ...shadow },
@@ -677,7 +676,7 @@ export const styles = StyleSheet.create({
   errorBox: { backgroundColor: colors.dangerSoft, borderRadius: radius.md, padding: 14, marginVertical: 8 },
   barTrack: { height: 10, backgroundColor: '#EEEBF8', borderRadius: 5, overflow: 'hidden', flex: 1 },
   barFill: { height: 10, borderRadius: 5 },
-  tile: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: radius.lg, padding: 16, minHeight: 84, marginBottom: 12 },
+  tile: { flexDirection: 'row', alignItems: 'center', gap: 16, borderRadius: radius.lg, padding: 18, minHeight: 84, marginBottom: 14 },
   tileArrow: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#ffffffb3', alignItems: 'center', justifyContent: 'center' },
   bubble: { flex: 1, borderRadius: radius.lg, borderBottomLeftRadius: 6, padding: 14, marginLeft: 10, marginBottom: 6 },
 });

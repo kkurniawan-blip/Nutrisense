@@ -141,6 +141,7 @@ A light, friendly look for mothers (`mobile/src/theme.ts`, `mobile/src/component
 - **Home** starts with Nuri and the NutriSense name, then the greeting and child picker, the child's height and weight, today's checklist, four quick actions and "Jelajahi fitur" cards that fold open.
 - **Short flows show numbered step circles** (measuring, sign-up, NutriScan). The food variety of the day is a progress ring (for example 5/8).
 - **Type:** Plus Jakarta Sans (designed in Jakarta), in regular to bold weights.
+- **Few words per screen:** one short line where possible; reasons, details and privacy explanations sit behind a tap ("Kenapa bagus?", "Kenapa perlu perhatian", "Lihat detail").
 
 The caregiver experience still feels warm rather than clinical:
 - **Nuri**, a sprout mascot drawn in SVG (it grows with the child), greets, explains and cheers.

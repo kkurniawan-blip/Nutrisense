@@ -65,7 +65,7 @@ export function DiversityCard({ groups, compact }: { groups: string[]; compact?:
           ))}
         </View>
       )}
-      {missing.length > 0 && (
+      {!compact && missing.length > 0 && (
         <>
           <Text style={{ fontWeight: '800', marginTop: 12, marginBottom: 6 }}>{t('notYetToday')}</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>

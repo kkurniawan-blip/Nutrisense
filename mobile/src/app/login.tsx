@@ -60,8 +60,6 @@ export default function Login() {
             <Mascot size={112} mood="cheer" bounce />
             <Wordmark size={36} />
             <Text style={{ color: colors.muted, fontWeight: '600', marginTop: -2 }}>{t('heroTagline')}</Text>
-            <Text style={{ fontSize: 18, fontWeight: '800', marginTop: 10 }}>{t('loginHello')}</Text>
-            <Text style={{ color: colors.muted, textAlign: 'center' }}>{t('appTagline')} 🌱</Text>
           </View>
           <Segmented<Lang>
             value={lang}
@@ -112,7 +110,6 @@ export default function Login() {
 
           <Card tint={tones.green.bg}>
             <Text style={{ fontWeight: '900', fontSize: 17 }}>🌱 {t('noAccountTitle')}</Text>
-            <Text style={{ color: colors.muted, marginTop: 2, marginBottom: 6, lineHeight: 20 }}>{t('noAccountSub')}</Text>
             <Button title={t('signUpMother')} variant="secondary" icon="person-add" onPress={() => router.push('/register')} />
             <Text style={{ color: colors.muted, fontSize: 13, marginTop: 6, lineHeight: 19 }}>🩺 {t('staffAccountNote')}</Text>
           </Card>

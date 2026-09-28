@@ -7,7 +7,7 @@ import { ChildPicker } from '../../components/ChildPicker';
 import { DiversityCard } from '../../components/Diversity';
 import { Mascot } from '../../components/Mascot';
 import { Text } from '../../components/Text';
-import { Button, Card, Empty, Eyebrow, Gradient, IconChip, Loading, PressScale, Row, Screen } from '../../components/ui';
+import { Button, Card, Empty, Gradient, IconChip, Loading, PressScale, Row, Screen } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
 import { groupsToday } from '../../lib/fun';
 import type { Child, Meal } from '../../lib/types';
@@ -47,7 +47,6 @@ export default function NutriScanTab() {
         <Mascot size={76} mood="cheer" bounce />
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 24, fontWeight: '900', lineHeight: 30 }}>{t('scanTitle')}</Text>
-          <Text style={{ fontSize: 17, color: colors.muted, marginTop: 4, lineHeight: 24 }}>{t('scanSubtitle')}</Text>
         </View>
       </Row>
 
@@ -72,7 +71,7 @@ export default function NutriScanTab() {
         </View>
         <Text style={{ color: '#fff', fontSize: 23, fontWeight: '900', marginTop: 12 }}>{t('takePhoto')}</Text>
         <Text style={{ color: '#ffffffe6', fontSize: 16, marginTop: 4, textAlign: 'center', lineHeight: 22 }}>
-          {t('scanPhotoHint')} {name}
+          {t('forChild')} {name}
         </Text>
       </PressScale>
 
@@ -88,13 +87,10 @@ export default function NutriScanTab() {
       <Card>
         <Text style={{ fontSize: 20, fontWeight: '900', marginBottom: 14 }}>{t('howItWorks')}</Text>
         {HOW.map((s, i) => (
-          <Row key={s.key} style={{ gap: 14, marginBottom: i < HOW.length - 1 ? 16 : 0, alignItems: 'center' }}>
+          <Row key={s.key} style={{ gap: 14, marginBottom: i < HOW.length - 1 ? 18 : 0, alignItems: 'center' }}>
             <IconChip emoji={s.emoji} size={50} tone={(['lavender', 'green', 'orange'] as const)[i]} />
             <View style={{ flex: 1 }}>
-              <Eyebrow>
-                {t('step')} {i + 1}
-              </Eyebrow>
-              <Text style={{ fontSize: 17, lineHeight: 24 }}>{t(s.key)}</Text>
+              <Text style={{ fontSize: 17, fontWeight: '700', lineHeight: 24 }}>{t(s.key)}</Text>
             </View>
           </Row>
         ))}

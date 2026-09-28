@@ -26,7 +26,7 @@ function StepHeader({ step, title }: { step: 1 | 2 | 3; title: string }) {
   return (
     <View style={{ marginBottom: 16 }}>
       <StepDots total={3} current={step - 1} label={`${t('step')} ${step} ${t('of')} 3`} />
-      <Text style={{ fontSize: 23, fontWeight: '900', marginTop: -6 }}>{title}</Text>
+      <Text style={{ fontSize: 23, fontWeight: '900' }}>{title}</Text>
     </View>
   );
 }
@@ -249,8 +249,7 @@ export default function NutriScanFlow() {
             {scanNote && scan === 'found' ? <Text style={{ color: colors.muted, fontSize: 16, marginBottom: 12 }}>💬 {scanNote}</Text> : null}
             {error && <ErrorBox message={error} />}
 
-            <Text style={{ fontSize: 19, fontWeight: '900', marginBottom: 4 }}>{t('whatFoodsHave')}</Text>
-            <Text style={{ color: colors.muted, fontSize: 16, marginBottom: 12 }}>{t('tapToChoose')}</Text>
+            <Text style={{ fontSize: 19, fontWeight: '900', marginBottom: 14 }}>{t('whatFoodsHave')}</Text>
             {!foodList.data && <Loading />}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between' }}>
               {foods.map((f) => (
@@ -276,9 +275,6 @@ export default function NutriScanFlow() {
             {result?.age_note && <Bubble mood="caring">{result.age_note}</Bubble>}
             {result && (
               <>
-                <Text style={{ color: colors.muted, fontSize: 16, marginBottom: 12 }}>
-                  {t('fromYourFoods')}: {result.detected.map((d) => `${FOOD_EMOJI[d.key] ?? ''} ${d.name}`).join(', ')}
-                </Text>
                 {result.swaps.map((s) => (
                   <Card key={s.key} tint={statusColor.monitor.bg}>
                     <Text style={{ fontSize: 17, lineHeight: 25, color: statusColor.monitor.fg, fontWeight: '700' }}>💡 {s.text}</Text>

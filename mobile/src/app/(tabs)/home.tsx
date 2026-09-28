@@ -17,11 +17,11 @@ import { useApi } from '../../lib/useApi';
 import { colors, radius, shadow, statusColor, Tone, tones } from '../../theme';
 
 /** A big pastel feature card that folds open to show its shortcuts. */
-function FeatureGroup({ emoji, tone, title, subtitle, children }: { emoji: string; tone: Tone; title: string; subtitle: string; children: React.ReactNode }) {
+function FeatureGroup({ emoji, tone, title, children }: { emoji: string; tone: Tone; title: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
     <View style={{ marginBottom: open ? 14 : 0 }}>
-      <Tile emoji={emoji} tone={tone} title={title} subtitle={subtitle} open={open} onPress={() => setOpen(!open)} />
+      <Tile emoji={emoji} tone={tone} title={title} open={open} onPress={() => setOpen(!open)} />
       {open && <Card style={{ marginTop: -4, paddingVertical: 6 }}>{children}</Card>}
     </View>
   );
@@ -159,7 +159,6 @@ function MotherHome() {
                   </Text>
                 </>
               ) : null}
-              <Text style={{ color: colors.primary, fontWeight: '800', marginTop: 8 }}>{t('seeProfile')} →</Text>
             </Card>
 
             {/* Today checklist */}
@@ -172,7 +171,7 @@ function MotherHome() {
                 const c = statusColor[item.status];
                 const done = item.status === 'ok';
                 return (
-                  <Pressable key={item.key} onPress={() => go(item.action)} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center' }}>
+                  <Pressable key={item.key} onPress={() => go(item.action)} accessibilityRole="button" style={{ minHeight: 48, justifyContent: 'center' }}>
                     <Row style={{ gap: 10 }}>
                       <Ionicons name={done ? 'checkmark-circle' : 'alert-circle'} size={22} color={c.mark} />
                       <Text style={{ flex: 1, fontSize: 15, fontWeight: done ? '400' : '700', color: done ? colors.text : c.fg }}>{item.text}</Text>
@@ -197,27 +196,24 @@ function MotherHome() {
             {/* Explore features */}
             <View style={{ marginTop: 8, marginBottom: 12 }}>
               <Text style={{ fontSize: 20, fontWeight: '800' }}>{t('exploreFeatures')}</Text>
-              <Text style={{ color: colors.muted }}>
-                {t('exploreFor')} {name}
-              </Text>
             </View>
-            <FeatureGroup emoji="📈" tone="blue" title={t('jMonitor')} subtitle={t('jMonitorSub')}>
+            <FeatureGroup emoji="📈" tone="blue" title={t('jMonitor')}>
               <ListRow emoji="📏" title={t('tileMeasure')} onPress={() => router.push(`/child/${child.id}/measure`)} />
               <ListRow emoji="📈" title={t('growthHistory')} onPress={() => router.push(`/child/${child.id}/history`)} />
               <ListRow emoji="🧠" title={t('development')} onPress={() => router.push(`/child/${child.id}/development`)} />
             </FeatureGroup>
-            <FeatureGroup emoji="🥗" tone="green" title={t('jNutrition')} subtitle={t('jNutritionSub')}>
-              <ListRow emoji="📸" title="NutriScan" subtitle={t('tileNutriScanSub')} onPress={() => router.push(`/nutriscan?child=${child.id}`)} />
+            <FeatureGroup emoji="🥗" tone="green" title={t('jNutrition')}>
+              <ListRow emoji="📸" title="NutriScan" onPress={() => router.push(`/nutriscan?child=${child.id}`)} />
               <ListRow emoji="✍️" title={t('actLogMeal')} onPress={() => router.push(`/child/${child.id}/meal?action=manual`)} />
               <ListRow emoji="🗓️" title={t('nutritionPlan')} onPress={() => router.push(`/child/${child.id}/nutrition`)} />
               <ListRow emoji="👩‍🍳" title={t('recipes')} onPress={() => router.push(`/child/${child.id}/recipes`)} />
             </FeatureGroup>
-            <FeatureGroup emoji="💬" tone="lavender" title={t('jHelp')} subtitle={t('jHelpSub')}>
+            <FeatureGroup emoji="💬" tone="lavender" title={t('jHelp')}>
               <ListRow emoji="🤒" title={t('actCheckSymptoms')} onPress={() => router.push(`/child/${child.id}/symptoms`)} />
               <ListRow emoji="💬" title={t('tileConsult')} onPress={() => router.push('/assistant')} />
               <ListRow emoji="📖" title={t('healthGuide')} onPress={() => router.push('/guide')} />
             </FeatureGroup>
-            <Tile emoji="🎁" tone="orange" title={t('pkgCardTitle')} subtitle={t('pkgCardSub')} onPress={() => router.push('/pickups')} />
+            <Tile emoji="🎁" tone="orange" title={t('pkgCardTitle')} onPress={() => router.push('/pickups')} />
 
             <Card tint={tones.yellow.bg} style={{ marginTop: 4 }}>
               <Row style={{ alignItems: 'flex-start', gap: 12 }}>
@@ -228,7 +224,6 @@ function MotherHome() {
                 </View>
               </Row>
             </Card>
-            <Text style={{ color: colors.muted, fontSize: 13, textAlign: 'center' }}>{t('disclaimer')}</Text>
           </>
         )}
       </View>

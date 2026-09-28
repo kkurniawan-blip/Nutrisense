@@ -105,22 +105,26 @@ function CategoryCard({ c, value, onChange }: { c: Category; value: boolean; onC
         </View>
       </Row>
       <Text style={{ color: colors.muted, lineHeight: 21 }}>{c.why[lang]}</Text>
-      <Text style={{ fontWeight: '800', marginTop: 10, marginBottom: 4 }}>{t('whatIsShared')}</Text>
-      {c.shared.map((s) => (
-        <Text key={s.en} style={{ lineHeight: 22 }}>
-          • {s[lang]}
-        </Text>
-      ))}
-      <Text style={{ marginTop: 6, lineHeight: 21 }}>
-        <Text style={{ fontWeight: '800' }}>{t('sharedWith')}: </Text>
-        {c.who[lang]}
-      </Text>
       <Pressable onPress={() => setOpen(!open)} accessibilityRole="button" accessibilityState={{ expanded: open }} style={{ minHeight: 44, justifyContent: 'center' }}>
-        <Text style={{ fontWeight: '800', color: colors.primaryDark }}>
+        <Text style={{ fontWeight: '800', color: colors.primary }}>
           {open ? '▲' : '▼'} {t('seeDetails')}
         </Text>
       </Pressable>
-      {open && <Text style={{ lineHeight: 21, color: colors.text }}>{c.details[lang]}</Text>}
+      {open && (
+        <View style={{ gap: 4 }}>
+          <Text style={{ fontWeight: '800' }}>{t('whatIsShared')}</Text>
+          {c.shared.map((s) => (
+            <Text key={s.en} style={{ lineHeight: 22 }}>
+              • {s[lang]}
+            </Text>
+          ))}
+          <Text style={{ marginTop: 6, lineHeight: 21 }}>
+            <Text style={{ fontWeight: '800' }}>{t('sharedWith')}: </Text>
+            {c.who[lang]}
+          </Text>
+          <Text style={{ lineHeight: 21, color: colors.muted, marginTop: 6 }}>{c.details[lang]}</Text>
+        </View>
+      )}
     </Card>
   );
 }

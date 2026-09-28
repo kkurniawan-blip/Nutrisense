@@ -145,13 +145,7 @@ function DevelopmentSummary({ childId, name }: { childId: string; name: string }
           );
         })}
       </View>
-      <Text style={{ fontWeight: '900', marginTop: 14 }}>🗓️ {t('activitiesThisWeek')}</Text>
-      {dev.data.activities.map((a) => (
-        <Text key={a.text} style={{ marginTop: 2 }}>
-          {a.emoji} {a.text}
-        </Text>
-      ))}
-      <Text style={{ color: colors.primary, fontWeight: '800', marginTop: 8 }}>{t('openChecklist')} →</Text>
+      <Text style={{ color: colors.primary, fontWeight: '800', marginTop: 14 }}>{t('openChecklist')} →</Text>
     </Card>
   );
 }
@@ -308,8 +302,8 @@ export default function ChildDetail() {
         <DiversityCard groups={today.data?.groups_today ?? []} />
       </Card>
       <Card>
-        <ListRow emoji="📸" title="NutriScan" subtitle={t('tileNutriScanSub')} onPress={() => router.push(`/nutriscan?child=${id}`)} />
-        <ListRow emoji="✍️" title={t('actLogMeal')} subtitle={t('easyCheap')} onPress={() => router.push(`/child/${id}/meal?action=manual`)} />
+        <ListRow emoji="📸" title="NutriScan" onPress={() => router.push(`/nutriscan?child=${id}`)} />
+        <ListRow emoji="✍️" title={t('actLogMeal')} onPress={() => router.push(`/child/${id}/meal?action=manual`)} />
         <ListRow emoji="🗓️" title={t('nutritionPlan')} onPress={() => router.push(`/child/${id}/nutrition`)} />
         <ListRow emoji="👩‍🍳" title={t('recipes')} onPress={() => router.push(`/child/${id}/recipes`)} />
       </Card>

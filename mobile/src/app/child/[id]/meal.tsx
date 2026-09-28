@@ -256,7 +256,6 @@ export default function MealScreen() {
           <View style={{ backgroundColor: colors.primarySoft, padding: 18, alignItems: 'center' }}>
             <Mascot size={80} mood="happy" bounce />
             <Text style={{ fontWeight: '800', textAlign: 'center', marginTop: 6 }}>{t('scanHero')}</Text>
-            <Text style={{ color: colors.muted, textAlign: 'center', fontSize: 13 }}>{t('scanHint')}</Text>
           </View>
         )}
         <View style={{ padding: 12 }}>

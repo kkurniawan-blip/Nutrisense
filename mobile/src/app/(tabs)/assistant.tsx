@@ -139,9 +139,6 @@ export default function Assistant() {
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 18, fontWeight: '900' }}>{t('nuriHello')}</Text>
                   <Text style={{ color: colors.muted, fontWeight: '600' }}>{t('nuriCanHelp')}</Text>
-                  <View style={{ backgroundColor: tones.lavender.bg, borderRadius: 14, padding: 10, marginTop: 8 }}>
-                    <Text style={{ fontSize: 14, lineHeight: 20 }}>{t('chatIntro')}</Text>
-                  </View>
                 </View>
               </View>
               <Text style={{ textAlign: 'center', color: colors.muted, fontSize: 13, marginTop: 10, lineHeight: 18 }}>ℹ️ {t('chatDisclaimer')}</Text>

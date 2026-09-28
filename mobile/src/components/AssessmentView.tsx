@@ -65,14 +65,14 @@ function MotherResult({ a, compact, hideEmergency }: { a: Assessment; compact?: 
     actions.push({ emoji: '🏥', title: t('actGoNow'), subtitle: a.triage.actions[0]?.text });
     if (codes.has('keep_breastfeeding')) actions.push({ emoji: '🤱', title: t('actKeepFeeding') });
   } else {
-    actions.push({ emoji: '📏', title: t('actMeasureNext'), subtitle: codes.has('remeasure_2w') ? t('in2Weeks') : t('nextMonth'), go: () => router.push(`/child/${id}/measure`) });
-    actions.push({ emoji: '🍽️', title: t('actWatchMeals'), subtitle: 'NutriScan', go: () => router.push(`/child/${id}/meal?action=manual`) });
+    actions.push({ emoji: '📏', title: t('actMeasureNext'), subtitle: codes.has('remeasure_2w') ? t('in2Weeks') : undefined, go: () => router.push(`/child/${id}/measure`) });
+    actions.push({ emoji: '🍽️', title: t('actWatchMeals'), go: () => router.push(`/child/${id}/meal?action=manual`) });
     actions.push({ emoji: '🥗', title: t('actFollowPlan'), go: () => router.push(`/child/${id}/nutrition`) });
     if (codes.has('ors_zinc')) actions.push({ emoji: '💧', title: t('actOrs') });
     actions.push({
       emoji: '👩‍⚕️',
       title: t('actDiscuss'),
-      subtitle: a.triage.urgency === 'doctor_48h' ? t('urgency_doctor_48h') : a.triage.urgency === 'kader_7d' ? t('kaderWillVisit') : undefined,
+      subtitle: a.triage.urgency === 'doctor_48h' ? t('urgency_doctor_48h') : undefined,
     });
   }
 
@@ -112,40 +112,38 @@ function MotherResult({ a, compact, hideEmergency }: { a: Assessment; compact?: 
       <Card>
         <H2 emoji="✅">{t('whatMomCanDo')}</H2>
         {actions.map((x, i) => (
-          <ListRow key={x.title} emoji={x.emoji} title={`${i + 1}. ${x.title}`} subtitle={x.subtitle} onPress={x.go} right={x.go ? undefined : <View />} />
+          <ListRow key={x.title} emoji={x.emoji} title={x.title} subtitle={i === 0 || !emergency ? x.subtitle : undefined} onPress={x.go} right={x.go ? undefined : <View />} />
         ))}
       </Card>
 
+      {/* Everything below the actions is optional reading: one tap away, not on the page. */}
       {!compact && (
         <Card>
-          <H2 emoji="🔍">{t('whyAttention')}</H2>
-          <FactorRow name={t('fHeightAge')} value={hz.text} status={hz.key} />
-          <FactorRow name={t('fWeightAge')} value={wz.text} status={wz.key} />
-          <FactorRow name={t('fTrend')} value={trend[lang]} status={trend.key} />
-          <FactorRow name={t('fSymptoms')} value={diarrhea ?? t('fNoSymptoms')} status={diarrhea ? 'monitor' : 'ok'} />
-          <FactorRow
-            name={t('fDiet')}
-            value={imputed.includes('dietary_diversity') ? t('fNoMeals') : `${Math.round(Number(f.dietary_diversity))}/8 ${t('groups')}`}
-            status={imputed.includes('dietary_diversity') ? 'unknown' : (f.dietary_diversity as number) >= 5 ? 'ok' : 'monitor'}
-          />
-        </Card>
-      )}
-
-      <Card tint={statusColor.info.bg}>
-        <Text style={{ color: statusColor.info.fg, fontWeight: '700' }}>ℹ️ {t('notDiagnosis')}</Text>
-      </Card>
-
-      {!compact && (
-        <Card>
-          <Pressable onPress={() => setDetails(!details)} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center' }}>
+          <Pressable onPress={() => setDetails(!details)} accessibilityRole="button" accessibilityState={{ expanded: details }} style={{ minHeight: 44, justifyContent: 'center' }}>
             <Row style={{ justifyContent: 'space-between' }}>
-              <Text style={{ fontWeight: '900', color: statusColor.ai.fg }}>🤖 {t('seeAIDetails')}</Text>
-              <Ionicons name={details ? 'chevron-up' : 'chevron-down'} size={20} color={colors.muted} />
+              <Text style={{ fontWeight: '800', color: colors.primary }}>🔍 {t('whyAttention')}</Text>
+              <Ionicons name={details ? 'chevron-up' : 'chevron-down'} size={20} color={colors.primary} />
             </Row>
           </Pressable>
-          {details && <TechnicalDetails a={a} />}
+          {details && (
+            <View style={{ marginTop: 8 }}>
+              <FactorRow name={t('fHeightAge')} value={hz.text} status={hz.key} />
+              <FactorRow name={t('fWeightAge')} value={wz.text} status={wz.key} />
+              <FactorRow name={t('fTrend')} value={trend[lang]} status={trend.key} />
+              <FactorRow name={t('fSymptoms')} value={diarrhea ?? t('fNoSymptoms')} status={diarrhea ? 'monitor' : 'ok'} />
+              <FactorRow
+                name={t('fDiet')}
+                value={imputed.includes('dietary_diversity') ? t('fNoMeals') : `${Math.round(Number(f.dietary_diversity))}/8 ${t('groups')}`}
+                status={imputed.includes('dietary_diversity') ? 'unknown' : (f.dietary_diversity as number) >= 5 ? 'ok' : 'monitor'}
+              />
+              <Text style={{ fontWeight: '800', color: statusColor.ai.fg, marginTop: 16 }}>🤖 {t('seeAIDetails')}</Text>
+              <TechnicalDetails a={a} />
+            </View>
+          )}
         </Card>
       )}
+
+      <Text style={{ color: colors.muted, fontSize: 13, textAlign: 'center', marginBottom: 14 }}>ℹ️ {t('notDiagnosis')}</Text>
       <ProReviewCard a={a} />
     </>
   );

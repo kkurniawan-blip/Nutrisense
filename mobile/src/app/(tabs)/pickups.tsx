@@ -10,7 +10,7 @@ import { formatDate, formatDuration } from '../../lib/fun';
 import { motherStatus, txt } from '../../lib/status';
 import type { Child, SupplyRequest } from '../../lib/types';
 import { useApi } from '../../lib/useApi';
-import { colors, statusColor } from '../../theme';
+import { colors } from '../../theme';
 
 const STEPS = [
   { key: 'pending_approval', emoji: '📝' },
@@ -82,16 +82,16 @@ export default function Pickups() {
         <Card>
           <H2 emoji="✅">{t('pkgActions')}</H2>
           {kids.map((c) => {
-            const acts = c.latest_assessment?.triage.actions.slice(0, 2) ?? [];
+            const acts = c.latest_assessment?.triage.actions.slice(0, 1) ?? [];
             return (
-              <View key={c.id} style={{ marginBottom: 6 }}>
+              <View key={c.id} style={{ marginBottom: 10 }}>
                 {kids.length > 1 && <Text style={{ fontWeight: '800', color: colors.muted, marginBottom: 2 }}>{c.name.split(' ')[0]}</Text>}
                 {acts.map((a) => (
                   <Text key={a.code} style={{ lineHeight: 22, marginBottom: 4 }}>
                     • {a.text}
                   </Text>
                 ))}
-                <ListRow emoji="🍳" title={t('seeMenuIdeas')} subtitle={t('easyCheap')} onPress={() => router.push(`/child/${c.id}/recipes`)} />
+                <ListRow emoji="🍳" title={t('seeMenuIdeas')} onPress={() => router.push(`/child/${c.id}/recipes`)} />
               </View>
             );
           })}
@@ -100,9 +100,7 @@ export default function Pickups() {
 
       {/* 3. Available products: optional support, never a requirement. */}
       <H2 emoji="🎁">{t('pkgAvailable')}</H2>
-      <Card tint={statusColor.info.bg}>
-        <Text style={{ color: statusColor.info.fg, fontWeight: '700', lineHeight: 21 }}>ℹ️ {t('pkgNotRequired')}</Text>
-      </Card>
+      <Text style={{ color: colors.muted, lineHeight: 21, marginBottom: 14 }}>ℹ️ {t('pkgNotRequired')}</Text>
       {reqs.error && <ErrorBox message={reqs.error} onRetry={reqs.reload} />}
       {!reqs.data && <Loading />}
       {reqs.data?.length === 0 && <Text style={{ color: colors.muted, textAlign: 'center', marginVertical: 12 }}>📭 {t('noPickups')}</Text>}
