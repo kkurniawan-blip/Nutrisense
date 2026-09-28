@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { LayoutChangeEvent, View } from 'react-native';
 import Svg, { Circle, G, Line, Path, Text as SvgText } from 'react-native-svg';
 
-import { colors } from '../theme';
+import { colors, fonts } from '../theme';
 import { Text } from './Text';
 
 export interface ChartData {
@@ -78,14 +78,14 @@ export function GrowthChart({ data, labels }: { data: ChartData; labels?: ChartL
       <Svg width={width} height={height}>
         {yTicks.map((y) => (
           <G key={`y${y}`}>
-            <Line x1={pad.l} x2={width - pad.r} y1={sy(y)} y2={sy(y)} stroke="#EEF2F0" />
-            <SvgText x={pad.l - 6} y={sy(y) + 4} fontSize={10} fill={colors.muted} textAnchor="end">
+            <Line x1={pad.l} x2={width - pad.r} y1={sy(y)} y2={sy(y)} stroke="#E3E7EE" />
+            <SvgText fontFamily={fonts.mono}x={pad.l - 6} y={sy(y) + 4} fontSize={10} fill={colors.muted} textAnchor="end">
               {y}
             </SvgText>
           </G>
         ))}
         {xTicks.map((x) => (
-          <SvgText key={`x${x}`} x={sx(x)} y={height - 8} fontSize={10} fill={colors.muted} textAnchor="middle">
+          <SvgText fontFamily={fonts.mono}key={`x${x}`} x={sx(x)} y={height - 8} fontSize={10} fill={colors.muted} textAnchor="middle">
             {x}
           </SvgText>
         ))}
@@ -96,7 +96,7 @@ export function GrowthChart({ data, labels }: { data: ChartData; labels?: ChartL
           return (
             <G key={z}>
               <Path d={path(pts)} stroke={s.color} strokeWidth={1.5} strokeDasharray={s.dash} fill="none" />
-              <SvgText x={sx(end[0]) + 3} y={sy(end[1]) + 3} fontSize={9} fill={s.color}>
+              <SvgText fontFamily={fonts.mono}x={sx(end[0]) + 3} y={sy(end[1]) + 3} fontSize={9} fill={s.color}>
                 {s.label}
               </SvgText>
             </G>

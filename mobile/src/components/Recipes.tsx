@@ -21,7 +21,7 @@ function Steps({ ingredients, steps }: { ingredients: string[]; steps: string[] 
       <Text style={{ fontWeight: '900', fontSize: 18, marginTop: 14, marginBottom: 8 }}>👩‍🍳 {t('howTo')}</Text>
       {steps.map((s, i) => (
         <Row key={s} style={{ alignItems: 'flex-start', marginBottom: 12, gap: 12 }}>
-          <View style={{ backgroundColor: colors.primary, width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ backgroundColor: colors.ink, width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ color: '#fff', fontWeight: '900', fontSize: 16 }}>{i + 1}</Text>
           </View>
           <Text style={{ flex: 1, fontSize: 17, lineHeight: 26 }}>{s}</Text>
@@ -89,7 +89,7 @@ export function MenuSuggestionsView({ data }: { data: MenuSuggestions }) {
               {missing.map((g) => {
                 const meta = FOOD_GROUPS.find((x) => x.key === g.key);
                 return (
-                  <View key={g.key} style={{ backgroundColor: '#fff', borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 2, borderColor: meta?.color ?? colors.border }}>
+                  <View key={g.key} style={{ backgroundColor: '#fff', borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1.5, borderColor: meta?.color ?? colors.border }}>
                     <Text style={{ fontSize: 13, fontWeight: '700' }}>
                       {meta?.emoji} {meta ? meta[lang] : g.label}
                     </Text>

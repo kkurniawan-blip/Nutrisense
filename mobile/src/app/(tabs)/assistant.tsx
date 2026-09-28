@@ -11,7 +11,7 @@ import { useAuth } from '../../lib/auth';
 import { childEmoji } from '../../lib/fun';
 import type { Child } from '../../lib/types';
 import { useApi } from '../../lib/useApi';
-import { colors, radius, shadow } from '../../theme';
+import { colors, radius } from '../../theme';
 
 interface Msg {
   id: number | string;
@@ -48,7 +48,7 @@ function BotRow({ children }: { children: React.ReactNode }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginBottom: 10, maxWidth: '88%' }}>
       <Mascot size={36} />
-      <View style={{ backgroundColor: '#fff', borderRadius: 20, borderBottomLeftRadius: 6, padding: 12, marginLeft: 6, flexShrink: 1, ...shadow }}>{children}</View>
+      <View style={{ backgroundColor: '#fff', borderRadius: 16, borderBottomLeftRadius: 4, padding: 12, marginLeft: 6, flexShrink: 1, borderWidth: 1, borderColor: colors.border }}>{children}</View>
     </View>
   );
 }
@@ -141,7 +141,7 @@ export default function Assistant() {
           }
           renderItem={({ item }) =>
             item.role === 'user' ? (
-              <View style={{ alignSelf: 'flex-end', backgroundColor: colors.primary, borderRadius: 20, borderBottomRightRadius: 6, padding: 12, marginBottom: 10, maxWidth: '82%' }}>
+              <View style={{ alignSelf: 'flex-end', backgroundColor: colors.ink, borderRadius: 16, borderBottomRightRadius: 4, padding: 12, marginBottom: 10, maxWidth: '82%' }}>
                 <Text style={{ color: '#fff', fontSize: 15, lineHeight: 21, fontWeight: '600' }}>{item.content}</Text>
               </View>
             ) : (
@@ -171,7 +171,7 @@ export default function Assistant() {
                 onPress={() => setTopic(tp.key)}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: on }}
-                style={{ flex: 1, minHeight: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? colors.lavender : '#fff', borderWidth: 2, borderColor: on ? colors.lavender : colors.lavenderSoft }}
+                style={{ flex: 1, minHeight: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? colors.lavender : '#fff', borderWidth: 1.5, borderColor: on ? colors.lavender : colors.lavenderSoft }}
               >
                 <Text style={{ fontSize: 16 }}>{tp.emoji}</Text>
                 <Text style={{ fontSize: 12, fontWeight: '800', color: on ? '#fff' : colors.text }}>{t(`topic_${tp.key}`)}</Text>
@@ -181,22 +181,22 @@ export default function Assistant() {
         </View>
         <ScrollView horizontal style={{ flexGrow: 0 }} showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, gap: 8, paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
           {suggestions.map((s) => (
-            <Pressable key={s} onPress={() => send(s)} accessibilityRole="button" style={{ backgroundColor: '#fff', borderRadius: radius.pill, borderWidth: 2, borderColor: colors.lavenderSoft, paddingHorizontal: 14, minHeight: 44, justifyContent: 'center' }}>
+            <Pressable key={s} onPress={() => send(s)} accessibilityRole="button" style={{ backgroundColor: '#fff', borderRadius: radius.pill, borderWidth: 1.5, borderColor: colors.lavenderSoft, paddingHorizontal: 14, minHeight: 44, justifyContent: 'center' }}>
               <Text style={{ color: colors.lavender, fontWeight: '800' }}>{s}</Text>
             </Pressable>
           ))}
         </ScrollView>
-        <View style={{ flexDirection: 'row', padding: 10, gap: 8, backgroundColor: '#fff', ...shadow }}>
+        <View style={{ flexDirection: 'row', padding: 10, gap: 8, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: colors.border }}>
           <TextInput
             value={text}
             onChangeText={setText}
             placeholder={t('chatPlaceholder')}
-            placeholderTextColor="#BCAEB6"
+            placeholderTextColor="#8A92A6"
             style={{ flex: 1, backgroundColor: colors.bg, borderRadius: radius.pill, paddingHorizontal: 16, paddingVertical: 10, fontSize: 15 }}
             onSubmitEditing={() => send()}
             returnKeyType="send"
           />
-          <Pressable onPress={() => send()} accessibilityRole="button" accessibilityLabel={t('send')} style={{ backgroundColor: colors.primary, borderRadius: 24, width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }}>
+          <Pressable onPress={() => send()} accessibilityRole="button" accessibilityLabel={t('send')} style={{ backgroundColor: colors.primary, borderRadius: 12, width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ color: '#fff', fontSize: 20, fontWeight: '900' }}>➤</Text>
           </Pressable>
         </View>

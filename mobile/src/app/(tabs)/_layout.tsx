@@ -22,27 +22,28 @@ const VISIBLE: Record<string, Role[]> = {
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
-/** Raised coral camera button in the middle of the tab bar: NutriScan is one tap away. */
+/** Raised indigo camera key in the middle of the tab bar: NutriScan is one tap away. */
 function ScanButton({ onPress }: { onPress?: (e: any) => void }) {
   return (
     <Pressable onPress={onPress} accessibilityLabel="NutriScan" style={{ flex: 1, alignItems: 'center' }}>
       <View
         style={{
-          marginTop: -22,
-          width: 64,
-          height: 64,
-          borderRadius: 32,
-          backgroundColor: colors.primary,
+          marginTop: -20,
+          width: 60,
+          height: 60,
+          borderRadius: 18,
+          backgroundColor: colors.ink,
           alignItems: 'center',
           justifyContent: 'center',
-          borderWidth: 5,
+          borderWidth: 4,
           borderColor: '#fff',
           ...shadow,
         }}
       >
-        <Ionicons name="camera" size={28} color="#fff" />
+        <Ionicons name="scan-outline" size={30} color="#fff" style={{ position: 'absolute' }} />
+        <Ionicons name="camera" size={14} color={colors.accent} />
       </View>
-      <Text style={{ fontSize: 12, fontWeight: '800', color: colors.primaryDark, marginTop: 2 }}>NutriScan</Text>
+      <Text style={{ fontSize: 12, fontWeight: '700', color: colors.ink, marginTop: 2 }}>NutriScan</Text>
     </Pressable>
   );
 }
@@ -60,8 +61,9 @@ export default function TabsLayout() {
         title,
         href: shown(name) ? undefined : null,
         tabBarIcon: ({ color, focused }) => (
-          // Obvious selected state: filled icon on a soft pill, not colour alone.
-          <View style={{ backgroundColor: focused ? colors.primarySoft : 'transparent', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 3 }}>
+          // Obvious selected state: filled icon plus an indicator line, not colour alone.
+          <View style={{ alignItems: 'center' }}>
+            <View style={{ width: 22, height: 3, borderRadius: 2, marginBottom: 4, backgroundColor: focused ? colors.primary : 'transparent' }} />
             <Ionicons name={focused ? activeIcon : icon} color={color} size={24} />
           </View>
         ),
@@ -76,19 +78,19 @@ export default function TabsLayout() {
       screenOptions={{
         headerStyle: { backgroundColor: colors.bg },
         headerShadowVisible: false,
-        headerTitleStyle: { fontFamily: fonts.extrabold, fontSize: 20, color: colors.text },
-        tabBarActiveTintColor: colors.primaryDark,
+        headerTitleStyle: { fontFamily: fonts.display, fontSize: 17, color: colors.text },
+        tabBarActiveTintColor: colors.ink,
         tabBarInactiveTintColor: colors.muted,
-        tabBarLabelStyle: { fontFamily: fonts.extrabold, fontSize: 12 },
-        tabBarStyle: { height: 74, paddingTop: 6, paddingBottom: 10, borderTopWidth: 0, backgroundColor: '#fff', ...shadow },
+        tabBarLabelStyle: { fontFamily: fonts.bold, fontSize: 12 },
+        tabBarStyle: { height: 76, paddingTop: 2, paddingBottom: 10, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: '#fff' },
         sceneStyle: { backgroundColor: colors.bg },
         headerRight: () => (
           <Pressable
             onPress={() => router.push('/notifications')}
-            style={{ marginRight: 14, backgroundColor: '#fff', borderRadius: 20, padding: 8, ...shadow }}
+            style={{ marginRight: 14, backgroundColor: '#fff', borderRadius: 12, padding: 9, borderWidth: 1, borderColor: colors.border }}
             accessibilityLabel={t('notifications')}
           >
-            <Ionicons name="notifications" size={20} color={colors.primary} />
+            <Ionicons name="notifications-outline" size={20} color={colors.ink} />
           </Pressable>
         ),
       }}

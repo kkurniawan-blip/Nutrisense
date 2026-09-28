@@ -26,9 +26,9 @@ export function ChildPicker({ items, value, onChange }: { items: Child[]; value:
               paddingLeft: 6,
               paddingRight: 14,
               borderRadius: radius.pill,
-              backgroundColor: on ? colors.primary : '#fff',
-              borderWidth: 2,
-              borderColor: on ? colors.primary : colors.border,
+              backgroundColor: on ? colors.ink : '#fff',
+              borderWidth: 1.5,
+              borderColor: on ? colors.ink : colors.border,
             }}
           >
             <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: on ? '#ffffff33' : colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>

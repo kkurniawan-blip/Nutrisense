@@ -219,7 +219,7 @@ export default function NutriScanFlow() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['left', 'right', 'bottom']}>
-      <Stack.Screen options={{ title: '📸 NutriScan' }} />
+      <Stack.Screen options={{ title: 'NutriScan' }} />
       <ScrollView ref={scroller} contentContainerStyle={{ padding: 18, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
         {phase === 'check' && (
           <>

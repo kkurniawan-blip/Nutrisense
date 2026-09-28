@@ -82,7 +82,7 @@ export default function History() {
         {rows.map((x, i) => {
           const w = zWords(x.haz, lang, 'height');
           return (
-            <View key={x.id} style={{ paddingVertical: 10, borderBottomWidth: 1, borderColor: colors.border, backgroundColor: i === 0 ? '#FFFBF7' : undefined }}>
+            <View key={x.id} style={{ paddingVertical: 10, borderBottomWidth: 1, borderColor: colors.border, backgroundColor: i === 0 ? '#FFFFFF' : undefined }}>
               <Row>
                 <Text style={{ flex: 1.3, fontWeight: i === 0 ? '900' : '600' }}>
                   {formatDate(x.measured_at, lang)}

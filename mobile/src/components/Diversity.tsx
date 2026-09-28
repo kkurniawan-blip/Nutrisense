@@ -42,7 +42,7 @@ export function DiversityCard({ groups, compact }: { groups: string[]; compact?:
           <Text style={{ fontWeight: '800', marginTop: 12, marginBottom: 6 }}>{t('notYetToday')}</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
             {missing.map((g) => (
-              <View key={g.key} style={{ backgroundColor: '#fff', borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 2, borderColor: g.color }}>
+              <View key={g.key} style={{ backgroundColor: '#fff', borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1.5, borderColor: g.color }}>
                 <Text style={{ fontWeight: '700', fontSize: 13 }}>
                   {g.emoji} {GROUP_PLAIN[g.key][lang]}
                 </Text>

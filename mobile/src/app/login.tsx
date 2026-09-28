@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Mascot } from '../components/Mascot';
 import { Text } from '../components/Text';
-import { Button, Card, ErrorBox, Field, PasswordField, Segmented, styles as ui } from '../components/ui';
+import { Button, Card, ErrorBox, Field, IkatPattern, PasswordField, Segmented, styles as ui } from '../components/ui';
 import { ApiError, errorText, getBaseUrl, NetworkError, setBaseUrl } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import type { Lang } from '../lib/types';
@@ -56,11 +56,11 @@ export default function Login() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ padding: 20, maxWidth: 480, width: '100%', alignSelf: 'center' }} keyboardShouldPersistTaps="handled">
           <View style={{ alignItems: 'center', marginVertical: 12 }}>
-            <View style={{ position: 'absolute', width: 180, height: 180, borderRadius: 90, backgroundColor: colors.primarySoft, top: -10 }} />
-            <View style={{ position: 'absolute', width: 60, height: 60, borderRadius: 30, backgroundColor: colors.accentSoft, top: 0, right: 40 }} />
-            <View style={{ position: 'absolute', width: 40, height: 40, borderRadius: 20, backgroundColor: colors.mintSoft, top: 110, left: 50 }} />
-            <Mascot size={120} mood="cheer" bounce />
-            <Text style={{ fontSize: 34, fontWeight: '900', color: colors.primary, marginTop: 4 }}>NutriSense</Text>
+            <View style={{ width: 150, height: 150, borderRadius: 32, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+              <IkatPattern opacity={0.12} />
+              <Mascot size={112} mood="cheer" bounce />
+            </View>
+            <Text style={{ fontSize: 34, fontWeight: '900', color: colors.ink, marginTop: 14 }}>NutriSense</Text>
             <Text style={{ fontSize: 18, fontWeight: '800' }}>{t('loginHello')}</Text>
             <Text style={{ color: colors.muted, textAlign: 'center' }}>{t('appTagline')} 🌱</Text>
           </View>

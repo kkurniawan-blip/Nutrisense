@@ -6,7 +6,7 @@ import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 import { Card, ErrorBox, H1, H2, Loading, P, RiskBadge, Row, Screen, Segmented, Stat } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
 import { useApi } from '../../lib/useApi';
-import { colors } from '../../theme';
+import { colors, fonts } from '../../theme';
 import { Text } from '../../components/Text';
 
 interface Summary {
@@ -59,7 +59,7 @@ interface ModelInfo {
 }
 
 function heatColor(idx: number | null) {
-  if (idx === null) return '#CBD5D1';
+  if (idx === null) return '#D5DAE3';
   if (idx >= 0.5) return colors.danger;
   if (idx >= 0.3) return colors.accent;
   return colors.ok;
@@ -76,14 +76,14 @@ function HeatMap({ rows }: { rows: HeatRow[] }) {
   const sy = (lat: number) => pad + ((maxLat - lat) / (maxLat - minLat || 1)) * (h - 2 * pad);
   return (
     <View onLayout={(e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)}>
-      <Svg width={w} height={h} style={{ backgroundColor: '#EAF3F7', borderRadius: 12 }}>
+      <Svg width={w} height={h} style={{ backgroundColor: '#E0EAF6', borderRadius: 12 }}>
         {rows.map((r) => {
           const radius = 10 + Math.sqrt(r.children) * 4;
           return (
             <React.Fragment key={r.region.id}>
               <Circle cx={sx(r.region.lng)} cy={sy(r.region.lat)} r={radius} fill={heatColor(r.risk_index)} opacity={0.55} />
               <Circle cx={sx(r.region.lng)} cy={sy(r.region.lat)} r={3} fill={colors.text} />
-              <SvgText x={sx(r.region.lng)} y={sy(r.region.lat) - radius - 3} fontSize={10} fill={colors.text} textAnchor="middle">
+              <SvgText fontFamily={fonts.mono}x={sx(r.region.lng)} y={sy(r.region.lat) - radius - 3} fontSize={10} fill={colors.text} textAnchor="middle">
                 {r.region.name.split(' (')[0]}
               </SvgText>
             </React.Fragment>
@@ -110,21 +110,21 @@ function ProjectionChart({ d }: { d: ProjectionData }) {
     <View onLayout={(e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)}>
       <Svg width={w} height={h}>
         <Line x1={pad.l} x2={w - pad.r} y1={sy(d.target.value)} y2={sy(d.target.value)} stroke={colors.ok} strokeDasharray="4 4" />
-        <SvgText x={w - pad.r} y={sy(d.target.value) - 4} fontSize={10} fill={colors.ok} textAnchor="end">
+        <SvgText fontFamily={fonts.mono}x={w - pad.r} y={sy(d.target.value) - 4} fontSize={10} fill={colors.ok} textAnchor="end">
           target {d.target.value}% ({d.target.year})
         </SvgText>
-        <Path d={line(d.history)} stroke={colors.primaryDark} strokeWidth={2.5} fill="none" />
+        <Path d={line(d.history)} stroke={colors.ink} strokeWidth={2.5} fill="none" />
         <Path d={line([lastHist, ...d.projection])} stroke={colors.danger} strokeWidth={2} strokeDasharray="6 4" fill="none" />
         {pts.map((p) => (
-          <Circle key={p.year} cx={sx(p.year)} cy={sy(p.value)} r={3} fill={p.proj ? colors.danger : colors.primaryDark} />
+          <Circle key={p.year} cx={sx(p.year)} cy={sy(p.value)} r={3} fill={p.proj ? colors.danger : colors.ink} />
         ))}
         {[x0, Math.round((x0 + x1) / 2), x1].map((x) => (
-          <SvgText key={x} x={sx(x)} y={h - 6} fontSize={10} fill={colors.muted} textAnchor="middle">
+          <SvgText fontFamily={fonts.mono}key={x} x={sx(x)} y={h - 6} fontSize={10} fill={colors.muted} textAnchor="middle">
             {x}
           </SvgText>
         ))}
         {[y0, y1].map((y) => (
-          <SvgText key={y} x={pad.l - 4} y={sy(y) + 4} fontSize={10} fill={colors.muted} textAnchor="end">
+          <SvgText fontFamily={fonts.mono}key={y} x={pad.l - 4} y={sy(y) + 4} fontSize={10} fill={colors.muted} textAnchor="end">
             {y}
           </SvgText>
         ))}

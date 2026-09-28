@@ -7,12 +7,12 @@ import { ChildPicker } from '../../components/ChildPicker';
 import { DiversityCard } from '../../components/Diversity';
 import { Mascot } from '../../components/Mascot';
 import { Text } from '../../components/Text';
-import { Button, Card, Empty, Loading, PressScale, Row, Screen } from '../../components/ui';
+import { Button, Card, Empty, Eyebrow, IconChip, IkatPattern, Loading, PressScale, Row, Screen } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
 import { groupsToday } from '../../lib/fun';
 import type { Child, Meal } from '../../lib/types';
 import { useApi } from '../../lib/useApi';
-import { colors, radius, shadow } from '../../theme';
+import { colors, radius } from '../../theme';
 
 const HOW = [
   { emoji: '📸', key: 'howStep1' },
@@ -62,13 +62,32 @@ export default function NutriScanTab() {
         onPress={() => start('camera')}
         accessibilityRole="button"
         accessibilityLabel={t('takePhoto')}
-        style={{ backgroundColor: colors.primary, borderRadius: radius.lg, paddingVertical: 26, paddingHorizontal: 20, alignItems: 'center', marginBottom: 14, ...shadow }}
+        style={{ backgroundColor: colors.ink, borderRadius: radius.lg, paddingVertical: 28, paddingHorizontal: 20, alignItems: 'center', marginBottom: 14, overflow: 'hidden' }}
       >
-        <View style={{ backgroundColor: '#ffffff33', width: 76, height: 76, borderRadius: 38, alignItems: 'center', justifyContent: 'center' }}>
-          <Ionicons name="camera" size={40} color="#fff" />
+        <IkatPattern opacity={0.08} />
+        {/* Viewfinder: four corner brackets around the camera */}
+        <View style={{ width: 96, height: 96, alignItems: 'center', justifyContent: 'center' }}>
+          {(['tl', 'tr', 'bl', 'br'] as const).map((c) => (
+            <View
+              key={c}
+              style={{
+                position: 'absolute',
+                width: 22,
+                height: 22,
+                borderColor: colors.accent,
+                [c[0] === 't' ? 'top' : 'bottom']: 0,
+                [c[1] === 'l' ? 'left' : 'right']: 0,
+                [c[0] === 't' ? 'borderTopWidth' : 'borderBottomWidth']: 3,
+                [c[1] === 'l' ? 'borderLeftWidth' : 'borderRightWidth']: 3,
+              }}
+            />
+          ))}
+          <View style={{ backgroundColor: colors.primary, width: 60, height: 60, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="camera" size={32} color="#fff" />
+          </View>
         </View>
         <Text style={{ color: '#fff', fontSize: 23, fontWeight: '900', marginTop: 12 }}>{t('takePhoto')}</Text>
-        <Text style={{ color: '#fff', fontSize: 16, marginTop: 4, textAlign: 'center', lineHeight: 22 }}>
+        <Text style={{ color: '#ffffffcc', fontSize: 16, marginTop: 4, textAlign: 'center', lineHeight: 22 }}>
           {t('scanPhotoHint')} {name}
         </Text>
       </PressScale>
@@ -86,13 +105,11 @@ export default function NutriScanTab() {
         <Text style={{ fontSize: 20, fontWeight: '900', marginBottom: 14 }}>{t('howItWorks')}</Text>
         {HOW.map((s, i) => (
           <Row key={s.key} style={{ gap: 14, marginBottom: i < HOW.length - 1 ? 16 : 0, alignItems: 'center' }}>
-            <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 26 }}>{s.emoji}</Text>
-            </View>
+            <IconChip emoji={s.emoji} size={52} fg={colors.primary} bg={colors.primarySoft} />
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 15, fontWeight: '800', color: colors.primaryDark }}>
-                {t('step')} {i + 1}
-              </Text>
+              <Eyebrow color={colors.primary}>
+                {t('step')} {String(i + 1).padStart(2, '0')}
+              </Eyebrow>
               <Text style={{ fontSize: 17, lineHeight: 24 }}>{t(s.key)}</Text>
             </View>
           </Row>

@@ -60,7 +60,7 @@ Tabs at the bottom: **Beranda** (home) · **Tanya Nuri** (ask Nuri) · **NutriSc
 
 ### Every day: Beranda
 - Pick your child at the top.
-- **Hari ini untuk …** (today for …) lists what to do today. Green means done. Orange means it still needs doing: tap the line to do it.
+- **Hari ini untuk …** (today for …) lists what to do today. A green ✓ means done. An empty circle means it still needs doing: tap the line to do it.
 - Big buttons: **NutriScan**, **Catat tumbuh** (measure), **Cek gejala** (check symptoms) and **Tanya Nuri**.
 
 ### Measure your child: Catat tumbuh
@@ -76,7 +76,7 @@ The result is in plain words, for example 🟢 *Pertumbuhan baik* (growing well)
 
 ![NutriScan: start, choosing foods, the best dish, a shopping list with a tip, and cooking steps](images/6-nutriscan.png)
 
-Tap the round camera button in the middle of the tab bar. Then:
+Tap the dark blue camera button in the middle of the tab bar. Then:
 
 1. **Foto** (photo): take a photo of the food or ingredients you have at home, e.g. eggs, spinach and rice. You can also choose a photo from the gallery, or tap **Tanpa foto** (no photo) and pick the foods yourself.
 2. **Bahan apa yang Ibu punya?** (which foods do you have?): Nuri shows the foods it recognised as big tiles with a green ✓.
@@ -129,7 +129,7 @@ Tabs: **Beranda** · **Kasus** (cases) · **Tanya Nuri** · **Logistik** · **Pr
 
 ![Kader home, a child's page, sharing a note and locker pickup](images/4-kader.png)
 
-- **Wilayah saya** (my area) counts the children who need follow-up 🔴, need attention 🟠 or are on track 🟢. Tap a count to see those children.
+- **Wilayah saya** (my area) counts the children who need follow-up (red), need attention (orange) or are on track (green). Tap a count to see those children.
 - **Daftar kunjungan** (visit list) is sorted by priority, most urgent first.
   - Search by name.
   - Filter by **Semua** (all), **Prioritas**, **Baru** (new) or **Tindak lanjut** (follow-up).

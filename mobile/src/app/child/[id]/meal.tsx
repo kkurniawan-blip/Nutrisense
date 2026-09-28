@@ -216,7 +216,7 @@ export default function MealScreen() {
                 {menus.missing_groups.map((mg) => {
                   const g = FOOD_GROUPS.find((x) => x.key === mg.key);
                   return (
-                    <View key={mg.key} style={{ backgroundColor: '#fff', borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 2, borderColor: g?.color ?? colors.border }}>
+                    <View key={mg.key} style={{ backgroundColor: '#fff', borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1.5, borderColor: g?.color ?? colors.border }}>
                       <Text style={{ fontWeight: '700' }}>
                         {g?.emoji} {GROUP_PLAIN[mg.key]?.[lang] ?? mg.label}
                       </Text>
@@ -326,8 +326,8 @@ export default function MealScreen() {
           value={filter}
           onChangeText={setFilter}
           placeholder="🔍 telur, ikan, kelor…"
-          placeholderTextColor="#BCAEB6"
-          style={{ borderWidth: 2, borderColor: colors.border, borderRadius: radius.pill, paddingHorizontal: 16, paddingVertical: 10, marginBottom: 10, fontSize: 16 }}
+          placeholderTextColor="#8A92A6"
+          style={{ borderWidth: 1.5, borderColor: colors.border, borderRadius: radius.pill, paddingHorizontal: 16, paddingVertical: 10, marginBottom: 10, fontSize: 16 }}
         />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
           {shown.map((f) => (

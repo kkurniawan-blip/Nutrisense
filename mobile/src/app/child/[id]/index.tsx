@@ -286,7 +286,7 @@ export default function ChildDetail() {
           <Row style={{ justifyContent: 'space-between' }}>
             {stickers(meals.data ?? [], measurements.data ?? [], lang).map((s) => (
               <View key={s.key} style={{ alignItems: 'center', flex: 1 }}>
-                <View style={{ width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', backgroundColor: s.earned ? colors.accentSoft : '#F3ECE8', borderWidth: 3, borderColor: s.earned ? colors.accent : '#E6D9D2', borderStyle: s.earned ? 'solid' : 'dashed' }}>
+                <View style={{ width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', backgroundColor: s.earned ? colors.accentSoft : '#E9ECF2', borderWidth: 3, borderColor: s.earned ? colors.accent : '#C9CFDA', borderStyle: s.earned ? 'solid' : 'dashed' }}>
                   <Text style={{ fontSize: 24, opacity: s.earned ? 1 : 0.4 }}>{s.emoji}</Text>
                 </View>
                 <Text style={{ fontSize: 12, fontWeight: '700', textAlign: 'center', marginTop: 4 }}>{s.title}</Text>

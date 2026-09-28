@@ -14,19 +14,78 @@ import {
   ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Circle, Defs, Path, Pattern, Rect } from 'react-native-svg';
 
 import { useAuth } from '../lib/auth';
 import { FOOD_GROUPS, FRIENDLY_RISK } from '../lib/fun';
 import { clinicalStatus } from '../lib/status';
 import type { RiskLevel } from '../lib/types';
-import { colors, radius, shadow, StatusKey, statusColor, tilePalette, TOUCH } from '../theme';
+import { colors, fonts, radius, StatusKey, statusColor, tilePalette, TOUCH } from '../theme';
 import { Mascot, Mood } from './Mascot';
 import { Text, TextInput } from './Text';
 
 export { Text, TextInput };
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+type IconName = keyof typeof Ionicons.glyphMap;
+
+/**
+ * Structural emoji (section and menu markers) are drawn as line icons so screens read as one
+ * instrument panel. Food, child and mascot emoji are content and stay as they are.
+ */
+const ICONS: Record<string, IconName> = {
+  '🗓️': 'calendar-outline', '📅': 'calendar-outline', '🧠': 'bulb-outline', '🔐': 'lock-closed-outline',
+  '🤒': 'thermometer-outline', '🌡️': 'thermometer-outline', '📸': 'camera-outline', '📷': 'camera-outline',
+  '📖': 'book-outline', '📚': 'book-outline', '📈': 'trending-up-outline', '💬': 'chatbubbles-outline',
+  '👩‍🍳': 'flame-outline', '🍳': 'flame-outline', '🍽️': 'restaurant-outline', '🌱': 'leaf-outline',
+  '➕': 'add-circle-outline', '🤖': 'sparkles-outline', '🔔': 'notifications-outline', '🔎': 'search-outline',
+  '🔍': 'search-outline', '📏': 'resize-outline', '📊': 'bar-chart-outline', '🎁': 'gift-outline',
+  '✍️': 'create-outline', '📝': 'create-outline', '✅': 'checkmark-done-outline', '⚙️': 'settings-outline',
+  'ℹ️': 'information-circle-outline', '🛡️': 'shield-checkmark-outline', '🛒': 'cart-outline',
+  '🚨': 'warning-outline', '⚠️': 'warning-outline', '🗺️': 'map-outline', '🔑': 'key-outline',
+  '📶': 'cloud-upload-outline', '📍': 'location-outline', '📄': 'document-text-outline', '📋': 'clipboard-outline',
+  '👩‍⚕️': 'medkit-outline', '🩺': 'medkit-outline', '👤': 'person-outline', '🏠': 'home-outline',
+  '🏅': 'ribbon-outline', '🌏': 'globe-outline', '☁️': 'cloud-outline', '🚁': 'airplane-outline',
+  '📦': 'cube-outline', '🔒': 'lock-closed-outline', '💊': 'bandage-outline', '🧪': 'flask-outline',
+  '🎯': 'locate-outline', '⏰': 'alarm-outline', '📞': 'call-outline', '📱': 'phone-portrait-outline',
+  '🧾': 'receipt-outline', '🔄': 'sync-outline', '👪': 'people-outline', '👥': 'people-outline',
+};
+export const iconFor = (emoji?: string): IconName | undefined => (emoji ? ICONS[emoji.trim()] : undefined);
+
+/** A square chip with a line icon (or the emoji itself when it is content, like food). */
+export function IconChip({ emoji, icon, size = 44, fg = colors.ink, bg = colors.bg }: { emoji?: string; icon?: IconName; size?: number; fg?: string; bg?: string }) {
+  const name = icon ?? iconFor(emoji);
+  return (
+    <View style={{ width: size, height: size, borderRadius: size * 0.28, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
+      {name ? <Ionicons name={name} size={Math.round(size * 0.5)} color={fg} /> : <Text style={{ fontSize: Math.round(size * 0.48) }}>{emoji}</Text>}
+    </View>
+  );
+}
+
+/** Small monospaced uppercase label: section eyebrows, step counters, units. */
+export function Eyebrow({ children, color = colors.muted, style }: { children: React.ReactNode; color?: string; style?: object }) {
+  return <Text style={[{ fontFamily: fonts.monoBold, fontSize: 12, letterSpacing: 1.4, color, textTransform: 'uppercase' }, style]}>{children}</Text>;
+}
+
+/**
+ * Ikat diamond lattice, drawn as hairlines: the woven pattern of East Nusa Tenggara cloth,
+ * used as a quiet texture in the indigo header bands.
+ */
+export function IkatPattern({ color = '#ffffff', opacity = 0.09, cell = 28 }: { color?: string; opacity?: number; cell?: number }) {
+  const h = cell / 2;
+  return (
+    <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+      <Defs>
+        <Pattern id="ikat" width={cell} height={cell} patternUnits="userSpaceOnUse">
+          <Path d={`M${h} 0 L${cell} ${h} L${h} ${cell} L0 ${h} Z`} stroke={color} strokeWidth={1} fill="none" />
+          <Path d={`M${h} ${h * 0.55} L${h * 1.45} ${h} L${h} ${h * 1.45} L${h * 0.55} ${h} Z`} fill={color} />
+        </Pattern>
+      </Defs>
+      <Rect width="100%" height="100%" fill="url(#ikat)" opacity={opacity} />
+    </Svg>
+  );
+}
 
 /** Pressable that gently shrinks when tapped: small delight on every button and tile. */
 export function PressScale({ children, style, ...props }: PressableProps & { style?: ViewStyle | ViewStyle[]; children: React.ReactNode }) {
@@ -88,10 +147,18 @@ export function H1({ children }: { children: React.ReactNode }) {
 export function H2({ children, right, emoji }: { children: React.ReactNode; right?: React.ReactNode; emoji?: string }) {
   return (
     <View style={styles.h2Row}>
-      <Text style={styles.h2}>
-        {emoji ? `${emoji}  ` : ''}
-        {children}
-      </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1 }}>
+        {emoji ? (
+          iconFor(emoji) ? (
+            <IconChip emoji={emoji} size={32} fg={colors.primary} bg={colors.primarySoft} />
+          ) : (
+            <Text style={{ fontSize: 20 }}>{emoji}</Text>
+          )
+        ) : (
+          <View style={styles.h2Mark} />
+        )}
+        <Text style={styles.h2}>{children}</Text>
+      </View>
       {right}
     </View>
   );
@@ -121,9 +188,9 @@ export function Button({
   const palette = {
     primary: { bg: colors.primary, fg: '#fff', border: colors.primary },
     mint: { bg: colors.mint, fg: '#fff', border: colors.mint },
-    secondary: { bg: colors.primarySoft, fg: colors.primaryDark, border: colors.primarySoft },
+    secondary: { bg: colors.ink, fg: '#fff', border: colors.ink },
     danger: { bg: colors.danger, fg: '#fff', border: colors.danger },
-    ghost: { bg: '#fff', fg: colors.primaryDark, border: colors.border },
+    ghost: { bg: '#fff', fg: colors.ink, border: colors.border },
   }[variant];
   return (
     <PressScale
@@ -149,7 +216,7 @@ export function Field({ label, hint, error, ...props }: TextInputProps & { label
     <View style={{ marginBottom: 14 }}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
       <TextInput
-        placeholderTextColor="#BCAEB6"
+        placeholderTextColor="#8A92A6"
         accessibilityLabel={label}
         {...props}
         style={[styles.input, props.multiline && { minHeight: 100, textAlignVertical: 'top' }, error ? { borderColor: colors.danger } : null]}
@@ -171,7 +238,7 @@ export function PasswordField({ label, hint, error, showLabel, hideLabel, ...pro
       <Text style={styles.label}>{label}</Text>
       <View style={{ justifyContent: 'center' }}>
         <TextInput
-          placeholderTextColor="#BCAEB6"
+          placeholderTextColor="#8A92A6"
           accessibilityLabel={label}
           autoCapitalize="none"
           autoCorrect={false}
@@ -201,13 +268,13 @@ export function Toggle({ label, value, onChange, disabled }: { label: string; va
   return (
     <View style={styles.toggleRow}>
       <Text style={[styles.p, { flex: 1, marginRight: 8 }]}>{label}</Text>
-      <Switch value={value} onValueChange={onChange} disabled={disabled} accessibilityLabel={label} trackColor={{ true: colors.mint, false: '#E6D9D2' }} thumbColor="#fff" />
+      <Switch value={value} onValueChange={onChange} disabled={disabled} accessibilityLabel={label} trackColor={{ true: colors.mint, false: '#C9CFDA' }} thumbColor="#fff" />
     </View>
   );
 }
 
 export function Chip({ label, selected, onPress, tone, emoji }: { label: string; selected?: boolean; onPress?: () => void; tone?: 'danger'; emoji?: string }) {
-  const active = tone === 'danger' ? colors.danger : colors.primary;
+  const active = tone === 'danger' ? colors.danger : colors.ink;
   return (
     <PressScale
       onPress={onPress}
@@ -232,7 +299,7 @@ export function Segmented<T extends string>({ options, value, onChange }: { opti
           accessibilityState={{ selected: value === o.value }}
           style={[styles.segmentItem, value === o.value && styles.segmentActive]}
         >
-          <Text style={{ color: value === o.value ? '#fff' : colors.text, fontWeight: value === o.value ? '900' : '700' }}>{o.label}</Text>
+          <Text style={{ color: value === o.value ? '#fff' : colors.text, fontWeight: value === o.value ? '800' : '600' }}>{o.label}</Text>
         </Pressable>
       ))}
     </View>
@@ -251,7 +318,7 @@ export function RiskBadge({ level, large, clinical }: { level: RiskLevel | null 
   return <StatusPill status={clinicalStatus(level)} label={t(`risk_${level}`)} large={large} />;
 }
 
-/** Semantic status: coloured dot + text label, never colour alone. */
+/** Semantic status: a shaped marker + text label, never colour alone. */
 export function StatusPill({ status, label, large }: { status: StatusKey; label: string; large?: boolean }) {
   const c = statusColor[status];
   return (
@@ -259,10 +326,16 @@ export function StatusPill({ status, label, large }: { status: StatusKey; label:
       accessibilityLabel={label}
       style={[styles.badge, { backgroundColor: c.bg, flexDirection: 'row', alignItems: 'center', gap: 6 }, large && { paddingHorizontal: 14, paddingVertical: 8 }]}
     >
-      <Text style={{ fontSize: large ? 14 : 12 }}>{c.dot}</Text>
+      <StatusMark status={status} size={large ? 10 : 8} />
       <Text style={{ color: c.fg, fontWeight: '800', fontSize: large ? 17 : 15 }}>{label}</Text>
     </View>
   );
+}
+
+/** The status marker on its own: a square for fine/monitor/info, a diamond for action and urgent. */
+export function StatusMark({ status, size = 8 }: { status: StatusKey; size?: number }) {
+  const turn = status === 'urgent' || status === 'action';
+  return <View style={[styles.mark, { width: size, height: size, backgroundColor: statusColor[status].mark }, turn && { transform: [{ rotate: '45deg' }] }]} />;
 }
 
 /** Makes clear who is speaking: AI guidance (purple) vs a real health worker (blue). */
@@ -270,8 +343,9 @@ export function SourceTag({ kind }: { kind: 'ai' | 'pro' }) {
   const { t } = useAuth();
   const c = kind === 'ai' ? statusColor.ai : statusColor.info;
   return (
-    <View style={[styles.badge, { backgroundColor: c.bg, marginBottom: 8 }]}>
-      <Text style={{ color: c.fg, fontWeight: '800', fontSize: 13 }}>{kind === 'ai' ? `🤖 ${t('aiGuidance')}` : `👩‍⚕️ ${t('proRecommendation')}`}</Text>
+    <View style={[styles.badge, { backgroundColor: c.bg, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
+      <Ionicons name={kind === 'ai' ? 'sparkles' : 'medkit'} size={13} color={c.fg} />
+      <Text style={{ color: c.fg, fontWeight: '800', fontSize: 13 }}>{kind === 'ai' ? t('aiGuidance') : t('proRecommendation')}</Text>
     </View>
   );
 }
@@ -280,14 +354,12 @@ export function SourceTag({ kind }: { kind: 'ai' | 'pro' }) {
 export function ListRow({ emoji, title, subtitle, onPress, right }: { emoji: string; title: string; subtitle?: string; onPress?: () => void; right?: React.ReactNode }) {
   return (
     <PressScale onPress={onPress} accessibilityRole="button" style={styles.listRow}>
-      <View style={styles.listIcon}>
-        <Text style={{ fontSize: 22 }}>{emoji}</Text>
-      </View>
+      <IconChip emoji={emoji} size={46} />
       <View style={{ flex: 1 }}>
         <Text style={{ fontWeight: '800', fontSize: 17 }}>{title}</Text>
         {subtitle ? <Text style={{ color: colors.muted, fontSize: 15, lineHeight: 20 }}>{subtitle}</Text> : null}
       </View>
-      {right ?? <Ionicons name="chevron-forward" size={20} color={colors.muted} />}
+      {right ?? <Ionicons name="arrow-forward" size={18} color={colors.muted} />}
     </PressScale>
   );
 }
@@ -296,10 +368,11 @@ export function ListRow({ emoji, title, subtitle, onPress, right }: { emoji: str
 export function JourneyHeader({ step, emoji, title }: { step: string; emoji: string; title: string }) {
   return (
     <View style={{ marginTop: 10, marginBottom: 8 }}>
-      <Text style={{ fontSize: 12, fontWeight: '900', color: colors.primaryDark, letterSpacing: 1.2 }}>
-        {emoji} {step.toUpperCase()}
-      </Text>
-      <Text style={{ fontSize: 19, fontWeight: '900' }}>{title}</Text>
+      <Row style={{ gap: 8 }}>
+        {iconFor(emoji) ? <Ionicons name={iconFor(emoji)!} size={14} color={colors.primary} /> : <Text style={{ fontSize: 13 }}>{emoji}</Text>}
+        <Eyebrow color={colors.primary}>{step}</Eyebrow>
+      </Row>
+      <Text style={{ fontSize: 19, fontWeight: '800', marginTop: 2 }}>{title}</Text>
     </View>
   );
 }
@@ -330,12 +403,14 @@ export function Stat({ label, value, tone }: { label: string; value: string | nu
 export function Tile({ emoji, title, subtitle, onPress, color = 0, wide }: { emoji: string; title: string; subtitle?: string; onPress: () => void; color?: number; wide?: boolean }) {
   const p = tilePalette[color % tilePalette.length];
   return (
-    <PressScale onPress={onPress} style={[styles.tile, { backgroundColor: p.bg, flexBasis: wide ? '100%' : '47%' }]}>
-      <View style={styles.tileEmoji}>
-        <Text style={{ fontSize: 28 }}>{emoji}</Text>
+    <PressScale onPress={onPress} style={[styles.tile, { flexBasis: wide ? '100%' : '47%' }]}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <IconChip emoji={emoji} size={50} fg={p.fg} bg={p.bg} />
+        <Ionicons name="arrow-forward" size={18} color={colors.muted} />
       </View>
-      <Text style={{ fontSize: 18, fontWeight: '900', color: p.fg, marginTop: 10 }}>{title}</Text>
-      {subtitle ? <Text style={{ fontSize: 14, color: colors.text, marginTop: 2, lineHeight: 19 }}>{subtitle}</Text> : null}
+      <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text, marginTop: 14 }}>{title}</Text>
+      {subtitle ? <Text style={{ fontSize: 14, color: colors.muted, marginTop: 2, lineHeight: 19 }}>{subtitle}</Text> : null}
+      <View style={[styles.tileAccent, { backgroundColor: p.fg }]} />
     </PressScale>
   );
 }
@@ -372,10 +447,10 @@ export function RainbowPlate({ groups, size = 76 }: { groups: string[]; size?: n
       <Svg width={size} height={size} style={{ position: 'absolute' }}>
         <Circle cx={r} cy={r} r={inner - 2} fill="#fff" />
         {FOOD_GROUPS.map((g, i) => (
-          <Path key={g.key} d={arc(i)} fill={groups.includes(g.key) ? g.color : '#F1E6E0'} />
+          <Path key={g.key} d={arc(i)} fill={groups.includes(g.key) ? g.color : '#E3E7EE'} />
         ))}
       </Svg>
-      <Text style={{ fontWeight: '900', fontSize: size * 0.22, color: colors.text }}>{count}/8</Text>
+      <Text style={{ fontFamily: fonts.monoBold, fontSize: size * 0.2, color: colors.text }}>{count}/8</Text>
     </View>
   );
 }
@@ -393,7 +468,7 @@ export function ErrorBox({ message, onRetry }: { message: string; onRetry?: () =
   const { t } = useAuth();
   return (
     <View style={styles.errorBox}>
-      <Text style={{ color: colors.danger, fontWeight: '600', marginBottom: onRetry ? 8 : 0 }}>😥 {message}</Text>
+      <Text style={{ color: colors.danger, fontWeight: '600', marginBottom: onRetry ? 8 : 0 }}>{message}</Text>
       {onRetry && <Button small variant="ghost" title={t('retry')} onPress={onRetry} />}
     </View>
   );
@@ -420,34 +495,35 @@ export function Bar({ pct, color = colors.mint, warnBelow = 70 }: { pct: number;
 export const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   padded: { paddingHorizontal: 18, paddingTop: 18 },
-  card: { backgroundColor: colors.card, borderRadius: radius.lg, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: '#F7ECE6', ...shadow },
-  h1: { fontSize: 26, fontWeight: '900', color: colors.text, marginBottom: 8 },
+  card: { backgroundColor: colors.card, borderRadius: radius.lg, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: colors.border },
+  h1: { fontSize: 26, fontWeight: '900', color: colors.text, marginBottom: 8, letterSpacing: -0.3 },
   h2Row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, marginTop: 4, gap: 8 },
-  h2: { fontSize: 20, fontWeight: '800', color: colors.text, flexShrink: 1, lineHeight: 26 },
+  h2: { fontSize: 20, fontWeight: '800', color: colors.text, flexShrink: 1, lineHeight: 26, letterSpacing: -0.2 },
+  h2Mark: { width: 4, height: 18, borderRadius: 2, backgroundColor: colors.primary },
   p: { fontSize: 17, color: colors.text, lineHeight: 25 },
-  label: { fontSize: 15, fontWeight: '800', color: colors.text, marginBottom: 8, marginLeft: 4 },
-  input: { borderWidth: 2, borderColor: '#F4E6DF', borderRadius: radius.md, paddingHorizontal: 16, paddingVertical: 12, fontSize: 17, backgroundColor: '#FFFCFA', color: colors.text },
-  button: { borderRadius: radius.pill, paddingVertical: 16, paddingHorizontal: 20, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginVertical: 6, minHeight: 58 },
+  label: { fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 8, marginLeft: 2 },
+  input: { borderWidth: 1.5, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: 16, paddingVertical: 13, fontSize: 17, backgroundColor: '#FFFFFF', color: colors.text },
+  button: { borderRadius: radius.md, paddingVertical: 16, paddingHorizontal: 20, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', marginVertical: 6, minHeight: 58 },
   buttonSmall: { paddingVertical: 10, paddingHorizontal: 16, minHeight: 48 },
   buttonInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  buttonText: { fontSize: 18, fontWeight: '800', textAlign: 'center', flexShrink: 1 },
+  buttonText: { fontSize: 18, fontWeight: '700', textAlign: 'center', flexShrink: 1 },
   toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, minHeight: TOUCH },
-  chip: { borderWidth: 2, borderRadius: radius.pill, paddingHorizontal: 16, paddingVertical: 10, marginRight: 8, marginBottom: 10, minHeight: 48, justifyContent: 'center' },
+  chip: { borderWidth: 1.5, borderRadius: radius.md, paddingHorizontal: 16, paddingVertical: 10, marginRight: 8, marginBottom: 10, minHeight: 48, justifyContent: 'center' },
   listRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, minHeight: 66 },
-  listIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
-  segment: { flexDirection: 'row', backgroundColor: '#F6EAE4', borderRadius: radius.pill, padding: 4, marginBottom: 14 },
-  segmentItem: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 4, minHeight: 48, borderRadius: radius.pill },
-  segmentActive: { backgroundColor: colors.primary },
-  badge: { borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4, alignSelf: 'flex-start' },
-  stat: { flex: 1, minWidth: 96, backgroundColor: colors.card, borderRadius: radius.md, padding: 14, ...shadow },
-  statValue: { fontSize: 24, fontWeight: '900' },
-  statLabel: { fontSize: 12, color: colors.muted, marginTop: 2, fontWeight: '600' },
+  segment: { flexDirection: 'row', backgroundColor: '#E1E5EC', borderRadius: radius.md, padding: 4, marginBottom: 14 },
+  segmentItem: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 4, minHeight: 48, borderRadius: radius.sm },
+  segmentActive: { backgroundColor: colors.ink },
+  badge: { borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4, alignSelf: 'flex-start' },
+  stat: { flex: 1, minWidth: 96, backgroundColor: colors.card, borderRadius: radius.md, padding: 14, borderWidth: 1, borderColor: colors.border },
+  mark: { width: 8, height: 8, borderRadius: 2 },
+  statValue: { fontSize: 20, fontFamily: fonts.displayBold },
+  statLabel: { fontSize: 12, color: colors.muted, marginTop: 4, fontWeight: '600' },
   errorBox: { backgroundColor: colors.dangerSoft, borderRadius: radius.md, padding: 14, marginVertical: 8 },
-  barTrack: { height: 12, backgroundColor: '#F4E9E3', borderRadius: 6, overflow: 'hidden', flex: 1 },
-  barFill: { height: 12, borderRadius: 6 },
-  tile: { borderRadius: radius.lg, padding: 16, minHeight: 132, flexGrow: 1 },
-  tileEmoji: { backgroundColor: '#fff', borderRadius: 20, width: 54, height: 54, alignItems: 'center', justifyContent: 'center' },
-  bubble: { flex: 1, borderRadius: 20, padding: 16, marginLeft: 10, marginBottom: 6 },
+  barTrack: { height: 10, backgroundColor: '#E3E7EE', borderRadius: 3, overflow: 'hidden', flex: 1 },
+  barFill: { height: 10, borderRadius: 3 },
+  tile: { borderRadius: radius.lg, padding: 16, minHeight: 140, flexGrow: 1, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  tileAccent: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 3 },
+  bubble: { flex: 1, borderRadius: radius.lg, borderBottomLeftRadius: 4, padding: 16, marginLeft: 10, marginBottom: 6 },
   bubbleTail: {
     position: 'absolute',
     left: -8,

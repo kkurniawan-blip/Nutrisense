@@ -28,9 +28,9 @@ export function Mascot({ size = 96, mood = 'happy', bounce = false }: { size?: n
     <Animated.View style={{ transform: [{ translateY: y }] }}>
       <Svg width={size} height={size} viewBox="0 0 100 100">
         {/* sprout */}
-        <Path d="M50 30 C50 22 50 18 50 14" stroke="#2FB38A" strokeWidth={4} strokeLinecap="round" fill="none" />
-        <Path d="M50 18 C40 6 26 10 26 18 C34 24 44 22 50 18 Z" fill="#46C89E" />
-        <Path d="M50 16 C58 2 76 6 76 14 C68 22 57 21 50 16 Z" fill="#2FB38A" />
+        <Path d="M50 30 C50 22 50 18 50 14" stroke="#1D7A55" strokeWidth={4} strokeLinecap="round" fill="none" />
+        <Path d="M50 18 C40 6 26 10 26 18 C34 24 44 22 50 18 Z" fill="#3E9C72" />
+        <Path d="M50 16 C58 2 76 6 76 14 C68 22 57 21 50 16 Z" fill="#1D7A55" />
         {/* body */}
         <Ellipse cx={50} cy={62} rx={34} ry={31} fill="#FFD6BF" />
         <Ellipse cx={50} cy={68} rx={24} ry={18} fill="#FFE6D6" />
@@ -39,33 +39,33 @@ export function Mascot({ size = 96, mood = 'happy', bounce = false }: { size?: n
         <Circle cx={70} cy={68} r={6} fill="#FF9E9E" opacity={0.7} />
         {/* eyes */}
         {mood === 'cheer' ? (
-          <G stroke="#3B2F3A" strokeWidth={3.2} strokeLinecap="round" fill="none">
+          <G stroke="#161C33" strokeWidth={3.2} strokeLinecap="round" fill="none">
             <Path d="M34 58 Q39 52 44 58" />
             <Path d="M56 58 Q61 52 66 58" />
           </G>
         ) : (
           <G>
-            <Circle cx={39} cy={eyeY} r={4.5} fill="#3B2F3A" />
-            <Circle cx={61} cy={eyeY} r={4.5} fill="#3B2F3A" />
+            <Circle cx={39} cy={eyeY} r={4.5} fill="#161C33" />
+            <Circle cx={61} cy={eyeY} r={4.5} fill="#161C33" />
             <Circle cx={40.5} cy={eyeY - 1.6} r={1.5} fill="#fff" />
             <Circle cx={62.5} cy={eyeY - 1.6} r={1.5} fill="#fff" />
           </G>
         )}
         {mood === 'caring' && (
-          <G stroke="#3B2F3A" strokeWidth={2} strokeLinecap="round">
+          <G stroke="#161C33" strokeWidth={2} strokeLinecap="round">
             <Path d="M33 49 L43 51" />
             <Path d="M67 49 L57 51" />
           </G>
         )}
         {/* mouth */}
         {mood === 'thinking' ? (
-          <Circle cx={52} cy={72} r={3.2} fill="#3B2F3A" />
+          <Circle cx={52} cy={72} r={3.2} fill="#161C33" />
         ) : mood === 'caring' ? (
-          <Path d="M43 73 Q50 76 57 73" stroke="#3B2F3A" strokeWidth={3} strokeLinecap="round" fill="none" />
+          <Path d="M43 73 Q50 76 57 73" stroke="#161C33" strokeWidth={3} strokeLinecap="round" fill="none" />
         ) : (
-          <Path d="M41 69 Q50 80 59 69 Z" fill="#E0564A" stroke="#3B2F3A" strokeWidth={2.2} strokeLinejoin="round" />
+          <Path d="M41 69 Q50 80 59 69 Z" fill="#E0564A" stroke="#161C33" strokeWidth={2.2} strokeLinejoin="round" />
         )}
-        {mood === 'thinking' && <Circle cx={80} cy={36} r={4} fill="#EEEAFF" stroke="#8672F2" strokeWidth={1.5} />}
+        {mood === 'thinking' && <Circle cx={80} cy={36} r={4} fill="#E6E7FA" stroke="#4B4FC4" strokeWidth={1.5} />}
       </Svg>
     </Animated.View>
   );

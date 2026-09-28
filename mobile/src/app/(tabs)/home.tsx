@@ -8,7 +8,7 @@ import { KaderHome } from '../../components/KaderHome';
 import { Mascot } from '../../components/Mascot';
 import { SyncBanner } from '../../components/SyncBanner';
 import { Text } from '../../components/Text';
-import { Button, Card, Empty, ErrorBox, H2, ListRow, Loading, PressScale, Row, StatusPill, Tile } from '../../components/ui';
+import { Button, Card, Empty, ErrorBox, H2, IkatPattern, ListRow, Loading, PressScale, Row, StatusPill, Tile } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
 import { childEmoji, formatAge, formatDate, greeting, tipOfTheDay } from '../../lib/fun';
 import { motherStatus, txt } from '../../lib/status';
@@ -66,13 +66,19 @@ function MotherHome() {
   return (
     <ScrollView refreshControl={<RefreshControl refreshing={children.loading} onRefresh={refresh} tintColor={colors.primary} />} contentContainerStyle={{ paddingBottom: 40 }}>
       {/* Greeting + child selector */}
-      <View style={{ backgroundColor: colors.primary, paddingTop: insets.top + 12, paddingHorizontal: 18, paddingBottom: 28, borderBottomLeftRadius: 28, borderBottomRightRadius: 28 }}>
+      <View style={{ backgroundColor: colors.ink, paddingTop: insets.top + 14, paddingHorizontal: 18, paddingBottom: 30, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, overflow: 'hidden' }}>
+        <IkatPattern />
+        <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 4, flexDirection: 'row' }}>
+          <View style={{ flex: 3, backgroundColor: colors.primary }} />
+          <View style={{ flex: 1, backgroundColor: colors.accent }} />
+          <View style={{ flex: 2, backgroundColor: colors.mint }} />
+        </View>
         <Row style={{ justifyContent: 'space-between' }}>
-          <Text style={{ color: '#fff', fontSize: 23, fontWeight: '900', flex: 1 }}>
+          <Text style={{ color: '#fff', fontSize: 22, fontWeight: '900', flex: 1 }}>
             {greeting(lang)}, {t('mom')} {first} 👋
           </Text>
-          <Pressable onPress={() => router.push('/notifications')} accessibilityLabel={t('notifications')} style={{ backgroundColor: '#fff', borderRadius: 22, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="notifications" size={20} color={colors.primary} />
+          <Pressable onPress={() => router.push('/notifications')} accessibilityLabel={t('notifications')} style={{ backgroundColor: '#ffffff1a', borderRadius: 12, width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#ffffff33' }}>
+            <Ionicons name="notifications-outline" size={20} color="#fff" />
           </Pressable>
         </Row>
         {kids.length > 0 && (
@@ -85,11 +91,11 @@ function MotherHome() {
                   onPress={() => setPicked(c.id)}
                   accessibilityRole="button"
                   accessibilityState={{ selected: on }}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: on ? '#fff' : '#ffffff33', borderRadius: radius.pill, paddingHorizontal: 14, minHeight: 44 }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: on ? '#fff' : '#ffffff14', borderWidth: 1, borderColor: on ? '#fff' : '#ffffff40', borderRadius: radius.md, paddingHorizontal: 14, minHeight: 44 }}
                 >
                   <Text style={{ fontSize: 18 }}>{childEmoji(c.sex, c.age_months)}</Text>
-                  <Text style={{ fontWeight: '900', color: on ? colors.primaryDark : '#fff' }}>{c.name.split(' ')[0]}</Text>
-                  {on && <Ionicons name="checkmark-circle" size={16} color={colors.primaryDark} />}
+                  <Text style={{ fontWeight: '900', color: on ? colors.ink : '#fff' }}>{c.name.split(' ')[0]}</Text>
+                  {on && <Ionicons name="checkmark-circle" size={16} color={colors.primary} />}
                 </PressScale>
               );
             })}
@@ -135,7 +141,7 @@ function MotherHome() {
                   </Text>
                 </View>
               ) : null}
-              <Text style={{ color: colors.primaryDark, fontWeight: '800', marginTop: 8 }}>{t('seeProfile')} →</Text>
+              <Text style={{ color: colors.primary, fontWeight: '800', marginTop: 8 }}>{t('seeProfile')} →</Text>
             </Card>
 
             {/* Today checklist */}
@@ -149,7 +155,7 @@ function MotherHome() {
                 return (
                   <Pressable key={item.key} onPress={() => go(item.action)} accessibilityRole="button" style={{ minHeight: 48, justifyContent: 'center', borderBottomWidth: 1, borderColor: colors.border }}>
                     <Row>
-                      <Text style={{ fontSize: 14 }}>{c.dot}</Text>
+                      <Ionicons name={item.status === 'ok' ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={c.mark} />
                       <Text style={{ flex: 1, fontWeight: item.status === 'ok' ? '600' : '800', color: item.status === 'ok' ? colors.text : c.fg }}>{item.text}</Text>
                       {item.status !== 'ok' && <Ionicons name="chevron-forward" size={18} color={c.fg} />}
                     </Row>

@@ -90,7 +90,7 @@ export function BestRecipeCard({ recipe, childName, onCook }: { recipe: KitchenR
         {recipe.highlights.length > 0 && (
           <Row style={{ flexWrap: 'wrap', gap: 8 }}>
             {recipe.highlights.map((h) => (
-              <Pill key={h} text={`💪 ${h}`} bg={colors.accentSoft} fg="#7A5600" />
+              <Pill key={h} text={`💪 ${h}`} bg={colors.accentSoft} fg="#7A5200" />
             ))}
           </Row>
         )}
@@ -116,13 +116,13 @@ export function BestRecipeCard({ recipe, childName, onCook }: { recipe: KitchenR
 export function RecipeOptionCard({ recipe, onPress }: { recipe: KitchenRecipe; onPress: () => void }) {
   const { t, lang } = useAuth();
   return (
-    <PressScale onPress={onPress} accessibilityRole="button" style={{ backgroundColor: '#fff', borderRadius: radius.lg, padding: 18, marginBottom: 14, borderWidth: 2, borderColor: colors.border, gap: 6 }}>
+    <PressScale onPress={onPress} accessibilityRole="button" style={{ backgroundColor: '#fff', borderRadius: radius.lg, padding: 18, marginBottom: 14, borderWidth: 1.5, borderColor: colors.border, gap: 6 }}>
       <Text style={{ fontSize: 28 }}>{emojis(recipe.foods)}</Text>
       <Text style={{ fontSize: 20, fontWeight: '900' }}>{recipe.name}</Text>
       <Text style={{ fontSize: 16, color: colors.muted }}>
         ⏱ {recipe.minutes} {t('minutes')} · {recipe.need_cost_idr > 0 ? `🛒 ${t('buyAbout')} ${rupiah(recipe.need_cost_idr, lang)}` : `✓ ${t('allAtHome')}`}
       </Text>
-      {recipe.highlights[0] ? <Text style={{ fontSize: 16, fontWeight: '800', color: '#7A5600' }}>💪 {recipe.highlights.join(' · ')}</Text> : null}
+      {recipe.highlights[0] ? <Text style={{ fontSize: 16, fontWeight: '800', color: '#7A5200' }}>💪 {recipe.highlights.join(' · ')}</Text> : null}
       <Text style={{ fontSize: 17, fontWeight: '900', color: colors.primaryDark, marginTop: 4 }}>{t('seeRecipe')} ›</Text>
     </PressScale>
   );
@@ -168,7 +168,7 @@ export function CookView({ recipe }: { recipe: KitchenRecipe | Recipe | MenuIdea
       {recipe.steps.map((s, i) => (
         <Card key={s}>
           <Row style={{ alignItems: 'flex-start', gap: 14 }}>
-            <View style={{ backgroundColor: colors.primary, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ backgroundColor: colors.ink, width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ color: '#fff', fontWeight: '900', fontSize: 19 }}>{i + 1}</Text>
             </View>
             <Text style={{ flex: 1, fontSize: 18, lineHeight: 27 }}>{s}</Text>

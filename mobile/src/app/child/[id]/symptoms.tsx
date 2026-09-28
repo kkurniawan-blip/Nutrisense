@@ -28,7 +28,7 @@ function Tile({ k, on, danger, onPress }: { k: string; on: boolean; danger?: boo
       onPress={onPress}
       accessibilityRole="checkbox"
       accessibilityState={{ checked: on }}
-      style={{ width: '31%', alignItems: 'center', paddingVertical: 12, minHeight: 88, borderRadius: radius.md, backgroundColor: on ? tint : '#fff', borderWidth: 2, borderColor: on ? tint : danger ? '#F3B9BE' : colors.border }}
+      style={{ width: '31%', alignItems: 'center', paddingVertical: 12, minHeight: 88, borderRadius: radius.md, backgroundColor: on ? tint : '#fff', borderWidth: 1.5, borderColor: on ? tint : danger ? '#F3B9BE' : colors.border }}
     >
       <Text style={{ fontSize: 28 }}>{SYMPTOM_EMOJI[k]}</Text>
       <Text style={{ fontSize: 13, fontWeight: '800', textAlign: 'center', color: on ? '#fff' : colors.text, marginTop: 4 }}>

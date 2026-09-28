@@ -25,6 +25,13 @@ function family(weight: TextStyle['fontWeight']): string {
   }
 }
 
+/** Big, heavy titles use the display face; everything else the body face by weight. */
+function pickFamily(weight: TextStyle['fontWeight'], size: number | undefined): string {
+  const heavy = ['800', '900', 'heavy', 'black'].includes(String(weight ?? ''));
+  if (heavy && size !== undefined && size >= 22) return fonts.display;
+  return family(weight);
+}
+
 /** App-wide text size multiplier chosen in Settings (1 = normal). */
 export const TextScaleContext = createContext(1);
 /** True inside another Text: nested text inherits its parent's size instead of taking the default. */
@@ -39,10 +46,15 @@ function withFont(style: TextProps['style'], scale: number, nested: boolean) {
     sized.fontSize = Math.round(rest.fontSize * scale);
     if (typeof rest.lineHeight === 'number') sized.lineHeight = Math.round(rest.lineHeight * scale);
   }
-  return [{ color: colors.text }, rest, sized, { fontFamily: family(fontWeight) }];
+  const fontFamily = rest.fontFamily ?? pickFamily(fontWeight, rest.fontSize);
+  if (!rest.fontFamily && fontFamily === fonts.display && rest.fontSize !== undefined) {
+    // The display face is wide: set it smaller so lines keep the same length.
+    sized.fontSize = Math.round((sized.fontSize ?? rest.fontSize) * 0.86);
+  }
+  return [{ color: colors.text }, rest, sized, { fontFamily }];
 }
 
-/** Drop-in replacement for react-native Text that applies the rounded Nunito font and the chosen text size. */
+/** Drop-in replacement for react-native Text that applies the app fonts (Plus Jakarta Sans, Unbounded for big titles) and the chosen text size. */
 export function Text(props: TextProps) {
   const scale = useContext(TextScaleContext);
   const nested = useContext(InsideText);

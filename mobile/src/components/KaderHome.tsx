@@ -13,7 +13,7 @@ import { useApi } from '../lib/useApi';
 import { colors, radius, statusColor } from '../theme';
 import { SyncBanner } from './SyncBanner';
 import { Text, TextInput } from './Text';
-import { Button, Card, Chip, ErrorBox, H2, Loading, Row, Segmented, StatusPill, Toggle } from './ui';
+import { Button, Card, Chip, ErrorBox, H2, IkatPattern, Loading, Row, Segmented, StatusMark, StatusPill, Toggle } from './ui';
 
 type Filter = 'all' | 'priority' | 'new' | 'followup';
 const PAGE = 30;
@@ -111,18 +111,24 @@ export function KaderHome() {
       contentContainerStyle={{ paddingBottom: 40 }}
       keyboardShouldPersistTaps="handled"
     >
-      <View style={{ backgroundColor: colors.primary, paddingTop: insets.top + 12, paddingHorizontal: 18, paddingBottom: 28, borderBottomLeftRadius: 28, borderBottomRightRadius: 28 }}>
+      <View style={{ backgroundColor: colors.ink, paddingTop: insets.top + 14, paddingHorizontal: 18, paddingBottom: 30, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, overflow: 'hidden' }}>
+        <IkatPattern />
+        <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 4, flexDirection: 'row' }}>
+          <View style={{ flex: 3, backgroundColor: colors.primary }} />
+          <View style={{ flex: 1, backgroundColor: colors.accent }} />
+          <View style={{ flex: 2, backgroundColor: colors.mint }} />
+        </View>
         <Row style={{ justifyContent: 'space-between' }}>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: '#fff', fontSize: 23, fontWeight: '900' }}>
+            <Text style={{ color: '#fff', fontSize: 22, fontWeight: '900' }}>
               {greeting(lang)}, {first} 👋
             </Text>
-            <Text style={{ color: '#fff', fontWeight: '700' }}>
+            <Text style={{ color: '#ffffffcc', fontWeight: '700', marginTop: 2 }}>
               🩺 Kader{user?.region ? ` · ${user.region.name}` : ''}
             </Text>
           </View>
-          <Pressable onPress={() => router.push('/notifications')} accessibilityLabel={t('notifications')} style={{ backgroundColor: '#fff', borderRadius: 22, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="notifications" size={20} color={colors.primary} />
+          <Pressable onPress={() => router.push('/notifications')} accessibilityLabel={t('notifications')} style={{ backgroundColor: '#ffffff1a', borderRadius: 12, width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#ffffff33' }}>
+            <Ionicons name="notifications-outline" size={20} color="#fff" />
           </Pressable>
         </Row>
       </View>
@@ -146,10 +152,13 @@ export function KaderHome() {
                   accessibilityLabel={`${d?.counts[g] ?? 0} ${txt(KADER_GROUPS[g].label, lang)}`}
                   style={{ flex: 1, backgroundColor: c.bg, borderRadius: radius.md, padding: 10, minHeight: 88 }}
                 >
-                  <Text style={{ fontSize: 26, fontWeight: '900', color: c.fg }}>{d?.counts[g] ?? '–'}</Text>
-                  <Text style={{ fontSize: 13, fontWeight: '800', color: c.fg }}>
-                    {c.dot} {txt(KADER_GROUPS[g].label, lang)}
-                  </Text>
+                  <Text style={{ fontSize: 30, fontWeight: '900', color: c.fg }}>{d?.counts[g] ?? '–'}</Text>
+                  <Row style={{ gap: 6, alignItems: 'flex-start' }}>
+                    <View style={{ marginTop: 5 }}>
+                      <StatusMark status={KADER_GROUPS[g].key} />
+                    </View>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: c.fg, flex: 1 }}>{txt(KADER_GROUPS[g].label, lang)}</Text>
+                  </Row>
                 </Pressable>
               );
             })}
@@ -172,7 +181,7 @@ export function KaderHome() {
 
         {/* Priority list with filters */}
         <H2 emoji="🏠">{t('visitList')}</H2>
-        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: radius.pill, paddingHorizontal: 14, marginBottom: 10, borderWidth: 2, borderColor: colors.border, minHeight: 48 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: radius.md, paddingHorizontal: 14, marginBottom: 10, borderWidth: 1.5, borderColor: colors.border, minHeight: 48 }}>
           <Ionicons name="search" size={18} color={colors.muted} />
           <TextInput
             value={q}
