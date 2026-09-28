@@ -67,6 +67,28 @@ Or create your own mother/caregiver account with **Daftar sebagai Ibu / pengasuh
   - privacy, notifications, the health guide, server address, and app/AI info.
 - **Shared phones:** logging out clears cached pages and unsent data. The app warns first if anything is still unsent. When a session expires, queued data is kept. Queued data never goes out under a different account.
 
+### Put it online
+
+The root `Dockerfile` builds a single image. The backend serves both the API and the web version of the app, so one link works on any phone's browser. `render.yaml` deploys that image to [Render](https://render.com) (free plan).
+
+1. Sign in to Render with your GitHub account and allow it to read this repository.
+2. In the Render dashboard, choose **New → Blueprint**, pick this repository and the branch to deploy, then **Apply**. Render generates the secrets. `NUTRISENSE_ANTHROPIC_API_KEY` is optional; leave it empty to run without Claude.
+3. The first build takes about 5–10 minutes. You then get an address like `https://nutrisense-xxxx.onrender.com`. Open it on any phone and log in with a demo account.
+
+Good to know about the free plan:
+- It sleeps after 15 minutes without visitors. The first visit after that takes about a minute to wake it.
+- Its disk is temporary, so every restart or redeploy starts again from fresh demo data. That is fine for demos.
+- For real use, add a PostgreSQL database (`NUTRISENSE_DATABASE_URL`) and follow the production checklist below.
+- The demo accounts and their password are public. Do not enter real children's data on a demo deployment.
+
+To run the same image on any server with Docker:
+```bash
+docker build -t nutrisense .
+docker run -p 8000:8000 -e NUTRISENSE_ENVIRONMENT=production \
+  -e NUTRISENSE_JWT_SECRET="$(openssl rand -hex 32)" -e NUTRISENSE_ENCRYPTION_KEY="$(openssl rand -hex 32)" nutrisense
+```
+Then open `http://<server>:8000`.
+
 ---
 
 ## How it maps to the proposal
@@ -206,5 +228,5 @@ Useful commands: `python -m app.cli train` (retrain and activate a new model run
 
 ## Production checklist
 
-- Set `NUTRISENSE_ENVIRONMENT=production`, a long `NUTRISENSE_JWT_SECRET` and a Fernet `NUTRISENSE_ENCRYPTION_KEY`. The server refuses to start in production without them.
+- Set `NUTRISENSE_ENVIRONMENT=production`, a long random `NUTRISENSE_JWT_SECRET` and a long random `NUTRISENSE_ENCRYPTION_KEY` (a Fernet key, or any random secret that a key is derived from). The server refuses to start in production without them.
 - Use PostgreSQL over TLS, restrict `NUTRISENSE_CORS_ORIGINS`, and set `NUTRISENSE_SEED_DEMO_DATA=false`.

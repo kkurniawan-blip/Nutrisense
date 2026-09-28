@@ -1,0 +1,14 @@
+**/node_modules
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.expo
+**/dist
+backend/*.db
+backend/model_store
+backend/uploads
+backend/web
+backend/.env
+e2e
+docs
+.git

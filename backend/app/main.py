@@ -9,6 +9,7 @@ from .config import get_settings
 from .database import Base, SessionLocal, engine, ensure_columns
 from .routers import auth, cases, children, dashboard, family, governance, logistics, nutrition
 from .services import model_registry
+from .webapp import serve_web_app
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 settings = get_settings()
@@ -48,3 +49,7 @@ for r in (auth.router, children.router, family.router, nutrition.router, cases.r
 def health():
     return {"status": "ok", "ai": {"claude_enabled": llm.is_enabled(), "model": settings.ai_model if llm.is_enabled() else None,
                                    "fallback": "rule-based + scikit-learn"}}
+
+
+# Last, so API and docs routes always win: the web app, when a build is present (Docker image).
+serve_web_app(app, settings.web_dir)

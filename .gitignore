@@ -9,6 +9,7 @@ backend/*.db
 backend/model_store/
 backend/uploads/
 backend/.env
+backend/web/
 
 # OS / editors
 .DS_Store

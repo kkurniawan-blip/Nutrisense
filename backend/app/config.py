@@ -31,6 +31,9 @@ class Settings(BaseSettings):
 
     model_dir: Path = BASE_DIR / "model_store"
     upload_dir: Path = BASE_DIR / "uploads"
+    # Exported web app (npx expo export -p web). When this folder exists the API also serves the app,
+    # so one address works for both (used by the Docker image / hosted deployment).
+    web_dir: Path = BASE_DIR / "web"
 
     # Risk-model confidence below which a human must review the assessment (human-in-the-loop).
     review_confidence_threshold: float = 0.6

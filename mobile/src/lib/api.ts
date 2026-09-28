@@ -9,6 +9,8 @@ const SERVER_KEY = 'nutrisense.server';
 function defaultBaseUrl(): string {
   const fromEnv = process.env.EXPO_PUBLIC_API_URL;
   if (fromEnv) return fromEnv.replace(/\/$/, '');
+  // Hosted web build: the backend serves the app itself, so the API is on the same address.
+  if (process.env.EXPO_PUBLIC_SAME_ORIGIN_API === '1' && Platform.OS === 'web' && typeof window !== 'undefined') return window.location.origin;
   // In Expo Go the dev server's host is the laptop running the backend.
   const host = Constants.expoConfig?.hostUri?.split(':')[0];
   if (host) return `http://${host}:8000`;

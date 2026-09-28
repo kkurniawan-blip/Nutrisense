@@ -1,0 +1,18 @@
+# Render Blueprint: one web service with the app and the API on the same address.
+# Render dashboard → New → Blueprint → pick this repository (and branch). See README "Put it online".
+services:
+  - type: web
+    name: nutrisense
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: NUTRISENSE_ENVIRONMENT
+        value: production
+      - key: NUTRISENSE_JWT_SECRET
+        generateValue: true
+      - key: NUTRISENSE_ENCRYPTION_KEY
+        generateValue: true
+      - key: NUTRISENSE_ANTHROPIC_API_KEY
+        sync: false # optional: a Claude API key turns on photo NutriScan and free-form Tanya Nuri

@@ -41,11 +41,18 @@ def decode_access_token(token: str) -> dict:
     return jwt.decode(token, settings.jwt_secret, algorithms=["HS256"])
 
 
+def _derive(secret: str) -> bytes:
+    return base64.urlsafe_b64encode(hashlib.sha256(secret.encode()).digest())
+
+
 def _fernet() -> Fernet:
     key = settings.encryption_key
     if not key:
-        key = base64.urlsafe_b64encode(hashlib.sha256(settings.jwt_secret.encode()).digest()).decode()
-    return Fernet(key.encode())
+        return Fernet(_derive(settings.jwt_secret))
+    try:
+        return Fernet(key.encode())
+    except ValueError:  # not a Fernet key (e.g. a generated random secret): derive one from it
+        return Fernet(_derive(key))
 
 
 def encrypt_text(value: str) -> str:
