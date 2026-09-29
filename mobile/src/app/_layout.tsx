@@ -91,6 +91,14 @@ function RootStack() {
           options={{ title: t("recipes") }}
         />
         <Stack.Screen name="food/[id]" options={{ title: "NutriScan" }} />
+        <Stack.Screen name="pregnancy/new" options={{ title: t("addPregnancy") }} />
+        <Stack.Screen name="pregnancy/[id]/index" options={{ title: t("pregnancy") }} />
+        <Stack.Screen name="pregnancy/[id]/measure" options={{ title: t("motherCheck") }} />
+        <Stack.Screen name="pregnancy/[id]/anc" options={{ title: t("ancTitle") }} />
+        <Stack.Screen name="pregnancy/[id]/supplements" options={{ title: t("ttdPmt") }} />
+        <Stack.Screen name="pregnancy/[id]/danger" options={{ title: t("urgentSigns") }} />
+        <Stack.Screen name="pregnancy/[id]/plan" options={{ title: t("birthPlan") }} />
+        <Stack.Screen name="pregnancy/[id]/birth" options={{ title: t("recordBirth") }} />
         <Stack.Screen
           name="child/[id]/analysis"
           options={{ title: t("analysisDetail") }}

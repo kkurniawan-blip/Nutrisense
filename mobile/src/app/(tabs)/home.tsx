@@ -6,13 +6,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { KaderHome } from '../../components/KaderHome';
 import { Mascot } from '../../components/Mascot';
+import { PregnancyHome } from '../../components/PregnancyHome';
 import { SyncBanner } from '../../components/SyncBanner';
 import { Text } from '../../components/Text';
 import { Button, Card, Empty, ErrorBox, ListRow, Loading, PressScale, QuickAction, Row, Section, StatusPill, Tile, Wash } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
 import { childEmoji, formatAge, greeting } from '../../lib/fun';
 import { motherStatus, txt } from '../../lib/status';
-import type { Child, TodayChecklist } from '../../lib/types';
+import type { Child, Pregnancy, TodayChecklist } from '../../lib/types';
 import { useApi } from '../../lib/useApi';
 import { colors, glass, radius, statusColor, Tone } from '../../theme';
 
@@ -31,9 +32,14 @@ function MotherHome() {
   const { user, t, lang } = useAuth();
   const insets = useSafeAreaInsets();
   const children = useApi<Child[]>('/api/children');
-  const [picked, setPicked] = useState<number | null>(null);
+  const pregnancies = useApi<Pregnancy[]>('/api/pregnancies');
+  const [picked, setPicked] = useState<number | 'mom' | null>(null);
+  const [adding, setAdding] = useState(false);
   const kids = children.data ?? [];
-  const child = kids.find((c) => c.id === picked) ?? kids[0] ?? null;
+  const preg = pregnancies.data?.[0] ?? null;
+  // "Bunda" is shown when picked, or when there is a pregnancy and no child yet.
+  const momOn = !!preg && (picked === 'mom' || (picked === null && kids.length === 0));
+  const child = momOn ? null : (kids.find((c) => c.id === picked) ?? kids[0] ?? null);
   const today = useApi<TodayChecklist>(child ? `/api/children/${child.id}/today` : null);
   const first = (user?.full_name ?? '').replace(/^(Ibu|Bapak)\s+/i, '').split(' ')[0];
   const name = child?.name.split(' ')[0] ?? '';
@@ -52,6 +58,7 @@ function MotherHome() {
 
   const refresh = () => {
     void children.reload();
+    void pregnancies.reload();
     void today.reload();
   };
 
@@ -70,8 +77,8 @@ function MotherHome() {
           </Pressable>
         </Row>
 
-        {/* Child selector */}
-        {kids.length > 0 && (
+        {/* Child selector, with the mother's card when she is pregnant */}
+        {(kids.length > 0 || preg) && (
           <Row style={{ marginTop: 16, flexWrap: 'wrap', gap: 8 }}>
             {kids.map((c) => {
               const on = c.id === child?.id;
@@ -90,14 +97,40 @@ function MotherHome() {
                 </PressScale>
               );
             })}
+            {preg && (
+              <PressScale
+                onPress={() => setPicked('mom')}
+                accessibilityRole="button"
+                accessibilityState={{ selected: momOn }}
+                style={[{ flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: radius.pill, paddingLeft: 5, paddingRight: 16, minHeight: 44 }, momOn ? { backgroundColor: colors.primary } : glass]}
+              >
+                <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: momOn ? '#ffffff33' : colors.pinkSoft, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 18 }}>🤰</Text>
+                </View>
+                <Text style={{ fontWeight: '700', color: momOn ? '#fff' : colors.text }}>{t('momPill')}</Text>
+              </PressScale>
+            )}
             <Pressable
-              onPress={() => router.push('/child/new')}
+              onPress={() => setAdding(!adding)}
               accessibilityRole="button"
-              accessibilityLabel={t('addChild')}
+              accessibilityState={{ expanded: adding }}
+              accessibilityLabel={`${t('addChild')} / ${t('addPregnancy')}`}
               style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: '#CFC8F2', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' }}
             >
-              <Ionicons name="add" size={22} color={colors.primary} />
+              <Ionicons name={adding ? 'close' : 'add'} size={22} color={colors.primary} />
             </Pressable>
+          </Row>
+        )}
+        {adding && (
+          <Row style={{ gap: 8, marginTop: 4 }}>
+            <View style={{ flex: 1 }}>
+              <Button small variant="secondary" title={t('addChild')} icon="add" onPress={() => router.push('/child/new')} />
+            </View>
+            {preg?.status !== 'active' ? (
+              <View style={{ flex: 1 }}>
+                <Button small variant="secondary" title={t('addPregnancy')} icon="heart" onPress={() => router.push('/pregnancy/new')} />
+              </View>
+            ) : null}
           </Row>
         )}
       </View>
@@ -107,12 +140,15 @@ function MotherHome() {
         {children.error && <ErrorBox message={children.error} onRetry={children.reload} />}
         {!children.data && children.loading && <Loading />}
 
-        {children.data?.length === 0 && (
+        {children.data?.length === 0 && pregnancies.data && !preg && (
           <Card>
             <Empty text={t('addFirstChild')} />
             <Button title={t('addChild')} icon="add" onPress={() => router.push('/child/new')} />
+            <Button title={t('addPregnancy')} icon="heart" variant="secondary" onPress={() => router.push('/pregnancy/new')} />
           </Card>
         )}
+
+        {momOn && preg && <PregnancyHome p={preg} />}
 
         {child && (
           <>

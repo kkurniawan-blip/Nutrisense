@@ -396,3 +396,78 @@ class DevelopmentCheck(Base):
     achieved: Mapped[bool] = mapped_column(Boolean, default=False)
     recorded_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, onupdate=utcnow)
+
+
+class Pregnancy(Base):
+    """A mother's pregnancy (ibu hamil), from HPHT to birth and the 42-day nifas period."""
+
+    __tablename__ = "pregnancies"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    mother_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    kader_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    region_id: Mapped[int | None] = mapped_column(ForeignKey("regions.id"), nullable=True, index=True)
+    hpht: Mapped[date] = mapped_column(Date)  # first day of the last menstrual period
+    mother_height_cm: Mapped[float | None] = mapped_column(Float, nullable=True)
+    education: Mapped[str | None] = mapped_column(String(20), nullable=True)  # none | sd | smp | sma | higher
+    gravida: Mapped[int | None] = mapped_column(Integer, nullable=True)  # which pregnancy this is
+    status: Mapped[str] = mapped_column(String(20), default="active")  # active | delivered | ended
+    birth_plan: Mapped[dict] = mapped_column(JSON, default=dict)  # place, transport, companion
+    delivered_at: Mapped[date | None] = mapped_column(Date, nullable=True)
+    child_id: Mapped[int | None] = mapped_column(ForeignKey("children.id"), nullable=True)
+    nifas_done: Mapped[list] = mapped_column(JSON, default=list)  # KF1..KF4 / KN1..KN3 codes
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+
+    mother: Mapped[User] = relationship(foreign_keys=[mother_id])
+    kader: Mapped[User | None] = relationship(foreign_keys=[kader_id])
+    region: Mapped[Region | None] = relationship()
+
+
+class MaternalMeasurement(Base):
+    """LiLA (mid-upper arm circumference) and Hb for a pregnant mother."""
+
+    __tablename__ = "maternal_measurements"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    pregnancy_id: Mapped[int] = mapped_column(ForeignKey("pregnancies.id"), index=True)
+    measured_at: Mapped[date] = mapped_column(Date)
+    gestational_weeks: Mapped[float] = mapped_column(Float)
+    muac_cm: Mapped[float | None] = mapped_column(Float, nullable=True)
+    hb_g_dl: Mapped[float | None] = mapped_column(Float, nullable=True)
+    weight_kg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    client_uuid: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True)
+    recorded_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+
+
+class AncVisit(Base):
+    """A completed antenatal care visit, K1..K6."""
+
+    __tablename__ = "anc_visits"
+    __table_args__ = (UniqueConstraint("pregnancy_id", "number"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    pregnancy_id: Mapped[int] = mapped_column(ForeignKey("pregnancies.id"), index=True)
+    number: Mapped[int] = mapped_column(Integer)
+    visit_date: Mapped[date] = mapped_column(Date)
+    place: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    recorded_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+
+
+class PregnancyDailyLog(Base):
+    """One day's iron tablet (TTD) and supplementary food (PMT ibu hamil)."""
+
+    __tablename__ = "pregnancy_daily_logs"
+    __table_args__ = (UniqueConstraint("pregnancy_id", "day"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    pregnancy_id: Mapped[int] = mapped_column(ForeignKey("pregnancies.id"), index=True)
+    day: Mapped[date] = mapped_column(Date)
+    ttd: Mapped[bool] = mapped_column(Boolean, default=False)
+    pmt: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class PregnancyDangerReport(Base):
+    __tablename__ = "pregnancy_danger_reports"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    pregnancy_id: Mapped[int] = mapped_column(ForeignKey("pregnancies.id"), index=True)
+    signs: Mapped[list] = mapped_column(JSON, default=list)
+    danger: Mapped[bool] = mapped_column(Boolean, default=False)
+    reported_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)

@@ -1,0 +1,66 @@
+import { Ionicons } from '@expo/vector-icons';
+import React from 'react';
+import { View } from 'react-native';
+
+import { useAuth } from '../lib/auth';
+import { formatDate } from '../lib/fun';
+import { NIFAS_LABEL, VISIT_STATUS } from '../lib/pregnancy';
+import type { AncVisit, NifasVisit } from '../lib/types';
+import { colors, statusColor } from '../theme';
+import { Text } from './Text';
+import { Row, StatusPill } from './ui';
+
+/** K1..K6 as six circles: tick when done, coloured ring when due or missed. */
+export function AncDots({ anc }: { anc: AncVisit[] }) {
+  return (
+    <Row style={{ justifyContent: 'space-between' }}>
+      {anc.map((v) => {
+        const c = statusColor[VISIT_STATUS[v.status].key];
+        const done = v.status === 'done';
+        return (
+          <View key={v.number} style={{ alignItems: 'center', gap: 4 }}>
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: done ? colors.mint : v.status === 'upcoming' ? colors.line : c.bg,
+                borderWidth: done || v.status === 'upcoming' ? 0 : 2,
+                borderColor: c.mark,
+              }}
+            >
+              {done ? <Ionicons name="checkmark" size={20} color="#fff" /> : <Text style={{ fontWeight: '800', fontSize: 13, color: v.status === 'upcoming' ? colors.muted : c.fg }}>K{v.number}</Text>}
+            </View>
+            <Text style={{ fontSize: 11, color: colors.muted }}>TM{v.trimester}</Text>
+          </View>
+        );
+      })}
+    </Row>
+  );
+}
+
+export function NifasList({ nifas }: { nifas: NifasVisit[] }) {
+  const { lang } = useAuth();
+  return (
+    <View>
+      {nifas.map((v, i) => {
+        const st = VISIT_STATUS[v.status];
+        return (
+          <Row key={v.code} style={{ paddingVertical: 9, borderTopWidth: i ? 1 : 0, borderColor: colors.line, gap: 10 }}>
+            <Text style={{ fontSize: 20 }}>{v.who === 'mother' ? '🤱' : '👶'}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontWeight: '700' }}>{NIFAS_LABEL[v.code][lang]}</Text>
+              <Text style={{ color: colors.muted, fontSize: 12.5 }}>
+                {formatDate(v.window_start, lang)} – {formatDate(v.window_end, lang)}
+              </Text>
+            </View>
+            <StatusPill status={st.key} label={st.label[lang]} />
+          </Row>
+        );
+      })}
+    </View>
+  );
+}
+

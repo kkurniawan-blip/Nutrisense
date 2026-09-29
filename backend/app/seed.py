@@ -19,8 +19,8 @@ from sqlalchemy.orm import Session
 
 from .ai import nutrition, symptoms
 from .ai.growth import _lms, _value_at, age_in_months, compute_z_scores
-from .models import (Child, Consent, Drone, GrowthMeasurement, InventoryItem, Locker, MealLog, Region, SupplyRequest, SymptomReport,
-                     User)
+from .models import (AncVisit, Child, Consent, Drone, GrowthMeasurement, InventoryItem, Locker, MaternalMeasurement, MealLog, Pregnancy,
+                     PregnancyDailyLog, Region, SupplyRequest, SymptomReport, User)
 from .security import hash_password
 from .services import logistics, model_registry
 from .services.assessment import run_assessment
@@ -227,6 +227,28 @@ def seed_if_empty(db: Session) -> bool:
         if rng.random() < 0.3:
             _symptoms(db, c, cg, rng.choice(["demam dan batuk 2 hari", "diare sejak kemarin", "susah makan", "pilek"]), rng.randint(1, 10))
         cohort.append((c, cg))
+
+    # Ibu hamil: Maria at 24 weeks (K1-K2 done, KEK and anaemia at her last check), Yuliana at 33 weeks, a new one in Oesapa.
+    def pregnancy(mother, region, weeks, height, education, gravida, anc_weeks, checks, ttd_days, pmt_days, plan=None):
+        hpht = today - timedelta(days=weeks * 7)
+        p = Pregnancy(mother_id=mother.id, region_id=region.id, kader_id=region_kader[region.id].id, hpht=hpht, mother_height_cm=height,
+                      education=education, gravida=gravida, birth_plan=plan or {})
+        db.add(p)
+        db.flush()
+        for n, w in enumerate(anc_weeks, start=1):
+            db.add(AncVisit(pregnancy_id=p.id, number=n, visit_date=hpht + timedelta(weeks=w), place="Puskesmas"))
+        for w, muac, hb in checks:
+            db.add(MaternalMeasurement(pregnancy_id=p.id, measured_at=hpht + timedelta(weeks=w), gestational_weeks=w, muac_cm=muac, hb_g_dl=hb,
+                                       recorded_by_id=region_kader[region.id].id))
+        for i in range(1, 8):
+            db.add(PregnancyDailyLog(pregnancy_id=p.id, day=today - timedelta(days=i), ttd=i <= ttd_days, pmt=i <= pmt_days))
+        return p
+
+    pregnancy(maria, baumata, 24, 149.0, "sma", 3, [9, 18], [(9, 23.2, 11.2), (18, 22.8, 10.4)], 5, 3, {"place": "puskesmas"})
+    pregnancy(yuliana, soe, 33, 152.0, "smp", 2, [11, 16, 23, 29], [(16, 24.5, 11.8), (29, 25.0, 11.5)], 7, 0,
+              {"place": "puskesmas", "transport": "ojek", "companion": "Suami"})
+    oesapa_mother = _user(db, "ibu.agustina@nutrisense.id", "Ibu Agustina Lay", "caregiver", oesapa, "081300000004")
+    pregnancy(oesapa_mother, oesapa, 9, 155.0, "sma", 1, [], [], 2, 0)
     db.commit()
 
     model_registry.get_active(db)

@@ -385,3 +385,70 @@ export interface AreaChildren {
   limit: number;
   regions: { id: number; name: string }[];
 }
+
+export type VisitStatus = 'done' | 'due' | 'overdue' | 'upcoming';
+
+export interface AncVisit {
+  number: number;
+  trimester: 1 | 2 | 3;
+  from_week: number;
+  to_week: number;
+  target_week: number;
+  doctor: boolean;
+  window_start: string;
+  window_end: string;
+  target_date: string;
+  status: VisitStatus;
+  visit_date: string | null;
+  place: string | null;
+}
+
+export interface NifasVisit {
+  code: string;
+  who: 'mother' | 'baby';
+  from_day: number;
+  to_day: number;
+  window_start: string;
+  window_end: string;
+  status: VisitStatus;
+}
+
+export interface MotherFlag {
+  code: 'kek' | 'anemia' | 'severe_anemia' | 'short_stature';
+  status: 'action' | 'urgent' | 'monitor';
+  value: number;
+}
+
+export interface Pregnancy {
+  id: number;
+  mother_id: number;
+  mother_name: string;
+  region: Region | null;
+  status: 'active' | 'delivered' | 'ended';
+  hpht: string;
+  hpl: string;
+  gestational_days: number;
+  gestational_weeks: number;
+  gestational_extra_days: number;
+  trimester: 1 | 2 | 3;
+  days_to_hpl: number;
+  mother_height_cm: number | null;
+  education: string | null;
+  gravida: number | null;
+  birth_plan: { place?: string; transport?: string; companion?: string };
+  measurements: { id: number; measured_at: string; gestational_weeks: number; muac_cm: number | null; hb_g_dl: number | null; weight_kg: number | null }[];
+  latest: { muac_cm: number | null; hb_g_dl: number | null };
+  flags: MotherFlag[];
+  anc: AncVisit[];
+  next_anc: AncVisit | null;
+  anc_done: number;
+  daily_week: { day: string; ttd: boolean; pmt: boolean }[];
+  today_log: { ttd: boolean; pmt: boolean };
+  ttd_total: number;
+  pmt_needed: boolean;
+  today: { key: string; status: ChecklistStatus; text: string; action: 'supplements' | 'anc' | 'measure' | 'danger' }[];
+  care_team: { role: string; emoji: string; name: string; label: string; phone?: string | null }[];
+  delivered_at: string | null;
+  child_id: number | null;
+  nifas: NifasVisit[] | null;
+}

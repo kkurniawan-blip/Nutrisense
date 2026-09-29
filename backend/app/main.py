@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .ai import llm
 from .config import get_settings
 from .database import Base, SessionLocal, engine, ensure_columns
-from .routers import auth, cases, children, dashboard, family, governance, logistics, nutrition
+from .routers import auth, cases, children, dashboard, family, governance, logistics, maternal, nutrition
 from .services import model_registry
 from .webapp import serve_web_app
 
@@ -41,7 +41,8 @@ app = FastAPI(
 app.add_middleware(CORSMiddleware, allow_origins=[o.strip() for o in settings.cors_origins.split(",")], allow_credentials=False,
                    allow_methods=["*"], allow_headers=["*"])
 
-for r in (auth.router, children.router, family.router, nutrition.router, cases.router, logistics.router, dashboard.router, governance.router):
+for r in (auth.router, children.router, family.router, maternal.router, nutrition.router, cases.router, logistics.router, dashboard.router,
+          governance.router):
     app.include_router(r)
 
 

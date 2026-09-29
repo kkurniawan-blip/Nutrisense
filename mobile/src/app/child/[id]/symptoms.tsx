@@ -1,11 +1,11 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import { Linking, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { AssessmentView } from '../../../components/AssessmentView';
+import { Escalation, SymptomTile } from '../../../components/SymptomTiles';
 import { Text } from '../../../components/Text';
-import { Bubble, Button, Card, Chip, ErrorBox, Field, H2, PressScale, Screen, SourceTag } from '../../../components/ui';
+import { Bubble, Button, Card, Chip, ErrorBox, Field, H2, Screen, SourceTag } from '../../../components/ui';
 import { api, errorText, NetworkError } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 import { SYMPTOM_EMOJI } from '../../../lib/fun';
@@ -14,7 +14,7 @@ import { enqueue, uuid } from '../../../lib/offline';
 import { useSync } from '../../../lib/sync';
 import type { Assessment, Child, SymptomReport } from '../../../lib/types';
 import { useApi } from '../../../lib/useApi';
-import { colors, radius, statusColor, tones } from '../../../theme';
+import { colors, statusColor } from '../../../theme';
 
 const COMMON = ['fever', 'cough', 'diarrhea', 'vomiting', 'runny_nose', 'poor_appetite'];
 const URGENT = ['convulsions', 'fast_breathing', 'unable_to_drink', 'lethargy', 'bloody_stool', 'oedema'];
@@ -22,39 +22,7 @@ const OTHER = ['rash', 'worms', 'weight_loss', 'repeated_illness'];
 
 function Tile({ k, on, danger, onPress }: { k: string; on: boolean; danger?: boolean; onPress: () => void }) {
   const { lang } = useAuth();
-  const tint = danger ? colors.danger : colors.primary;
-  const soft = danger ? colors.dangerSoft : colors.primarySoft;
-  return (
-    <PressScale
-      onPress={onPress}
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked: on }}
-      style={{ width: '31%', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 4, minHeight: 100, borderRadius: radius.lg, backgroundColor: on ? soft : '#fff', borderWidth: 1.5, borderColor: on ? tint : danger ? '#F8D0D6' : colors.border }}
-    >
-      {on && (
-        <View style={{ position: 'absolute', top: 6, right: 6 }}>
-          <Ionicons name="checkmark-circle" size={20} color={tint} />
-        </View>
-      )}
-      <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: danger ? colors.dangerSoft : tones.pink.bg, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ fontSize: 26 }}>{SYMPTOM_EMOJI[k]}</Text>
-      </View>
-      <Text style={{ fontSize: 13, fontWeight: '700', textAlign: 'center', color: on ? tint : colors.text, marginTop: 6, lineHeight: 17 }}>{label(SYMPTOM_LABELS, k, lang)}</Text>
-    </PressScale>
-  );
-}
-
-/** The emergency state: short title, one line, call the Kader, and the guide as a second choice. */
-function Escalation({ phone }: { phone?: string | null }) {
-  const { t } = useAuth();
-  return (
-    <Card tint={statusColor.urgent.bg} style={{ borderColor: colors.danger, borderWidth: 2 }}>
-      <Text style={{ fontSize: 19, fontWeight: '900', color: colors.danger }}>🚨 {t('seekHelpNow')}</Text>
-      <Text style={{ marginTop: 4, fontSize: 15 }}>{t('urgentExplain')}</Text>
-      {phone ? <Button variant="danger" title={t('actDiscuss')} icon="call" onPress={() => Linking.openURL(`tel:${phone}`)} /> : null}
-      <Button variant="ghost" title={t('seeGuide')} icon="book-outline" onPress={() => router.push('/guide')} />
-    </Card>
-  );
+  return <SymptomTile emoji={SYMPTOM_EMOJI[k]} label={label(SYMPTOM_LABELS, k, lang)} on={on} danger={danger} onPress={onPress} />;
 }
 
 export default function Symptoms() {
