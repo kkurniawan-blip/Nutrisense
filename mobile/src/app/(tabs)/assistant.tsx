@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Animated, FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AudioButton } from '../../components/AudioButton';
 import { Mascot } from '../../components/Mascot';
 import { Text, TextInput } from '../../components/Text';
 import { Chip, SourceTag, Wash } from '../../components/ui';
@@ -74,6 +75,7 @@ function Answer({ text }: { text: string }) {
           </Text>
         );
       })}
+      <AudioButton text={lines.map((l) => l.replace(/^(\d+)[.)]\s*/, '$1. ')).join('. ')} />
     </View>
   );
 }

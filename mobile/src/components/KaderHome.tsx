@@ -8,13 +8,14 @@ import { api, errorText } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { childEmoji, greeting } from '../lib/fun';
 import { KADER_GROUPS, txt } from '../lib/status';
-import type { AreaChildRow, AreaChildren, AreaGroup, RiskLevel } from '../lib/types';
+import type { AreaChildRow, AreaChildren, AreaGroup, Pregnancy, RiskLevel } from '../lib/types';
 import { useApi } from '../lib/useApi';
 import { colors, radius, shadow, statusColor, tones } from '../theme';
 import { SyncBanner } from './SyncBanner';
 import { Text, TextInput } from './Text';
 import { Mascot } from './Mascot';
-import { Button, Card, Chip, ErrorBox, H2, Loading, Row, Section, Segmented, StatusMark, StatusPill, Toggle, Wash } from './ui';
+import { MotherRow, RISK_ORDER } from './MotherRow';
+import { Button, Card, Chip, ErrorBox, H2, Loading, MoreLink, Row, Section, Segmented, Source, StatusMark, StatusPill, Toggle, Wash } from './ui';
 
 type Filter = 'all' | 'priority' | 'new' | 'followup';
 const PAGE = 30;
@@ -66,6 +67,9 @@ export function KaderHome() {
   if (q.trim()) params.set('q', q.trim());
   const query = params.toString();
   const list = useApi<AreaChildren>(`/api/dashboard/children?${query}`);
+  const mothers = useApi<Pregnancy[]>('/api/pregnancies');
+  const active = (mothers.data ?? []).filter((p) => p.status === 'active');
+  const topMothers = [...active].sort((a, b) => RISK_ORDER[a.risk.key] - RISK_ORDER[b.risk.key]).slice(0, 2);
 
   const more = extra.key === query ? extra.rows : [];
 
@@ -96,7 +100,7 @@ export function KaderHome() {
 
   return (
     <ScrollView
-      refreshControl={<RefreshControl refreshing={list.loading} onRefresh={() => void list.reload()} tintColor={colors.primary} />}
+      refreshControl={<RefreshControl refreshing={list.loading} onRefresh={() => [list, mothers].forEach((x) => void x.reload())} tintColor={colors.primary} />}
       contentContainerStyle={{ paddingBottom: 40 }}
       keyboardShouldPersistTaps="handled"
     >
@@ -151,6 +155,36 @@ export function KaderHome() {
               ⚪ {d.counts.unassessed} {t('notAssessedYet')}
             </Text>
           )}
+          <Source label={{ id: 'Data NutriSense (demo)', en: 'NutriSense data (demo)' }} year={new Date().getFullYear()} />
+        </Card>
+
+        {/* 🤰 Ibu hamil in my area */}
+        <Card>
+          <H2 emoji="🤰" right={mothers.data ? <Text style={{ fontSize: 15, fontWeight: '800' }}>{active.length} {t('mothersCount')}</Text> : null}>
+            {t('pregnantMothers')}
+          </H2>
+          <Row style={{ gap: 8, marginBottom: 12 }}>
+            {([
+              ['urgent', active.filter((p) => p.risk.key === 'urgent').length, t('riskHighShort')],
+              ['action', active.filter((p) => p.risk.key === 'action').length, t('riskMidShort')],
+              ['unknown', active.filter((p) => p.risk.key === 'unknown').length, t('filterUnchecked')],
+            ] as const).map(([k, n, lbl]) => (
+              <View key={k} style={{ flex: 1, backgroundColor: statusColor[k].bg, borderRadius: 18, paddingVertical: 10, paddingHorizontal: 10 }}>
+                <Row style={{ gap: 6 }}>
+                  <StatusMark status={k} size={9} />
+                  <Text style={{ fontSize: 22, fontWeight: '900', color: statusColor[k].fg }}>{mothers.data ? n : '–'}</Text>
+                </Row>
+                <Text style={{ fontSize: 12.5, color: statusColor[k].fg, lineHeight: 16 }}>{lbl}</Text>
+              </View>
+            ))}
+          </Row>
+          {topMothers.map((p) => (
+            <MotherRow key={p.id} p={p} />
+          ))}
+          <Row style={{ justifyContent: 'space-between' }}>
+            <MoreLink label={t('seeAll')} onPress={() => router.push('/mothers')} />
+            <Button small variant="secondary" title={t('addMother')} icon="person-add" onPress={() => router.push('/mother/new')} />
+          </Row>
         </Card>
 
         <Row style={{ gap: 8, marginBottom: 12 }}>

@@ -97,6 +97,7 @@ const measure = async ({ go, text, field }, childId, kg, cm) => {
   await text('Saya siap memasukkan angka').click();
   await field('⚖️ Berat badan (kg)').fill(kg);
   await field(/Panjang badan|Tinggi badan/).fill(cm);
+  await text('Tidak').click(); // oedema: no
   await text('Lanjut').click();
   await text('Simpan').click();
   await text('Pengukuran tersimpan', false).waitFor({ timeout: 20000 });
@@ -108,10 +109,11 @@ await session('signup', null, async ({ page, step, go, scroll, text, field }) =>
   const email = `ibu.uji${Date.now() % 1e6}@example.id`;
   await step('login page', async () => {
     await go('/login');
+    await text('✉️ Email').click();
     await field('✉️ Email').fill('ibu.maria@nutrisense.id');
     await field('🔑 Kata sandi').fill('salah12345');
     await text('Masuk').click();
-    await text('Email atau kata sandi salah', false).waitFor();
+    await text('atau kata sandi salah', false).waitFor();
     await text('Lupa kata sandi?').click();
   }, { allow: ['/api/auth/login'] });
   await step('sign-up step 1 shows mistakes', async () => {
@@ -121,8 +123,8 @@ await session('signup', null, async ({ page, step, go, scroll, text, field }) =>
   });
   await step('sign-up step 1 filled', async () => {
     await field('🙂 Nama lengkap').fill('Ibu Yohana Lede');
-    await field('✉️ Email').fill(email);
-    await field('📱 Nomor HP (opsional)').fill('081234567890');
+    await field('📱 Nomor HP').fill(`0857${String(Date.now()).slice(-8)}`);
+    await field('✉️ Email (opsional)').fill(email);
     await field('🔑 Kata sandi').fill('Anakku2026!');
     await field('🔑 Ulangi kata sandi').fill('Anakku2026!');
     await text('Kata sandi kuat', false).waitFor();
@@ -159,6 +161,7 @@ await session('signup', null, async ({ page, step, go, scroll, text, field }) =>
     await scroll(4000);
     await text('Keluar').click();
     await page.waitForURL(/\/login$/);
+    await text('✉️ Email').click();
     await field('✉️ Email').fill(email);
     await field('🔑 Kata sandi').fill('Baru2026!!');
     await text('Masuk').click();

@@ -271,11 +271,15 @@ def seed_if_empty(db: Session) -> bool:
     first = ["Ana", "Beni", "Citra", "Dewi", "Elias", "Fransiska", "Gabriel", "Hana", "Imanuel", "Junita", "Klemens", "Lusia",
              "Markus", "Natalia", "Oktavianus", "Petrus", "Regina", "Stefanus", "Theresia", "Vinsensius"]
     last = ["Ndun", "Lay", "Nope", "Benu", "Tallo", "Manu", "Kase", "Bani", "Seran", "Sabu"]
+    # Parents' names from their own generator, so the cohort's children and measurements stay the same.
+    names = random.Random(11)
+    moms = ["Agnes", "Beatrix", "Carolina", "Delfina", "Elisabeth", "Febriana", "Glorya", "Helena", "Irene", "Jeane", "Katarina", "Lidia",
+            "Magdalena", "Novita", "Oktaviana", "Paulina", "Rina", "Selvina", "Veronika", "Wilhelmina", "Yasinta"]
     region_bias = {oesapa.id: -0.6, baumata.id: -1.3, semau.id: -1.8, soe.id: -1.7, oinlasi.id: -2.0, baa.id: -1.6}
     cohort = []
     for i in range(42):
         r = regions[i % len(regions)]
-        cg = _user(db, f"caregiver{i + 1}@demo.nutrisense.id", f"Orang tua {i + 1}", "caregiver", r)
+        cg = _user(db, f"caregiver{i + 1}@demo.nutrisense.id", f"Ibu {moms[i % len(moms)]} {names.choice(last)}", "caregiver", r)
         months = rng.uniform(4, 58)
         c = child(f"{rng.choice(first)} {rng.choice(last)}", rng.choice(["male", "female"]), months, cg, r,
                   birth_weight_kg=round(rng.gauss(2.95, 0.4), 2), clean_water_access=rng.random() < 0.65,

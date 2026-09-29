@@ -6,8 +6,10 @@ import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 
 import { AssessmentView } from '../../../components/AssessmentView';
 import { Mascot } from '../../../components/Mascot';
+import { Escalation } from '../../../components/SymptomTiles';
 import { Text } from '../../../components/Text';
-import { Bubble, Button, Card, ErrorBox, Field, IconChip, PressScale, Row, Screen, StatusPill, StepDots } from '../../../components/ui';
+import { AudioButton } from '../../../components/AudioButton';
+import { Bubble, Button, Card, ErrorBox, Field, IconChip, PressScale, Row, Screen, Segmented, StatusPill, StepDots } from '../../../components/ui';
 import { api, errorText, NetworkError } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 import { formatAge, formatDate } from '../../../lib/fun';
@@ -64,7 +66,7 @@ function Steps({ step }: { step: number }) {
 }
 
 /** One confirmed number on the review step: icon, value and what it is. */
-function ReviewRow({ icon, tone, value, label }: { icon: 'resize' | 'scale' | 'calendar' | 'body'; tone: Tone; value: string; label: string }) {
+function ReviewRow({ icon, tone, value, label }: { icon: 'resize' | 'scale' | 'calendar' | 'body' | 'person' | 'footsteps'; tone: Tone; value: string; label: string }) {
   return (
     <Row style={{ gap: 14, paddingVertical: 10 }}>
       <IconChip icon={icon} tone={tone} size={46} />
@@ -78,9 +80,11 @@ function ReviewRow({ icon, tone, value, label }: { icon: 'resize' | 'scale' | 'c
 
 export default function Measure() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { t, lang } = useAuth();
+  const { t, lang, user } = useAuth();
   const sync = useSync();
   const child = useApi<Child>(`/api/children/${id}`);
+  const [by, setBy] = useState<'mother' | 'kader'>(user?.role === 'kader' ? 'kader' : 'mother');
+  const [oedema, setOedema] = useState<'no' | 'yes' | null>(null);
   const [step, setStep] = useState(1);
   const [position, setPosition] = useState<Pos | null>(null);
   const [weight, setWeight] = useState('');
@@ -103,7 +107,16 @@ export default function Measure() {
   if (last && weight && Math.abs(num(weight) - last.weight_kg) > 3) warnings.push(`${t('warnWeightJump')} (${last.weight_kg} kg)`);
 
   const save = async () => {
-    const body = { weight_kg: num(weight), height_cm: num(height), muac_cm: muac ? num(muac) : null, position: pos, measured_at: date, client_uuid: uuid() };
+    const body = {
+      weight_kg: num(weight),
+      height_cm: num(height),
+      muac_cm: muac ? num(muac) : null,
+      position: pos,
+      measured_at: date,
+      measured_by: by,
+      oedema: oedema === 'yes',
+      client_uuid: uuid(),
+    };
     setBusy(true);
     setError(null);
     try {
@@ -125,6 +138,7 @@ export default function Measure() {
         <View style={{ alignItems: 'center', marginVertical: 8 }}>
           <Mascot size={96} mood="happy" />
         </View>
+        {oedema === 'yes' && <Escalation facility={c?.facility} phone={c?.care_team?.find((x) => x.role === 'kader')?.phone} />}
         <Card tint={statusColor.info.bg}>
           <Text style={{ fontWeight: '900', color: statusColor.info.fg }}>📶 {t('savedOnPhone')}</Text>
           <Text style={{ color: statusColor.info.fg }}>{t('offlineQueued')}</Text>
@@ -144,7 +158,7 @@ export default function Measure() {
           </Text>
           <Text style={{ color: colors.muted }}>{formatDate(m.measured_at, lang)}</Text>
         </Card>
-        {result.assessment && <AssessmentView a={result.assessment} />}
+        {result.assessment && <AssessmentView a={result.assessment} facility={c?.facility} kaderPhone={c?.care_team?.find((x) => x.role === 'kader')?.phone} />}
         <Button title={t('open')} onPress={() => router.replace(`/child/${id}`)} icon="arrow-forward" />
       </Screen>
     );
@@ -198,7 +212,12 @@ export default function Measure() {
       {step === 2 && (
         <>
           <Card>
-            <Text style={{ fontSize: 18, fontWeight: '900', marginBottom: 4 }}>{t('howToMeasure')}</Text>
+            <Row style={{ justifyContent: 'space-between' }}>
+              <Text style={{ flex: 1, fontSize: 18, fontWeight: '900', marginBottom: 4 }}>{t('howToMeasure')}</Text>
+              <AudioButton
+                text={[t('howToMeasure'), ...(pos === 'standing' ? [t('instShoes'), t('instHeadStraight'), t('instBackWall'), t('instLookAhead')] : [t('instShoes'), t('instHeadBoard'), t('instLegsStraight'), t('instTwoPeople')]), t('instWeigh')].join('. ')}
+              />
+            </Row>
             <View style={{ backgroundColor: tones.blue.bg, borderRadius: radius.lg, marginVertical: 8 }}>
               <Illustration pos={pos} />
             </View>
@@ -226,12 +245,37 @@ export default function Measure() {
             <Field label={`🗓️ ${t('measuredAt')}`} value={date} onChangeText={setDate} keyboardType="numbers-and-punctuation" />
             <Field label={`💪 ${t('muac')}`} value={muac} onChangeText={setMuac} keyboardType="decimal-pad" />
           </Card>
+          <Card>
+            <Text style={{ fontSize: 14, fontWeight: '600', marginBottom: 8 }}>👤 {t('measuredBy')}</Text>
+            <Segmented<'mother' | 'kader'>
+              value={by}
+              onChange={setBy}
+              options={[
+                { value: 'mother', label: `👩 ${t('byMother')}` },
+                { value: 'kader', label: `👩‍⚕️ Kader` },
+              ]}
+            />
+            <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', marginBottom: 4 }}>🦶 {t('oedemaQ')}</Text>
+              <AudioButton text={`${t('oedemaQ')} ${t('oedemaHow')}`} compact />
+            </Row>
+            <Text style={{ color: colors.muted, fontSize: 13, marginBottom: 8 }}>{t('oedemaHow')}</Text>
+            <Segmented<'no' | 'yes'>
+              value={oedema ?? ('' as 'no')}
+              onChange={setOedema}
+              options={[
+                { value: 'no', label: t('noLbl') },
+                { value: 'yes', label: t('yesSwollen') },
+              ]}
+            />
+            {oedema === 'yes' && <Text style={{ color: colors.danger, fontWeight: '700' }}>🚨 {t('oedemaWarn')}</Text>}
+          </Card>
           <Row>
             <View style={{ flex: 1 }}>
               <Button title={t('back')} variant="ghost" onPress={() => setStep(2)} />
             </View>
             <View style={{ flex: 2 }}>
-              <Button title={t('next')} icon="arrow-forward" disabled={!weight || !height || !/^\d{4}-\d{2}-\d{2}$/.test(date)} onPress={() => setStep(4)} />
+              <Button title={t('next')} icon="arrow-forward" disabled={!weight || !height || !oedema || !/^\d{4}-\d{2}-\d{2}$/.test(date)} onPress={() => setStep(4)} />
             </View>
           </Row>
         </>
@@ -249,6 +293,8 @@ export default function Measure() {
             <ReviewRow icon="scale" tone="orange" value={`${weight} kg`} label={t('weight')} />
             <ReviewRow icon="calendar" tone="lavender" value={formatDate(date, lang)} label={t('measuredAt')} />
             {muac ? <ReviewRow icon="body" tone="green" value={`${muac} cm`} label={t('muac')} /> : null}
+            <ReviewRow icon="person" tone="pink" value={by === 'kader' ? 'Kader' : t('byMother')} label={t('measuredBy')} />
+            <ReviewRow icon="footsteps" tone={oedema === 'yes' ? 'orange' : 'green'} value={oedema === 'yes' ? t('yesSwollen') : t('noLbl')} label={t('oedemaShort')} />
           </Card>
           {warnings.map((w) => (
             <Card key={w} tint={statusColor.monitor.bg}>

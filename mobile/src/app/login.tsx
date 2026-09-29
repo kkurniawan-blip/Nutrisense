@@ -14,13 +14,19 @@ import { colors, radius, statusColor, tones } from '../theme';
 
 const DEMO = [
   ['ibu.maria@nutrisense.id', '🤱', 'Bunda / Caregiver'],
+  ['081300000003', '📱', 'Bunda (HP)'],
   ['kader.oesapa@nutrisense.id', '🏡', 'Kader'],
   ['officer@nutrisense.id', '🏥', 'Dinkes / Officer'],
   ['doctor@nutrisense.id', '🩺', 'Dokter / Doctor'],
 ];
 
+type Via = 'phone' | 'email';
+const PHONE_RE = /^\+?[\d\s-]{9,16}$/;
+
 export default function Login() {
   const { login, t, lang, setLang, user } = useAuth();
+  // Many mothers in NTT have a phone but no email: the phone number is the default way in.
+  const [via, setVia] = useState<Via>('phone');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [touched, setTouched] = useState(false);
@@ -34,11 +40,12 @@ export default function Login() {
     if (user) router.replace('/');
   }, [user]);
 
-  const emailError = touched && email && !EMAIL_RE.test(email.trim()) ? t('emailInvalid') : null;
+  const idOk = via === 'email' ? EMAIL_RE.test(email.trim()) : PHONE_RE.test(email.trim());
+  const emailError = touched && email && !idOk ? (via === 'email' ? t('emailInvalid') : t('phoneInvalid')) : null;
 
   const submit = async () => {
     setTouched(true);
-    if (!EMAIL_RE.test(email.trim()) || !password) return;
+    if (!idOk || !password) return;
     setBusy(true);
     setError(null);
     try {
@@ -72,19 +79,46 @@ export default function Login() {
 
           <Card>
             <Text style={{ fontSize: 20, fontWeight: '900', marginBottom: 12 }}>👋 {t('loginTitle')}</Text>
-            <Field
-              label={`✉️ ${t('email')}`}
-              value={email}
-              onChangeText={setEmail}
-              onBlur={() => setTouched(true)}
-              error={emailError}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoComplete="email"
-              textContentType="emailAddress"
-              placeholder="nama@email.com"
-              returnKeyType="next"
+            <Segmented<Via>
+              value={via}
+              onChange={(v) => {
+                setVia(v);
+                setEmail('');
+                setTouched(false);
+              }}
+              options={[
+                { value: 'phone', label: `📱 ${t('phoneLbl')}` },
+                { value: 'email', label: `✉️ ${t('email')}` },
+              ]}
             />
+            {via === 'phone' ? (
+              <Field
+                label={`📱 ${t('phoneLbl')}`}
+                value={email}
+                onChangeText={setEmail}
+                onBlur={() => setTouched(true)}
+                error={emailError}
+                keyboardType="phone-pad"
+                autoComplete="tel"
+                textContentType="telephoneNumber"
+                placeholder="0812 3456 7890"
+                returnKeyType="next"
+              />
+            ) : (
+              <Field
+                label={`✉️ ${t('email')}`}
+                value={email}
+                onChangeText={setEmail}
+                onBlur={() => setTouched(true)}
+                error={emailError}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoComplete="email"
+                textContentType="emailAddress"
+                placeholder="nama@email.com"
+                returnKeyType="next"
+              />
+            )}
             <PasswordField
               label={`🔑 ${t('password')}`}
               value={password}
@@ -122,6 +156,7 @@ export default function Login() {
                   key={e}
                   accessibilityRole="button"
                   onPress={() => {
+                    setVia(e.includes('@') ? 'email' : 'phone');
                     setEmail(e);
                     setPassword('Demo1234!');
                     setError(null);

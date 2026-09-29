@@ -58,7 +58,9 @@ export default function Register() {
   const strength = passwordStrength(form.password);
   const errors = {
     full_name: form.full_name.trim().length < 2 ? t('nameRequired') : null,
-    email: !EMAIL_RE.test(form.email.trim()) ? t('emailInvalid') : null,
+    // Email or phone: one is enough (many mothers have a phone but no email).
+    email: form.email.trim() && !EMAIL_RE.test(form.email.trim()) ? t('emailInvalid') : null,
+    phone: form.phone.trim() && !/^\+?[\d\s-]{9,16}$/.test(form.phone.trim()) ? t('phoneInvalid') : !form.phone.trim() && !form.email.trim() ? t('phoneOrEmail') : null,
     password: form.password.length < 8 ? t('passwordMin') : null,
     confirm: form.confirm !== form.password ? t('passwordMismatch') : null,
   };
@@ -83,7 +85,7 @@ export default function Register() {
     try {
       await register({
         full_name: form.full_name.trim(),
-        email: form.email.trim(),
+        email: form.email.trim() || null,
         password: form.password,
         phone: form.phone.trim() || null,
         region_id: regionId,
@@ -114,7 +116,17 @@ export default function Register() {
         <Card>
           <Field label={`🙂 ${t('fullName')}`} value={form.full_name} onChangeText={set('full_name')} error={show('full_name')} autoComplete="name" textContentType="name" placeholder="Ibu Maria" />
           <Field
-            label={`✉️ ${t('email')}`}
+            label={`📱 ${t('phoneLbl')}`}
+            value={form.phone}
+            onChangeText={set('phone')}
+            error={show('phone')}
+            keyboardType="phone-pad"
+            autoComplete="tel"
+            hint={t('phoneLoginHint')}
+            placeholder="0812 3456 7890"
+          />
+          <Field
+            label={`✉️ ${t('emailOptional')}`}
             value={form.email}
             onChangeText={set('email')}
             error={show('email')}
@@ -124,7 +136,6 @@ export default function Register() {
             textContentType="emailAddress"
             placeholder="nama@email.com"
           />
-          <Field label={`📱 ${t('phone')}`} value={form.phone} onChangeText={set('phone')} keyboardType="phone-pad" autoComplete="tel" hint={t('phoneHint')} placeholder="08xx" />
           <PasswordField
             label={`🔑 ${t('password')}`}
             value={form.password}

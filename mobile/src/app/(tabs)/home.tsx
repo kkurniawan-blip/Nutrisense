@@ -11,9 +11,8 @@ import { SyncBanner } from '../../components/SyncBanner';
 import { Text } from '../../components/Text';
 import { Button, Card, Empty, ErrorBox, IconChip, ListRow, Loading, PressScale, QuickAction, Row, Section, StatusPill, Tile, Wash } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
-import { childEmoji, formatAge, greeting } from '../../lib/fun';
+import { childEmoji, formatAge, formatDate, greeting } from '../../lib/fun';
 import { motherStatus, txt } from '../../lib/status';
-import { formatDate } from '../../lib/fun';
 import type { Child, Facility, Posyandu, Pregnancy, TodayChecklist } from '../../lib/types';
 import { useApi } from '../../lib/useApi';
 import { colors, glass, radius, statusColor, Tone } from '../../theme';
@@ -103,7 +102,7 @@ function MotherHome() {
 
         {/* Child selector, with the mother's card when she is pregnant */}
         {(kids.length > 0 || preg) && (
-          <Row style={{ marginTop: 16, flexWrap: 'wrap', gap: 8 }}>
+          <Row style={{ marginTop: 16, flexWrap: 'wrap', gap: 6 }}>
             {kids.map((c) => {
               const on = c.id === child?.id;
               return (
@@ -112,9 +111,9 @@ function MotherHome() {
                   onPress={() => setPicked(c.id)}
                   accessibilityRole="button"
                   accessibilityState={{ selected: on }}
-                  style={[{ flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: radius.pill, paddingLeft: 5, paddingRight: 16, minHeight: 44 }, on ? { backgroundColor: colors.primary } : glass]}
+                  style={[{ flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: radius.pill, paddingLeft: 5, paddingRight: 12, minHeight: 44 }, on ? { backgroundColor: colors.primary } : glass]}
                 >
-                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: on ? '#ffffff33' : c.sex === 'female' ? colors.pinkSoft : colors.skySoft, alignItems: 'center', justifyContent: 'center' }}>
+                  <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: on ? '#ffffff33' : c.sex === 'female' ? colors.pinkSoft : colors.skySoft, alignItems: 'center', justifyContent: 'center' }}>
                     <Text style={{ fontSize: 18 }}>{childEmoji(c.sex, c.age_months)}</Text>
                   </View>
                   <Text style={{ fontWeight: '700', color: on ? '#fff' : colors.text }}>{c.name.split(' ')[0]}</Text>
@@ -126,9 +125,9 @@ function MotherHome() {
                 onPress={() => setPicked('mom')}
                 accessibilityRole="button"
                 accessibilityState={{ selected: momOn }}
-                style={[{ flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: radius.pill, paddingLeft: 5, paddingRight: 16, minHeight: 44 }, momOn ? { backgroundColor: colors.primary } : glass]}
+                style={[{ flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: radius.pill, paddingLeft: 5, paddingRight: 12, minHeight: 44 }, momOn ? { backgroundColor: colors.primary } : glass]}
               >
-                <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: momOn ? '#ffffff33' : colors.pinkSoft, alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: momOn ? '#ffffff33' : colors.pinkSoft, alignItems: 'center', justifyContent: 'center' }}>
                   <Text style={{ fontSize: 18 }}>🤰</Text>
                 </View>
                 <Text style={{ fontWeight: '700', color: momOn ? '#fff' : colors.text }}>{t('momPill')}</Text>

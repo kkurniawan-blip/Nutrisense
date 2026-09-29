@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import { api, initApi, setToken, setUnauthorizedHandler } from './api';
+import { api, initApi, NetworkError, setToken, setUnauthorizedHandler } from './api';
 import { translate, TKey } from './i18n';
 import { clearQueue } from './offline';
 import { getJSON, setJSON } from './storage';
@@ -10,6 +10,8 @@ import type { Lang, User } from './types';
 const LANG_KEY = 'nutrisense.lang';
 /** Which account the offline outbox belongs to, so queued data is never sent under someone else's login. */
 const OWNER_KEY = 'nutrisense.outboxOwner';
+/** The last known profile, so the app opens (and records offline) without a signal. */
+const USER_KEY = 'nutrisense.user';
 
 interface AuthState {
   ready: boolean;
@@ -35,6 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Session expired: sign out but keep queued data, the same person usually logs straight back in.
   const expire = useCallback(async () => {
     await setToken(null);
+    await setJSON(USER_KEY, null);
     setUser(null);
   }, []);
 
@@ -55,10 +58,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           const me = await api<User>('/api/auth/me');
           if ((await getJSON<number | null>(OWNER_KEY, null)) === null) await setJSON(OWNER_KEY, me.id);
+          await setJSON(USER_KEY, me);
           setUser(me);
           setLangState(me.language);
-        } catch {
-          await setToken(null);
+        } catch (e) {
+          // No signal: stay logged in with the saved profile; entries go to the offline outbox.
+          const saved = e instanceof NetworkError ? await getJSON<User | null>(USER_KEY, null) : null;
+          if (saved) {
+            setUser(saved);
+            setLangState(saved.language);
+          } else await setToken(null);
         }
       }
       setReady(true);
@@ -73,6 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await setJSON(OWNER_KEY, res.user.id);
     }
     await setToken(res.access_token);
+    await setJSON(USER_KEY, res.user);
     setUser(res.user);
     setLangState(res.user.language);
     await setJSON(LANG_KEY, res.user.language);

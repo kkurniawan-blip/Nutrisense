@@ -37,6 +37,7 @@ export default function Profile() {
           <ListRow emoji="🔐" title={t('dataPrivacy')} subtitle={consents.data ? `${on}/4 ${t('consentsOn')}` : undefined} onPress={() => router.push('/privacy')} />
         )}
         <ListRow emoji="🔔" title={t('notifications')} onPress={() => router.push('/notifications')} />
+        <ListRow emoji="🔄" title={t('syncStatus')} onPress={() => router.push('/sync')} />
         <ListRow emoji="📖" title={t('healthGuide')} onPress={() => router.push('/guide')} />
       </Card>
       <LogoutButton />

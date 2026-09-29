@@ -6,11 +6,15 @@ import Svg, { Circle, Line, Rect } from 'react-native-svg';
 
 import { Text } from '../../../components/Text';
 import { Bubble, Button, Card, ErrorBox, Field, IconChip, ListRow, Row, Screen, StatusPill, StepDots } from '../../../components/ui';
-import { api, errorText } from '../../../lib/api';
+import { AudioButton } from '../../../components/AudioButton';
+import { errorText } from '../../../lib/api';
+import { saveOrQueue } from '../../../lib/offline';
+import { useSync } from '../../../lib/sync';
 import { useAuth } from '../../../lib/auth';
 import { formatDate } from '../../../lib/fun';
 import { FLAG_ADVICE, FLAG_LABEL } from '../../../lib/pregnancy';
-import type { MotherFlag } from '../../../lib/types';
+import type { MotherFlag, Pregnancy } from '../../../lib/types';
+import { useApi } from '../../../lib/useApi';
 import { colors, radius, statusColor, tones } from '../../../theme';
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -44,15 +48,30 @@ export default function MotherMeasure() {
   const [date, setDate] = useState(today());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ flags: MotherFlag[] } | null>(null);
+  const [result, setResult] = useState<{ flags: MotherFlag[]; queued?: boolean } | null>(null);
+  const preg = useApi<Pregnancy>(`/api/pregnancies/${id}`);
+  const sync = useSync();
   const num = (s: string) => Number(s.replace(',', '.'));
+  // The same Buku KIA cut-offs as the server, so an offline check still shows what it means.
+  const localFlags = (): MotherFlag[] => {
+    const out: MotherFlag[] = [];
+    if (muac && num(muac) < 23.5) out.push({ code: 'kek', status: 'action', value: num(muac) });
+    if (hb && num(hb) < 7) out.push({ code: 'severe_anemia', status: 'urgent', value: num(hb) });
+    else if (hb && num(hb) < 11) out.push({ code: 'anemia', status: 'action', value: num(hb) });
+    return out;
+  };
 
   const save = async () => {
     setBusy(true);
     setError(null);
     try {
       const body = { muac_cm: muac ? num(muac) : null, hb_g_dl: hb ? num(hb) : null, weight_kg: weight ? num(weight) : null, measured_at: date };
-      setResult(await api(`/api/pregnancies/${id}/measurements`, { body }));
+      const r = await saveOrQueue<{ flags: MotherFlag[] }>('mother_measurement', Number(id), preg.data?.mother_name ?? '', `/api/pregnancies/${id}/measurements`, body);
+      if (r) setResult(r);
+      else {
+        setResult({ flags: localFlags(), queued: true });
+        await sync.refresh();
+      }
     } catch (e) {
       setError(errorText(e));
     } finally {
@@ -72,6 +91,7 @@ export default function MotherMeasure() {
             {hb ? `Hb ${hb}` : ''}
           </Text>
           <Text style={{ color: colors.muted }}>{formatDate(date, lang)}</Text>
+          {result.queued && <Text style={{ color: statusColor.info.fg, fontWeight: '700', marginTop: 6 }}>📶 {t('savedOnPhone')}</Text>}
         </Card>
         <Card>
           <Row style={{ gap: 12, marginBottom: flags.length ? 10 : 0 }}>
@@ -100,7 +120,10 @@ export default function MotherMeasure() {
       {step === 1 && (
         <>
           <Card>
-            <Text style={{ fontSize: 17, fontWeight: '900', marginBottom: 4 }}>{t('muacTitle')}</Text>
+            <Row style={{ justifyContent: 'space-between' }}>
+              <Text style={{ flex: 1, fontSize: 17, fontWeight: '900', marginBottom: 4 }}>{t('muacTitle')}</Text>
+              <AudioButton text={`${t('muacTitle')}. ${t('muacHow1')}. ${t('muacHow2')}. ${t('muacHow3')}.`} />
+            </Row>
             <View style={{ backgroundColor: tones.orange.bg, borderRadius: radius.lg, marginVertical: 8, alignItems: 'center', paddingVertical: 6 }}>
               <ArmIllustration />
             </View>

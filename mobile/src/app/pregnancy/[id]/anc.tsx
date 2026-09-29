@@ -5,6 +5,8 @@ import { Pressable, View } from 'react-native';
 import { Text } from '../../../components/Text';
 import { Bubble, Button, Card, Chip, ErrorBox, Loading, Row, Screen, Section, StatusPill } from '../../../components/ui';
 import { api, errorText } from '../../../lib/api';
+import { saveOrQueue } from '../../../lib/offline';
+import { useSync } from '../../../lib/sync';
 import { useAuth } from '../../../lib/auth';
 import { formatDate } from '../../../lib/fun';
 import { ANC_PLACES, label, VISIT_STATUS } from '../../../lib/pregnancy';
@@ -17,6 +19,7 @@ export default function AncTracker() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t, lang } = useAuth();
   const q = useApi<Pregnancy>(`/api/pregnancies/${id}`);
+  const sync = useSync();
   const [place, setPlace] = useState('puskesmas');
   const [busy, setBusy] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +30,14 @@ export default function AncTracker() {
     setBusy(v.number);
     setError(null);
     try {
-      q.setData(await api<Pregnancy>(`/api/pregnancies/${id}/anc`, { body: { number: v.number, place } }));
+      const visit_date = new Date().toISOString().slice(0, 10);
+      const r = await saveOrQueue<Pregnancy>('anc', p.id, p.mother_name, `/api/pregnancies/${id}/anc`, { number: v.number, place, visit_date });
+      if (r) q.setData(r);
+      else {
+        const anc = p.anc.map((x) => (x.number === v.number ? { ...x, status: 'done' as const, visit_date, place } : x));
+        q.setData({ ...p, anc, anc_done: p.anc_done + 1 });
+        await sync.refresh();
+      }
     } catch (e) {
       setError(errorText(e));
     } finally {
@@ -47,7 +57,7 @@ export default function AncTracker() {
     <Screen refreshing={q.loading} onRefresh={q.reload}>
       {/* The reminder */}
       {nxt ? (
-        <Bubble mood={nxt.status === 'overdue' ? 'caring' : 'cheer'}>
+        <Bubble mood={nxt.status === 'overdue' ? 'caring' : 'cheer'} audio={`${t('nextVisit')}: K${nxt.number}. ${VISIT_STATUS[nxt.status].label[lang]}. ${t('ancAudio')}`}>
           <Text style={{ fontWeight: '900', fontSize: 17 }}>
             {t('nextVisit')}: K{nxt.number}
           </Text>

@@ -108,11 +108,14 @@ docker run -p 8000:8000 nutrisense      # then open http://localhost:8000
 
 **Application layer**
 - REST API in `backend/app/routers/*`
-- Offline-first measurement queue in `mobile/src/lib/offline.ts`, synced through `POST /api/sync` (idempotent by client UUID)
+- Offline-first outbox in `mobile/src/lib/offline.ts` for measurements, meals, symptoms, Catat ibu, ANC, TTD/PMT, ASI and KIA, replayed when the signal returns (idempotent by client UUID or day), with a sync status page (`/sync`)
+- Login with a phone number or email; Kaders register a pregnant mother (`POST /api/kader/mothers`) who then logs in with her phone number
 
 **Intelligence layer** (`backend/app/ai/`)
 - `computeZScore()`: `growth.py` uses the official WHO 2006 LMS tables, the length/height switch at 24 months with the 0.7 cm correction, and WHO implausibility flags.
-- `classify()`: `risk_model.py` is a Random Forest over 19 features with a logistic-regression baseline. Explanations come from perturbation-based feature contributions. Guardrails: WHO cut-offs and IMCI danger signs can raise the level but never lower it. Low-confidence results are flagged for human review.
+- `classify()`: `risk_model.py` is a Random Forest with a logistic-regression baseline that predicts stunting risk from 19 factors known before the child's size: birth (low birth weight, premature), ASI eksklusif, weight gain against the KBM (T/2T), illness, diet, immunisation, the mother (height < 150 cm, KEK in pregnancy) and the household. The child's height and z-scores are **not** inputs (stunting is defined by height-for-age, so the model would only re-read the answer), and neither is the area's stunting prevalence. The WHO status is shown separately; WHO cut-offs, oedema and IMCI danger signs can raise the level after the model but never lower it. Explanations come from perturbation-based feature contributions. Low-confidence results are flagged for human review. All model metrics are demo metrics on a synthetic cohort and are labelled "Data demo" in the dashboard.
+- Buku KIA for the child: `kia.py` holds the immunisation / vitamin A / deworming schedule, the minimum weight gain (KBM) behind the 2T badge, and the ASI eksklusif window.
+- Ibu hamil: `maternal.py` holds HPL, trimesters, ANC K1–K6, KEK (LiLA < 23.5 cm), anaemia (Hb < 11 g/dL), nifas visits and one risk level for the mother (Belum dicek … Risiko tinggi; missed visits lower it).
 - Predictive growth tracker: `trend.py` computes HAZ velocity and projects 3 and 6 months ahead, so a child sliding toward −2 SD is flagged before stunting is visible.
 - Triage engine: `triage.py` produces four urgency tiers, next steps, and supply needs.
 - Symptom interpretation: `symptoms.py` reads Bahasa Indonesia, English and local terms (*mencret*, *step*, *lepeh*…).
@@ -238,7 +241,7 @@ This is the overfitting risk Appendix B already flags as future work.
 ## Tests and checks
 
 ```bash
-cd backend && pytest -q            # 127 tests: WHO z-scores vs published tables, model quality, triage,
+cd backend && pytest -q            # 144 tests: WHO z-scores vs published tables, model quality, triage,
                                    # symptom lexicon, the full caregiver→Kader→officer→locker workflow,
                                    # RBAC, consent, encryption at rest, FHIR, offline sync
 cd mobile && npx tsc --noEmit && npx eslint src

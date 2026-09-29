@@ -6,7 +6,9 @@ import { View } from 'react-native';
 import { Text } from '../../../components/Text';
 import { TodayBox } from '../../../components/TodayBox';
 import { Bar, Bubble, Card, ErrorBox, H2, Loading, Row, Screen, StatusPill } from '../../../components/ui';
-import { api, errorText } from '../../../lib/api';
+import { errorText } from '../../../lib/api';
+import { saveOrQueue } from '../../../lib/offline';
+import { useSync } from '../../../lib/sync';
 import { useAuth } from '../../../lib/auth';
 import type { Pregnancy } from '../../../lib/types';
 import { useApi } from '../../../lib/useApi';
@@ -17,14 +19,23 @@ export default function Supplements() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t, lang } = useAuth();
   const q = useApi<Pregnancy>(`/api/pregnancies/${id}`);
+  const sync = useSync();
   const [error, setError] = useState<string | null>(null);
   const p = q.data;
   if (!p) return <Screen>{q.error ? <ErrorBox message={q.error} onRetry={q.reload} /> : <Loading />}</Screen>;
 
   const set = async (body: { ttd?: boolean; pmt?: boolean }) => {
     setError(null);
+    const day = new Date().toISOString().slice(0, 10);
     try {
-      q.setData(await api<Pregnancy>(`/api/pregnancies/${id}/daily`, { body }));
+      const r = await saveOrQueue<Pregnancy>('daily', p.id, p.mother_name, `/api/pregnancies/${id}/daily`, { ...body, day });
+      if (r) q.setData(r);
+      else {
+        // Offline: tick it now; it is sent when the signal returns.
+        const today_log = { ...p.today_log, ...body };
+        q.setData({ ...p, today_log, daily_week: p.daily_week.map((d) => (d.day === day ? { ...d, ...body } : d)) });
+        await sync.refresh();
+      }
     } catch (e) {
       setError(errorText(e));
     }
@@ -33,7 +44,9 @@ export default function Supplements() {
 
   return (
     <Screen refreshing={q.loading} onRefresh={q.reload}>
-      <Bubble mood="happy">{t('ttdBubble')}</Bubble>
+      <Bubble mood="happy" audio={`${t('ttdBubble')} ${t('ttdTip')}`}>
+        {t('ttdBubble')}
+      </Bubble>
       {error && <ErrorBox message={error} />}
 
       <Row style={{ gap: 10, marginBottom: 16, alignItems: 'stretch' }}>

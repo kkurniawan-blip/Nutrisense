@@ -74,7 +74,7 @@ function AccountForm({ user }: { user: User }) {
     <Card>
       <H2 emoji="👤">{t('account')}</H2>
       <Text style={{ color: colors.muted, fontSize: 13, marginTop: -6, marginBottom: 10 }}>
-        ✉️ {user.email} · {t(`role_${user.role}`)}
+        {user.email ? `✉️ ${user.email}` : `📱 ${user.phone ?? ""}`} · {t(`role_${user.role}`)}
       </Text>
       <Field label={t('fullName')} value={name} onChangeText={setName} autoComplete="name" />
       <Field label={t('phone')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" hint={t('phoneHint')} />

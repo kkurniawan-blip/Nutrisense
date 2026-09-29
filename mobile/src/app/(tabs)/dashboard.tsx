@@ -3,10 +3,12 @@ import React, { useState } from 'react';
 import { LayoutChangeEvent, View } from 'react-native';
 import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 
-import { Card, ErrorBox, H1, H2, Loading, P, RiskBadge, Row, Screen, Segmented, Stat } from '../../components/ui';
+import { Card, ErrorBox, H1, H2, Loading, P, RiskBadge, Row, Screen, Segmented, Source, Stat, StatusPill } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
+import { FEATURE_LABELS, label } from '../../lib/i18n';
+import type { SourceRef } from '../../lib/types';
 import { useApi } from '../../lib/useApi';
-import { colors, fonts } from '../../theme';
+import { colors, fonts, statusColor } from '../../theme';
 import { Text } from '../../components/Text';
 
 interface Summary {
@@ -19,6 +21,32 @@ interface Summary {
   supply: Record<string, number>;
   restock_alerts: number;
   declining_trend: number;
+  two_t: number;
+  source: SourceRef;
+  reference: { stunting_ntt: { value: number; label: string; year: number } };
+}
+
+interface Ref {
+  value: number;
+  label: string;
+  year: number;
+}
+
+interface Mothers {
+  active: number;
+  delivered_12m: number;
+  checked: number;
+  not_checked: number;
+  kek: { n: number; of: number; pct: number | null; reference: Ref };
+  anemia: { n: number; of: number; pct: number | null; reference: Ref };
+  k6: { n: number; of: number; pct: number | null };
+  k1: { n: number; of: number; pct: number | null };
+  source: SourceRef;
+}
+
+interface Flagged {
+  rows: { kind: 'child' | 'mother'; id: number; name: string; region: string | null; flags: string[]; measured_at: string; measured_by: 'mother' | 'kader'; urgent: boolean }[];
+  source: SourceRef;
 }
 
 interface HeatRow {
@@ -30,11 +58,15 @@ interface HeatRow {
   measured_stunting_pct: number | null;
   benchmark_pct: number | null;
   open_cases: number;
+  source: SourceRef;
+  benchmark_source: SourceRef;
 }
 
 interface ProjectionData {
   label: string;
   source: string;
+  years: [number, number];
+  target_source: string;
   target: { year: number; value: number };
   rmse: Record<string, number>;
   cv_rmse: Record<string, number>;
@@ -56,6 +88,9 @@ interface ModelInfo {
     baseline_logistic_regression: { accuracy: number; f1_macro: number };
   };
   feature_importances: Record<string, number>;
+  demo: boolean;
+  source: SourceRef;
+  trained_at: string;
 }
 
 function heatColor(idx: number | null) {
@@ -134,17 +169,20 @@ function ProjectionChart({ d }: { d: ProjectionData }) {
 }
 
 export default function Dashboard() {
-  const { t, user } = useAuth();
+  const { t, user, lang } = useAuth();
   const summary = useApi<Summary>('/api/dashboard/summary');
   const heat = useApi<HeatRow[]>('/api/dashboard/heatmap');
   const [series, setSeries] = useState<'ntt' | 'indonesia'>('ntt');
   const proj = useApi<ProjectionData>(`/api/dashboard/projection?series=${series}`);
   const model = useApi<ModelInfo>('/api/dashboard/model');
+  const mothers = useApi<Mothers>('/api/dashboard/mothers');
+  const flagged = useApi<Flagged>('/api/dashboard/flagged');
   const priority = useApi<{ child_id: number; name: string; risk_level: 'low' | 'medium' | 'high'; urgency: string; region: string; top_reason: string }[]>(
     '/api/dashboard/priority?limit=8',
   );
 
-  const reload = () => [summary, heat, proj, model, priority].forEach((x) => void x.reload());
+  const reload = () => [summary, heat, proj, model, priority, mothers, flagged].forEach((x) => void x.reload());
+  const m = mothers.data;
   const s = summary.data;
 
   return (
@@ -168,6 +206,12 @@ export default function Dashboard() {
             <Stat label={t('kpiReview')} value={s.needs_review} tone={s.needs_review ? 'warn' : 'ok'} />
             <Stat label={t('kpiDeclining')} value={s.declining_trend} tone="warn" />
           </Row>
+          <Row style={{ flexWrap: 'wrap', marginBottom: 4 }}>
+            <Stat label={t('kpiTwoT')} value={s.two_t} tone={s.two_t ? 'warn' : 'ok'} />
+            <Stat label={`${t('kpiStuntingNtt')} (${s.reference.stunting_ntt.year})`} value={`${s.reference.stunting_ntt.value}%`} />
+          </Row>
+          <Source label={s.source.label} year={s.source.year} />
+          <Source label={s.reference.stunting_ntt.label} year={s.reference.stunting_ntt.year} style={{ marginTop: 0, marginBottom: 12 }} />
           <Card>
             <H2>{t('risk')}</H2>
             <View style={{ flexDirection: 'row', height: 18, borderRadius: 9, overflow: 'hidden' }}>
@@ -185,8 +229,60 @@ export default function Dashboard() {
                 </Text>
               ))}
             </Row>
+            <Source label={s.source.label} year={s.source.year} />
           </Card>
         </>
+      )}
+
+      {m && (
+        <Card>
+          <H2 emoji="🤰" right={<Text style={{ fontSize: 15, fontWeight: '800' }}>{m.active} {t('mothersCount')}</Text>}>
+            {t('pregnantMothers')}
+          </H2>
+          <Row style={{ flexWrap: 'wrap', marginBottom: 8 }}>
+            <Stat label={`KEK (${m.kek.n}/${m.kek.of})`} value={m.kek.pct !== null ? `${m.kek.pct}%` : '–'} tone="warn" />
+            <Stat label={`${t('anaemia')} (${m.anemia.n}/${m.anemia.of})`} value={m.anemia.pct !== null ? `${m.anemia.pct}%` : '–'} tone="warn" />
+          </Row>
+          <Row style={{ flexWrap: 'wrap', marginBottom: 8 }}>
+            <Stat label={`${t('k6Coverage')} (${m.k6.n}/${m.k6.of})`} value={m.k6.pct !== null ? `${m.k6.pct}%` : '–'} tone={(m.k6.pct ?? 0) >= 80 ? 'ok' : 'warn'} />
+            <Stat label={`K1 (${m.k1.n}/${m.k1.of})`} value={m.k1.pct !== null ? `${m.k1.pct}%` : '–'} />
+          </Row>
+          {m.not_checked > 0 && <Text style={{ color: colors.muted, fontWeight: '700' }}>⚪ {m.not_checked} {t('mothersNotChecked')}</Text>}
+          <Text style={{ color: colors.muted, fontSize: 12.5, marginTop: 6 }}>{t('k6Def')}</Text>
+          <Source label={m.source.label} year={m.source.year} />
+          <Source label={`${t('national')}: KEK ${m.kek.reference.value}%, ${t('anaemia').toLowerCase()} ${m.anemia.reference.value}%, ${m.kek.reference.label}`} year={m.kek.reference.year} style={{ marginTop: 0 }} />
+        </Card>
+      )}
+
+      {flagged.data && (
+        <Card>
+          <H2 emoji="⚠️" right={<Text style={{ fontSize: 15, fontWeight: '800' }}>{flagged.data.rows.length}</Text>}>
+            {t('flaggedTitle')}
+          </H2>
+          {flagged.data.rows.slice(0, 8).map((r) => (
+            <Card
+              key={`${r.kind}${r.id}`}
+              onPress={() => router.push(r.kind === 'child' ? `/child/${r.id}` : `/pregnancy/${r.id}`)}
+              style={{ marginBottom: 8, padding: 12, ...(r.urgent ? { borderColor: colors.danger, borderWidth: 2 } : {}) }}
+            >
+              <Row style={{ justifyContent: 'space-between' }}>
+                <Text style={{ fontWeight: '700', flex: 1 }}>
+                  {r.kind === 'child' ? '👶' : '🤰'} {r.name}
+                  {r.region ? <Text style={{ color: colors.muted, fontWeight: '400' }}> · {r.region}</Text> : null}
+                </Text>
+              </Row>
+              <Row style={{ flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                {r.flags.map((f) => (
+                  <StatusPill key={f} status={r.urgent ? 'urgent' : 'action'} label={t(`flag_${f}`)} />
+                ))}
+              </Row>
+              <Text style={{ color: colors.muted, fontSize: 12.5, marginTop: 4 }}>
+                {r.measured_at} · {t('measuredBy')}: {r.measured_by === 'kader' ? 'Kader' : t('byMother')}
+              </Text>
+            </Card>
+          ))}
+          <Source label={flagged.data.source.label} year={flagged.data.source.year} />
+        </Card>
       )}
 
       <Card>
@@ -202,6 +298,7 @@ export default function Dashboard() {
             <Text style={{ color: p.urgency === 'emergency' ? colors.danger : colors.muted, fontSize: 13 }}>{t(`urgency_${p.urgency}`)}</Text>
           </Card>
         ))}
+        {s && <Source label={s.source.label} year={s.source.year} />}
       </Card>
 
       <Card>
@@ -216,6 +313,12 @@ export default function Dashboard() {
             </Text>
           </Row>
         ))}
+        {heat.data?.[0] && (
+          <>
+            <Source label={heat.data[0].source.label} year={heat.data[0].source.year} />
+            <Source label={`${t('benchmark')}: ${typeof heat.data[0].benchmark_source.label === 'string' ? heat.data[0].benchmark_source.label : heat.data[0].benchmark_source.label[lang]}`} year={heat.data[0].benchmark_source.year} style={{ marginTop: 0 }} />
+          </>
+        )}
       </Card>
 
       <Card>
@@ -234,7 +337,8 @@ export default function Dashboard() {
             <P muted style={{ fontSize: 12 }}>
               Poly degree {proj.data.selected_degree} · LOOCV RMSE {Object.entries(proj.data.cv_rmse).map(([k, v]) => `${k.replace('degree_', 'd')}=${v}`).join(', ')}
             </P>
-            <P muted style={{ fontSize: 12 }}>{proj.data.source}</P>
+            <Source label={proj.data.source} year={`${proj.data.years[0]}–${proj.data.years[1]}`} />
+            <Source label={`Target ${proj.data.target.value}% (${proj.data.target.year}): ${proj.data.target_source}`} style={{ marginTop: 0 }} />
           </>
         ) : (
           <Loading />
@@ -243,8 +347,9 @@ export default function Dashboard() {
 
       {model.data && (
         <Card>
-          <H2>{t('modelCard')}</H2>
+          <H2 right={model.data.demo ? <StatusPill status="monitor" label={t('demoData')} /> : null}>{t('modelCard')}</H2>
           <P muted style={{ fontSize: 12 }}>{model.data.algorithm}</P>
+          {model.data.demo && <Text style={{ color: statusColor.monitor.fg, fontSize: 13, fontWeight: '600' }}>{t('demoDataNote')}</Text>}
           <Row style={{ flexWrap: 'wrap', marginVertical: 8 }}>
             <Stat label="Accuracy" value={`${(model.data.metrics.accuracy * 100).toFixed(1)}%`} />
             <Stat label="F1 (macro)" value={model.data.metrics.f1_macro.toFixed(3)} />
@@ -265,6 +370,17 @@ export default function Dashboard() {
               ))}
             </Row>
           ))}
+          <Text style={{ fontWeight: '700', marginTop: 12, color: colors.text }}>{t('modelInputs')}</Text>
+          {Object.entries(model.data.feature_importances)
+            .slice(0, 6)
+            .map(([k, v]) => (
+              <Row key={k} style={{ justifyContent: 'space-between' }}>
+                <Text style={{ color: colors.text, fontSize: 13 }}>{label(FEATURE_LABELS, k, lang)}</Text>
+                <Text style={{ color: colors.muted, fontSize: 13 }}>{(v * 100).toFixed(0)}%</Text>
+              </Row>
+            ))}
+          <Text style={{ color: colors.muted, fontSize: 12.5, marginTop: 6 }}>{t('modelNoHeight')}</Text>
+          <Source label={model.data.source.label} year={model.data.source.year} />
         </Card>
       )}
     </Screen>

@@ -89,9 +89,9 @@ def today_checklist(child_id: int, lang: str | None = None, user: User = Depends
     given = {r.item_key: r.given_at for r in db.scalars(select(KiaRecord).where(KiaRecord.child_id == child.id)).all()}
     due = [r for r in kia.schedule(child.birth_date, given)["immunization"] if r["status"] in ("due", "overdue")]
     if due:
+        when = {"id": "terlewat", "en": "missed"}[L] if due[0]["status"] == "overdue" else {"id": "sekarang", "en": "now"}[L]
         items.append({"key": "kia", "status": "action", "action": "kia",
-                      "text": {"id": f"Imunisasi {due[0]['vaccines'][0]}", "en": f"Vaccine {due[0]['vaccines'][0]}"}[L]
-                      + ({"id": " terlewat", "en": " missed"}[L] if due[0]["status"] == "overdue" else {"id": " bulan ini", "en": " this month"}[L])})
+                      "text": {"id": f"Imunisasi {due[0]['vaccines'][0]}: {when}", "en": f"Vaccine {due[0]['vaccines'][0]}: {when}"}[L]})
 
     ready = db.scalar(select(SupplyRequest).where(SupplyRequest.child_id == child.id, SupplyRequest.status == "ready_for_pickup"))
     if ready:
