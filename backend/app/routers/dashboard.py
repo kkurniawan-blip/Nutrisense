@@ -9,15 +9,31 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .. import serializers as S
-from ..ai import trend
+from ..ai import kia, maternal as M, trend
 from ..database import get_db
 from ..deps import STAFF, can_access_child, require_roles
-from ..models import Case, Child, GrowthMeasurement, ModelRun, Region, RiskAssessment, SupplyRequest, User
+from ..models import (AncVisit, Case, Child, GrowthMeasurement, MaternalMeasurement, ModelRun, Pregnancy, Region, RiskAssessment,
+                      SupplyRequest, User)
 from ..services import logistics
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard & analytics"])
 
 _PREVALENCE = Path(__file__).resolve().parent.parent / "ai" / "data" / "prevalence.json"
+
+
+def app_source() -> dict:
+    """Figures computed from records in this NutriSense instance (the seeded demo network unless real data is loaded)."""
+    from datetime import date
+
+    return {"label": {"id": "Data NutriSense (demo)", "en": "NutriSense data (demo)"}, "year": date.today().year}
+
+
+# National reference values shown next to the app's own figures.
+REFERENCE = {
+    "stunting_ntt": {"value": 37.0, "label": "SSGI 2024, Kemenkes RI", "year": 2024},
+    "kek_pregnant": {"value": 17.3, "label": "Riskesdas 2018, Kemenkes RI", "year": 2018},
+    "anemia_pregnant": {"value": 48.9, "label": "Riskesdas 2018, Kemenkes RI", "year": 2018},
+}
 
 
 def _latest_assessments(db: Session) -> dict[int, RiskAssessment]:
@@ -57,6 +73,9 @@ def summary(user: User = Depends(require_roles(*STAFF)), db: Session = Depends(g
                    ("pending_approval", "awaiting_stock", "in_transit", "ready_for_pickup", "picked_up")},
         "restock_alerts": len(logistics.restock_alerts(db)),
         "declining_trend": sum(1 for a in latest.values() if a.trend.get("status") in ("declining", "projected_stunting")),
+        "two_t": sum(1 for c in children if kia.not_gaining([(m.measured_at, m.age_months, m.weight_kg) for m in c.measurements]) >= 2),
+        "source": app_source(),
+        "reference": {"stunting_ntt": REFERENCE["stunting_ntt"]},
     }
 
 
@@ -82,6 +101,8 @@ def heatmap(user: User = Depends(require_roles(*STAFF)), db: Session = Depends(g
             "mean_haz": round(mean(hazs), 2) if hazs else None,
             "benchmark_pct": region.prevalence_benchmark,
             "open_cases": open_cases,
+            "source": app_source(),
+            "benchmark_source": {"label": "SSGI 2024 (NTT), Kemenkes RI", "year": 2024},
         })
     return out
 
@@ -113,6 +134,7 @@ def projection(series: str = "indonesia", until: int = 2030, _: User = Depends(r
     s = data[series]
     years, values = zip(*s["data"])
     return {"series": series, "label": s["label"], "source": s["source"], "target": s["target"],
+            "years": [min(years), max(years)], "target_source": "RPJMN 2025-2029",
             **trend.fit_prevalence(list(years), list(values), until)}
 
 
@@ -121,8 +143,14 @@ def model_info(_: User = Depends(require_roles(*STAFF)), db: Session = Depends(g
     run = db.scalar(select(ModelRun).where(ModelRun.name == "stunting_risk", ModelRun.is_active.is_(True)).order_by(ModelRun.id.desc()))
     if run is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No active model")
+    from ..ai.risk_model import FEATURE_NAMES
+
     return {"id": run.id, "algorithm": run.algorithm, "version": run.version, "n_samples": run.n_samples, "metrics": run.metrics,
-            "feature_importances": run.feature_importances, "trained_at": run.trained_at.isoformat(), "notes": run.notes}
+            "feature_importances": run.feature_importances, "trained_at": run.trained_at.isoformat(), "notes": run.notes,
+            # Trained and tested on a synthetic cohort: these are demo numbers, not a clinical validation.
+            "demo": True, "inputs": FEATURE_NAMES,
+            "source": {"label": {"id": "Kohort sintetis NTT (data demo)", "en": "Synthetic NTT cohort (demo data)"},
+                       "year": run.trained_at.year}}
 
 
 @router.get("/evaluation")
@@ -237,3 +265,95 @@ def area_children(
     limit = max(1, min(limit, 100))
     return {"counts": counts, "matched": len(rows), "rows": rows[offset:offset + limit], "offset": offset, "limit": limit,
             "regions": [{"id": i, "name": n} for i, n in regions]}
+
+
+def _visible_pregnancies(db: Session, user: User) -> list[Pregnancy]:
+    rows = db.scalars(select(Pregnancy)).all()
+    if user.role == "kader":
+        return [p for p in rows if p.kader_id == user.id or p.region_id in user.coverage()]
+    return list(rows)
+
+
+@router.get("/mothers")
+def mothers(user: User = Depends(require_roles(*STAFF)), db: Session = Depends(get_db)):
+    """Ibu hamil indicators: KEK and anaemia at the latest check, and K6 coverage (6+ antenatal visits)."""
+    from datetime import date, timedelta
+
+    today = date.today()
+    preg = _visible_pregnancies(db, user)
+    active = [p for p in preg if p.status == "active"]
+    latest = {}
+    for p in active:
+        ms = db.scalars(select(MaternalMeasurement).where(MaternalMeasurement.pregnancy_id == p.id)
+                        .order_by(MaternalMeasurement.measured_at, MaternalMeasurement.id)).all()
+        muac = next((m.muac_cm for m in reversed(ms) if m.muac_cm is not None), None)
+        hb = next((m.hb_g_dl for m in reversed(ms) if m.hb_g_dl is not None), None)
+        latest[p.id] = (muac, hb)
+    with_muac = [v for v in latest.values() if v[0] is not None]
+    with_hb = [v for v in latest.values() if v[1] is not None]
+    kek = sum(1 for m, _ in with_muac if m < M.KEK_MUAC_CM)
+    anemia = sum(1 for _, h in with_hb if h < M.ANEMIA_HB)
+    visits = Counter(v.pregnancy_id for v in db.scalars(select(AncVisit)).all())
+    # K6 coverage: mothers who gave birth in the last 12 months, or are at 36+ weeks, with at least 6 visits.
+    eligible = [p for p in preg if (p.delivered_at and p.delivered_at >= today - timedelta(days=365))
+                or (p.status == "active" and M.gestational_days(p.hpht, today) >= 36 * 7)]
+    k6 = sum(1 for p in eligible if visits.get(p.id, 0) >= 6)
+    k1 = sum(1 for p in active if visits.get(p.id, 0) >= 1)
+
+    def pct(n, d):
+        return round(100 * n / d, 1) if d else None
+
+    return {
+        "active": len(active), "delivered_12m": sum(1 for p in preg if p.delivered_at and p.delivered_at >= today - timedelta(days=365)),
+        "checked": len(with_muac),
+        "kek": {"n": kek, "of": len(with_muac), "pct": pct(kek, len(with_muac)), "reference": REFERENCE["kek_pregnant"]},
+        "anemia": {"n": anemia, "of": len(with_hb), "pct": pct(anemia, len(with_hb)), "reference": REFERENCE["anemia_pregnant"]},
+        "k6": {"n": k6, "of": len(eligible), "pct": pct(k6, len(eligible))},
+        "k1": {"n": k1, "of": len(active), "pct": pct(k1, len(active))},
+        "not_checked": len(active) - len({pid for pid, v in latest.items() if v[0] is not None or v[1] is not None}),
+        "source": app_source(),
+    }
+
+
+@router.get("/flagged")
+def flagged(days: int = 60, user: User = Depends(require_roles(*STAFF)), db: Session = Depends(get_db)):
+    """Measurements that need a second look: oedema, 2T, severe z-scores (children); KEK or anaemia (mothers)."""
+    from datetime import date, timedelta
+
+    since = date.today() - timedelta(days=days)
+    rows = []
+    for c in _visible_children(db, user):
+        ms = c.measurements
+        if not ms or ms[-1].measured_at < since:
+            continue
+        m = ms[-1]
+        flags = []
+        if m.oedema:
+            flags.append("oedema")
+        if kia.not_gaining([(x.measured_at, x.age_months, x.weight_kg) for x in ms]) >= 2:
+            flags.append("two_t")
+        if m.whz is not None and m.whz < -3:
+            flags.append("severe_wasting")
+        if m.haz is not None and m.haz < -3:
+            flags.append("severe_stunting")
+        if flags:
+            rows.append({"kind": "child", "id": c.id, "name": c.name, "region": c.region.name if c.region else None, "flags": flags,
+                         "measured_at": m.measured_at.isoformat(), "measured_by": m.measured_by or ("kader" if m.source == "kader" else "mother"),
+                         "urgent": "oedema" in flags or "severe_wasting" in flags})
+    for p in _visible_pregnancies(db, user):
+        if p.status != "active":
+            continue
+        m = db.scalar(select(MaternalMeasurement).where(MaternalMeasurement.pregnancy_id == p.id).order_by(MaternalMeasurement.measured_at.desc(),
+                                                                                                       MaternalMeasurement.id.desc()))
+        if m is None or m.measured_at < since:
+            continue
+        codes = [f["code"] for f in M.mother_flags(m.muac_cm, m.hb_g_dl, None)]
+        if codes:
+            by = db.get(User, m.recorded_by_id) if m.recorded_by_id else None
+            rows.append({"kind": "mother", "id": p.id, "name": p.mother.full_name, "region": p.region.name if p.region else None,
+                         "flags": codes, "measured_at": m.measured_at.isoformat(),
+                         "measured_by": "kader" if by is not None and by.role == "kader" else "mother",
+                         "urgent": "severe_anemia" in codes or {"kek", "anemia"} <= set(codes)})
+    rows.sort(key=lambda r: r["measured_at"], reverse=True)
+    rows.sort(key=lambda r: not r["urgent"])  # urgent first, newest first within each group
+    return {"rows": rows, "source": app_source()}

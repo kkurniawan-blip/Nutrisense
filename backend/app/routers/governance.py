@@ -115,7 +115,7 @@ def model_runs(_: User = Depends(require_roles("officer", "doctor", "admin")), d
 
 @router.post("/models/retrain")
 def retrain(user: User = Depends(require_roles("admin")), db: Session = Depends(get_db)):
-    run = model_registry.train_and_register(db, notes=f"Retrained by {user.email}")
+    run = model_registry.train_and_register(db, notes=f"Retrained by {user.email or user.full_name}")
     audit(db, user, "model_retrain", "model_run", run.id)
     db.commit()
     return {"id": run.id, "metrics": run.metrics}

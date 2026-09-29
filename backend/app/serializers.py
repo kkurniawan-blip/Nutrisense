@@ -1,6 +1,7 @@
 """Model -> JSON helpers used by the routers."""
 from datetime import date
 
+from .ai import kia
 from .ai.growth import age_in_months, classify_haz, classify_waz, classify_whz
 from .ai.triage import SUPPLY_CATALOG
 from .models import (Case, Child, Drone, DroneDispatch, GrowthMeasurement, Locker, MealLog, Notification, Region, RiskAssessment,
@@ -12,7 +13,8 @@ def region(r: Region | None) -> dict | None:
     if r is None:
         return None
     return {"id": r.id, "name": r.name, "district": r.district, "province": r.province, "lat": r.lat, "lng": r.lng,
-            "rural": r.rural, "prevalence_benchmark": r.prevalence_benchmark, "transport_difficulty": r.transport_difficulty}
+            "rural": r.rural, "prevalence_benchmark": r.prevalence_benchmark, "transport_difficulty": r.transport_difficulty,
+            "puskesmas_name": r.puskesmas_name, "puskesmas_phone": r.puskesmas_phone, "facility_km": r.facility_km}
 
 
 def user(u: User) -> dict:
@@ -25,7 +27,8 @@ def measurement(m: GrowthMeasurement) -> dict:
     return {"id": m.id, "child_id": m.child_id, "measured_at": m.measured_at.isoformat(), "age_months": m.age_months,
             "weight_kg": m.weight_kg, "height_cm": m.height_cm, "muac_cm": m.muac_cm, "position": m.position,
             "haz": m.haz, "waz": m.waz, "whz": m.whz, "haz_class": classify_haz(m.haz), "waz_class": classify_waz(m.waz),
-            "whz_class": classify_whz(m.whz), "source": m.source, "client_uuid": m.client_uuid}
+            "whz_class": classify_whz(m.whz), "source": m.source, "client_uuid": m.client_uuid,
+            "measured_by": m.measured_by, "oedema": m.oedema}
 
 
 def assessment(a: RiskAssessment | None) -> dict | None:
@@ -41,6 +44,13 @@ def assessment(a: RiskAssessment | None) -> dict | None:
             "created_at": a.created_at.isoformat()}
 
 
+def weight_gain(c: Child) -> dict:
+    """KMS weighing results (N naik / T tidak naik, against the minimum gain KBM) and the 2T flag."""
+    points = [(m.measured_at, m.age_months, m.weight_kg) for m in c.measurements]
+    return {"weighings": kia.weighings(points)[-3:], "not_gaining": kia.not_gaining(points),
+            "two_t": kia.not_gaining(points) >= 2, "source": "KBM · Buku KIA 2020"}
+
+
 def child(c: Child, latest_assessment: RiskAssessment | None = None) -> dict:
     last = c.measurements[-1] if c.measurements else None
     return {"id": c.id, "name": c.name, "sex": c.sex, "birth_date": c.birth_date.isoformat(),
@@ -49,6 +59,7 @@ def child(c: Child, latest_assessment: RiskAssessment | None = None) -> dict:
             "region_id": c.region_id, "region": region(c.region), "birth_weight_kg": c.birth_weight_kg,
             "birth_length_cm": c.birth_length_cm, "clean_water_access": c.clean_water_access,
             "sanitation_access": c.sanitation_access, "exclusive_breastfeeding": c.exclusive_breastfeeding,
+            "birth_gestational_weeks": c.birth_gestational_weeks, "weight_gain": weight_gain(c),
             "latest_measurement": measurement(last) if last else None, "measurement_count": len(c.measurements),
             "latest_assessment": assessment(latest_assessment)}
 

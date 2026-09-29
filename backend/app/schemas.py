@@ -5,7 +5,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 
 class RegisterIn(BaseModel):
-    email: EmailStr
+    email: EmailStr | None = Field(default=None, description="Email, or leave empty and give a phone number")
     password: str = Field(min_length=8)
     full_name: str = Field(min_length=2, max_length=160)
     phone: str | None = None
@@ -29,7 +29,8 @@ class StaffCreateIn(BaseModel):
 
 
 class LoginIn(BaseModel):
-    email: EmailStr
+    email: str | None = Field(default=None, description="Email or phone number")
+    phone: str | None = None
     password: str
 
 
@@ -51,6 +52,7 @@ class ChildIn(BaseModel):
     birth_date: date
     region_id: int | None = None
     caregiver_email: EmailStr | None = Field(default=None, description="Kader registering a child on behalf of a caregiver")
+    caregiver_phone: str | None = Field(default=None, max_length=20, description="...or the caregiver's phone number")
     birth_weight_kg: float | None = Field(default=None, gt=0.3, lt=7)
     birth_length_cm: float | None = Field(default=None, gt=25, lt=65)
     clean_water_access: bool = True
@@ -60,6 +62,7 @@ class ChildIn(BaseModel):
 
 class ChildUpdateIn(BaseModel):
     name: str | None = None
+    birth_gestational_weeks: float | None = Field(default=None, ge=22, le=44)
     region_id: int | None = None
     kader_id: int | None = None
     clean_water_access: bool | None = None
@@ -74,6 +77,8 @@ class MeasurementIn(BaseModel):
     muac_cm: float | None = Field(default=None, gt=5, lt=30)
     position: str = Field(default="standing", pattern="^(lying|standing)$")
     source: str = Field(default="app", pattern="^(app|kader|iot)$")
+    measured_by: str | None = Field(default=None, pattern="^(mother|kader)$", description="Who measured: the mother or a Kader")
+    oedema: bool | None = Field(default=None, description="Pitting oedema of both feet")
     client_uuid: str | None = Field(default=None, max_length=64, description="Idempotency key for offline sync")
     run_assessment: bool = True
 
@@ -162,3 +167,30 @@ class SyncBatchIn(BaseModel):
     """Offline-first: measurements captured without connectivity, uploaded later."""
 
     measurements: list[dict] = Field(default_factory=list, description="[{child_id, ...MeasurementIn}]")
+
+
+class MotherRegisterIn(BaseModel):
+    """A Kader registers a pregnant mother who has no smartphone or email: she logs in later with her phone number."""
+
+    full_name: str = Field(min_length=2, max_length=160)
+    phone: str = Field(min_length=8, max_length=20)
+    region_id: int | None = None
+    hpht: date | None = None
+    gestational_weeks: float | None = Field(default=None, ge=1, le=42)
+    mother_height_cm: float | None = Field(default=None, gt=120, lt=200)
+    education: str | None = Field(default=None, pattern="^(none|sd|smp|sma|higher)$")
+    gravida: int | None = Field(default=None, ge=1, le=15)
+    consent_given: bool = Field(description="The mother agreed (verbally, witnessed by the Kader) to her data being recorded")
+
+
+class KiaIn(BaseModel):
+    item_key: str = Field(max_length=20)
+    given_at: date | None = None
+
+
+class AsiIn(BaseModel):
+    day: date | None = None
+    asi_only: bool
+    feeds: int | None = Field(default=None, ge=0, le=30)
+    other: list[str] = Field(default_factory=list, max_length=6)
+    client_uuid: str | None = Field(default=None, max_length=64)

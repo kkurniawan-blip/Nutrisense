@@ -1,7 +1,8 @@
 """Demo data: a simulated posyandu network in East Nusa Tenggara (NTT), the proposal's pilot context.
 
-All people and children are fictional. Village coordinates are approximate. Regional benchmarks use
-the NTT provincial SSGI 2024 value (37.0%) and should be replaced with district-level SSGI figures.
+All people and children are fictional. Village coordinates are approximate. Puskesmas phone numbers are
+placeholders (000 exchange), not real numbers. Regional benchmarks use the NTT provincial SSGI 2024 value
+(37.0%) and should be replaced with district-level SSGI figures.
 
 Demo logins (password for all: Demo1234!)
   admin@nutrisense.id, officer@nutrisense.id, doctor@nutrisense.id,
@@ -19,8 +20,9 @@ from sqlalchemy.orm import Session
 
 from .ai import nutrition, symptoms
 from .ai.growth import _lms, _value_at, age_in_months, compute_z_scores
-from .models import (AncVisit, Child, Consent, Drone, GrowthMeasurement, InventoryItem, Locker, MaternalMeasurement, MealLog, Pregnancy,
-                     PregnancyDailyLog, Region, SupplyRequest, SymptomReport, User)
+from .ai import kia
+from .models import (AncVisit, BreastfeedingLog, Child, Consent, Drone, GrowthMeasurement, InventoryItem, KiaRecord, Locker,
+                     MaternalMeasurement, MealLog, Pregnancy, PregnancyDailyLog, Region, SupplyRequest, SymptomReport, User)
 from .security import hash_password
 from .services import logistics, model_registry
 from .services.assessment import run_assessment
@@ -31,13 +33,13 @@ DEMO_PASSWORD = "Demo1234!"
 NTT_SSGI_2024 = 37.0
 
 REGIONS = [
-    # name, district, lat, lng, rural, transport difficulty
-    ("Oesapa", "Kota Kupang", -10.1445, 123.6365, False, 1),
-    ("Baumata", "Kabupaten Kupang", -10.2167, 123.6833, True, 1),
-    ("Uitao (Pulau Semau)", "Kabupaten Kupang", -10.2050, 123.4000, True, 3),
-    ("Kota Soe", "Timor Tengah Selatan", -9.8600, 124.2833, True, 2),
-    ("Oinlasi", "Timor Tengah Selatan", -9.9700, 124.4700, True, 3),
-    ("Baa", "Rote Ndao", -10.7333, 123.0667, True, 3),
+    # name, district, lat, lng, rural, transport difficulty, (Puskesmas, placeholder phone, km to it, posyandu day of month)
+    ("Oesapa", "Kota Kupang", -10.1445, 123.6365, False, 1, ("Puskesmas Oesapa", "0380-000-101", 1.2, 8)),
+    ("Baumata", "Kabupaten Kupang", -10.2167, 123.6833, True, 1, ("Puskesmas Baumata", "0380-000-102", 2.5, 12)),
+    ("Uitao (Pulau Semau)", "Kabupaten Kupang", -10.2050, 123.4000, True, 3, ("Puskesmas Uitao", "0380-000-103", 6.0, 15)),
+    ("Kota Soe", "Timor Tengah Selatan", -9.8600, 124.2833, True, 2, ("Puskesmas Soe", "0388-000-104", 1.8, 10)),
+    ("Oinlasi", "Timor Tengah Selatan", -9.9700, 124.4700, True, 3, ("Puskesmas Oinlasi", "0388-000-105", 9.5, 20)),
+    ("Baa", "Rote Ndao", -10.7333, 123.0667, True, 3, ("Puskesmas Baa", "0380-000-106", 3.0, 5)),
 ]
 
 
@@ -77,7 +79,8 @@ def _trajectory(db: Session, child: Child, recorder: User, haz_start: float, haz
         position = "lying" if age < 24 else "standing"
         z = compute_z_scores(child.sex, age, weight, height, position)
         m = GrowthMeasurement(child_id=child.id, measured_at=d, age_months=age, weight_kg=weight, height_cm=height,
-                              position=position, haz=z.haz, waz=z.waz, whz=z.whz, source="kader", recorded_by_id=recorder.id)
+                              position=position, haz=z.haz, waz=z.waz, whz=z.whz, source="kader", recorded_by_id=recorder.id,
+                              measured_by="kader")
         db.add(m)
     db.flush()
     db.refresh(child)
@@ -102,6 +105,37 @@ def _symptoms(db: Session, child: Child, user: User, text: str, days_ago: int = 
                          created_at=datetime.now(timezone.utc) - timedelta(days=days_ago)))
 
 
+def _flatten_last_weights(db: Session, child: Child, gains_kg: list[float]) -> None:
+    """Make the last weighings gain less than the KBM (T), e.g. [0.05, 0.03] gives 2T. z-scores are recomputed."""
+    ms = child.measurements
+    for m_prev, m, g in zip(ms[-len(gains_kg) - 1:-1], ms[-len(gains_kg):], gains_kg):
+        m.weight_kg = round(m_prev.weight_kg + g, 2)
+        z = compute_z_scores(child.sex, m.age_months, m.weight_kg, m.height_cm, m.position)
+        m.haz, m.waz, m.whz = z.haz, z.waz, z.whz
+    db.flush()
+
+
+def _ensure_gain(db: Session, child: Child) -> None:
+    """Synthetic weights wobble with the z-score noise; lift them so every judged weighing reaches the KBM (N, not T)."""
+    ms = child.measurements
+    for prev, m in zip(ms, ms[1:]):
+        months = (m.measured_at - prev.measured_at).days / 30.44
+        if 0.5 <= months <= 2.5 and (m.weight_kg - prev.weight_kg) * 1000 / months < kia.kbm_g(m.age_months):
+            m.weight_kg = round(prev.weight_kg + kia.kbm_g(m.age_months) * months * 1.15 / 1000, 2)
+            z = compute_z_scores(child.sex, m.age_months, m.weight_kg, m.height_cm, m.position)
+            m.haz, m.waz, m.whz = z.haz, z.waz, z.whz
+    db.flush()
+
+
+def _kia(db: Session, child: Child, rng: random.Random, complete: float = 1.0, skip: tuple[str, ...] = ()) -> None:
+    """Mark the KIA items whose time has come as given (each with probability `complete`), on their target date."""
+    s = kia.schedule(child.birth_date, {})
+    for row in s["immunization"] + s["vitamin_a"] + s["deworming"]:
+        if row["status"] in ("due", "overdue") and row["key"] not in skip and rng.random() < complete:
+            when = min(date.fromisoformat(row["target_date"]) + timedelta(days=rng.randint(0, 10)), date.today())
+            db.add(KiaRecord(child_id=child.id, item_key=row["key"], given_at=when))
+
+
 def _stock(locker: Locker, **items: int) -> None:
     for key, qty in items.items():
         locker.inventory.append(InventoryItem(item_key=key, quantity=qty, reserved=0, restock_threshold=3 if locker.kind == "locker" else 20))
@@ -114,9 +148,10 @@ def seed_if_empty(db: Session) -> bool:
     rng = random.Random(7)
 
     regions = []
-    for name, district, lat, lng, rural, diff in REGIONS:
+    for name, district, lat, lng, rural, diff, (pkm, phone, km, day) in REGIONS:
         r = Region(name=name, district=district, province="Nusa Tenggara Timur", lat=lat, lng=lng, rural=rural,
-                   prevalence_benchmark=NTT_SSGI_2024, transport_difficulty=diff)
+                   prevalence_benchmark=NTT_SSGI_2024, transport_difficulty=diff, puskesmas_name=pkm, puskesmas_phone=phone,
+                   facility_km=km, posyandu_day=day)
         db.add(r)
         regions.append(r)
     db.flush()
@@ -208,6 +243,30 @@ def seed_if_empty(db: Session) -> bool:
     _meals(db, c6, sarah, diverse=True, rng=rng)
     stories.append((c6, sarah))
 
+    # A 3-month-old on the ASI eksklusif tracker (no meal log before 6 months).
+    c7 = child("Kristo Pello", "male", 3.2, sarah, baa, birth_weight_kg=3.2, birth_length_cm=49, birth_gestational_weeks=39,
+               exclusive_breastfeeding=True)
+    _trajectory(db, c7, kaders[baa.id], 0.1, 0.0, 0.2, 0.1, 3, rng)
+    for i in range(1, 8):
+        db.add(BreastfeedingLog(child_id=c7.id, day=today - timedelta(days=i), asi_only=True, feeds=rng.randint(8, 11)))
+    stories.append((c7, sarah))
+
+    # Budi: weight did not go up at the last two weighings (2T). Kevin: oedema of both feet at the last visit.
+    for c in (c1, c4, c6, c7):
+        _ensure_gain(db, c)
+    _flatten_last_weights(db, c2, [0.05, 0.03])
+    c5.measurements[-1].oedema = True
+    c1.measurements[-1].measured_by = "mother"
+    c1.measurements[-1].source = "app"
+    # Buku KIA: Adel complete, Budi missed the 12- and 18-month vaccines, the others partly done.
+    _kia(db, c1, rng)
+    _kia(db, c2, rng, skip=("imm_12", "imm_18"))
+    _kia(db, c3, rng, skip=("imm_9", "imm_12", "imm_18", "vita_18", "vita_24"))
+    _kia(db, c4, rng, skip=("imm_9",))
+    _kia(db, c5, rng, skip=("imm_18", "worm_36"))
+    _kia(db, c6, rng, skip=("vita_6",))
+    _kia(db, c7, rng, skip=("imm_3",))
+
     # Background cohort for the regional heat map
     first = ["Ana", "Beni", "Citra", "Dewi", "Elias", "Fransiska", "Gabriel", "Hana", "Imanuel", "Junita", "Klemens", "Lusia",
              "Markus", "Natalia", "Oktavianus", "Petrus", "Regina", "Stefanus", "Theresia", "Vinsensius"]
@@ -226,6 +285,10 @@ def seed_if_empty(db: Session) -> bool:
                     rng.randint(2, 5), rng)
         if rng.random() < 0.3:
             _symptoms(db, c, cg, rng.choice(["demam dan batuk 2 hari", "diare sejak kemarin", "susah makan", "pilek"]), rng.randint(1, 10))
+        if i % 8:  # most children gain weight as they should; a few show T / 2T
+            _ensure_gain(db, c)
+        _kia(db, c, rng, complete=rng.choice([1.0, 1.0, 0.85, 0.6]))
+        c.exclusive_breastfeeding = rng.random() < 0.65
         cohort.append((c, cg))
 
     # Ibu hamil: Maria at 24 weeks (K1-K2 done, KEK and anaemia at her last check), Yuliana at 33 weeks, a new one in Oesapa.
@@ -249,6 +312,21 @@ def seed_if_empty(db: Session) -> bool:
               {"place": "puskesmas", "transport": "ojek", "companion": "Suami"})
     oesapa_mother = _user(db, "ibu.agustina@nutrisense.id", "Ibu Agustina Lay", "caregiver", oesapa, "081300000004")
     pregnancy(oesapa_mother, oesapa, 9, 155.0, "sma", 1, [], [], 2, 0)
+
+    # More mothers in the area, so the officer dashboard (KEK, anaemia, K6 coverage) has something to count.
+    anc_weeks = [10, 18, 23, 28, 33, 37]
+    for i, weeks, height, muac, hb, n_visits in (
+        (0, 30, 150.0, 23.0, 10.2, 3), (1, 16, 146.0, 24.8, 11.4, 1), (2, 36, 143.0, 22.5, 11.6, 3),
+        (3, 20, 155.0, 25.2, 9.8, 2), (4, 12, 151.0, None, None, 0), (5, 27, 149.0, 23.9, 10.8, 3),
+    ):
+        cg = cohort[i][1]
+        pregnancy(cg, cg.region, weeks, height, "smp", 2, [w for w in anc_weeks[:n_visits] if w <= weeks],
+                  [(weeks - 2, muac, hb)] if muac else [], rng.randint(2, 7), 0)
+    for i, days_ago, n_visits in ((6, 60, 6), (7, 120, 4), (8, 200, 6), (9, 250, 5), (10, 30, 6), (11, 150, 3)):
+        cg = cohort[i][1]
+        born = today - timedelta(days=days_ago)
+        p = pregnancy(cg, cg.region, 39 + days_ago // 7, 152.0, "sd", 3, anc_weeks[:n_visits], [], 0, 0)
+        p.status, p.delivered_at, p.birth_info = "delivered", born, {"place": "puskesmas", "attendant": "bidan", "gestational_weeks": 39}
     db.commit()
 
     model_registry.get_active(db)

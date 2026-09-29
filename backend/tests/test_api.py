@@ -188,7 +188,14 @@ def test_dashboard_endpoints(client, auth):
     proj = client.get("/api/dashboard/projection?series=ntt", headers=officer).json()
     assert proj["selected_degree"] in (1, 2, 3) and proj["projection"]
     model = client.get("/api/dashboard/model", headers=officer).json()
-    assert model["metrics"]["f1_macro"] > 0.8
+    assert model["metrics"]["f1_macro"] > 0.65
+    # Demo metrics are labelled as such, and the model has no child-size or regional inputs.
+    assert model["demo"] is True and model["source"]["year"]
+    assert not {"haz", "waz", "whz", "regional_prevalence"} & set(model["inputs"])
+    # Every figure carries its source and year.
+    assert s["source"]["year"] and s["reference"]["stunting_ntt"]["year"] == 2024
+    assert heat[0]["source"]["year"] and heat[0]["benchmark_source"]["year"] == 2024
+    assert proj["source"] and proj["years"][0] <= proj["years"][1]
 
 
 def test_consent_controls_ai_and_fhir(client, auth):

@@ -12,7 +12,7 @@ from ..deps import OVERSIGHT, get_child, get_current_user, lang_of, require_role
 from ..models import Child, GrowthMeasurement, Region, RiskAssessment, SymptomReport, User
 from ..schemas import ChildIn, ChildUpdateIn, MeasurementIn, SymptomIn, SyncBatchIn
 from ..services.assessment import run_assessment
-from ..services.common import audit, has_consent
+from ..services.common import audit, find_by_phone, has_consent, notify_roles
 
 router = APIRouter(prefix="/api", tags=["children & growth"])
 
@@ -38,11 +38,15 @@ def create_child(body: ChildIn, user: User = Depends(get_current_user), db: Sess
     if user.role == "caregiver":
         caregiver = user
     elif user.role in ("kader", "officer", "doctor", "admin"):
-        if not body.caregiver_email:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "caregiver_email is required when staff register a child")
-        caregiver = db.scalar(select(User).where(User.email == body.caregiver_email.lower(), User.role == "caregiver"))
+        if not body.caregiver_email and not body.caregiver_phone:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "caregiver_email or caregiver_phone is required when staff register a child")
+        if body.caregiver_email:
+            caregiver = db.scalar(select(User).where(User.email == body.caregiver_email.lower(), User.role == "caregiver"))
+        else:
+            caregiver = find_by_phone(db, body.caregiver_phone)
+            caregiver = caregiver if caregiver is not None and caregiver.role == "caregiver" else None
         if caregiver is None:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "No caregiver account with that email; ask the caregiver to register first")
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "No caregiver account with that email or phone; register the caregiver first")
     else:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed")
     if not has_consent(db, caregiver.id, "data_processing"):
@@ -141,13 +145,20 @@ def _record_measurement(db: Session, child: Child, body: MeasurementIn, user: Us
     if errors:
         raise HTTPException(422,
                             {"message": "Biologically implausible measurement; please re-measure", "flags": errors, "z_scores": z.as_dict()})
+    measured_by = body.measured_by or ("kader" if user.role == "kader" else "mother")
     m = GrowthMeasurement(child_id=child.id, measured_at=measured_at, age_months=age, weight_kg=body.weight_kg,
                           height_cm=body.height_cm, muac_cm=body.muac_cm, position=body.position, haz=z.haz, waz=z.waz,
                           whz=z.whz, source="kader" if user.role == "kader" else body.source, client_uuid=body.client_uuid,
-                          recorded_by_id=user.id)
+                          recorded_by_id=user.id, measured_by=measured_by, oedema=body.oedema)
     db.add(m)
     db.flush()
-    audit(db, user, "record_measurement", "child", child.id, measurement_id=m.id)
+    if body.oedema:
+        # Oedema of both feet is a sign of severe acute malnutrition: tell the Kader and staff at once.
+        notify_roles(db, ["kader", "officer", "doctor"], child.region_id, "oedema",
+                     {"id": f"Bengkak kedua kaki: {child.name}", "en": f"Oedema of both feet: {child.name}"},
+                     {"id": "Tanda gizi buruk. Rujuk ke Puskesmas hari ini.", "en": "A sign of severe malnutrition. Refer to the Puskesmas today."},
+                     child_id=child.id, measurement_id=m.id)
+    audit(db, user, "record_measurement", "child", child.id, measurement_id=m.id, measured_by=measured_by, oedema=bool(body.oedema))
     return m, True
 
 

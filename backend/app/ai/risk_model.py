@@ -1,15 +1,22 @@
 """Stunting risk classifier (classify() in the class diagram).
 
-A Random Forest (Breiman, 2001) classifies each child as low / medium / high risk from
-anthropometry, growth velocity, illness, diet and household/regional context. Because no
-public child-level microdata is available, the model is trained on a synthetic cohort whose
-distributions mirror a rural East Nusa Tenggara posyandu (as described in Chapter IV). Swap in
-real, consented data with `train(X, y)` when available.
+A Random Forest (Breiman, 2001) predicts each child's risk of becoming (or staying) stunted as
+low / medium / high from factors that come BEFORE the child's size: birth, feeding, illness,
+diet, immunisation, the mother and the household. The child's height, and z-scores in general,
+are deliberately NOT inputs: stunting is defined by height-for-age, so a model fed with height
+would only re-read the answer. The child's current WHO status is shown separately, from the
+measurement itself, and clinical guardrails (WHO cut-offs, danger signs) can raise, never
+lower, the model's level. Regional prevalence is not an input either: a child's risk should come
+from the child's own situation, not from where the family lives.
+
+Because no public child-level microdata is available, the model is trained on a synthetic cohort
+whose distributions mirror a rural East Nusa Tenggara posyandu (Chapter IV). All metrics are
+therefore demo metrics. Swap in real, consented data with `train(X, y)` when available.
 
 Every prediction ships with:
   * class probabilities and confidence,
   * per-feature contributions (perturbation against a healthy reference child),
-  * clinical guardrails (WHO cut-offs / danger signs) that can only raise the risk level,
+  * clinical guardrails that can only raise the risk level,
   * a needs_review flag for the human-in-the-loop step.
 """
 from __future__ import annotations
@@ -30,17 +37,16 @@ from sklearn.preprocessing import StandardScaler
 log = logging.getLogger(__name__)
 
 LABELS = ["low", "medium", "high"]
-MODEL_VERSION = "rf-1.0"
+MODEL_VERSION = "rf-2.0"
 
-# (name, healthy reference value used for explanations)
+# (name, healthy reference value used for explanations and for unknown values)
 FEATURES: list[tuple[str, float]] = [
     ("age_months", 24.0),
     ("sex_male", 0.5),
-    ("haz", 0.0),
-    ("waz", 0.0),
-    ("whz", 0.0),
-    ("haz_velocity", 0.0),  # change in HAZ per month over recent measurements
-    ("waz_velocity", 0.0),
+    ("low_birth_weight", 0.0),  # < 2.5 kg
+    ("premature", 0.0),  # born before 37 weeks
+    ("exclusive_breastfeeding", 1.0),  # ASI only for the first 6 months
+    ("weight_not_gaining", 0.0),  # weighings in a row below the minimum gain (KBM): 0, 1 or 2 (2T)
     ("diarrhea", 0.0),
     ("fever", 0.0),
     ("respiratory", 0.0),
@@ -48,81 +54,80 @@ FEATURES: list[tuple[str, float]] = [
     ("poor_appetite", 0.0),
     ("dietary_diversity", 5.0),  # WHO food groups eaten per day (0-8)
     ("animal_protein_days", 5.0),  # days per week with animal-source food
+    ("immunization_complete", 1.0),  # every vaccine due for the age is given
+    ("mother_short", 0.0),  # mother's height < 150 cm
+    ("mother_kek", 0.0),  # mother had KEK (LiLA < 23.5 cm) in pregnancy
     ("clean_water", 1.0),
     ("sanitation", 1.0),
-    ("low_birth_weight", 0.0),
     ("rural", 0.0),
-    ("regional_prevalence", 14.2),  # % stunting in region (national 2029 target as reference)
 ]
 FEATURE_NAMES = [f for f, _ in FEATURES]
 REFERENCE = np.array([v for _, v in FEATURES], dtype=float)
 RISK_WEIGHTS = np.array([0.0, 0.5, 1.0])  # score = 0.5 * P(medium) + P(high)
+# Never model inputs: the outcome itself and area-level figures.
+EXCLUDED_INPUTS = {"haz", "waz", "whz", "height_cm", "haz_velocity", "waz_velocity", "regional_prevalence"}
 
 
-def _latent_risk(X: np.ndarray, rng: np.random.Generator) -> np.ndarray:
+def _latent_risk(X: np.ndarray) -> np.ndarray:
     f = {name: X[:, i] for i, name in enumerate(FEATURE_NAMES)}
-    s = (
-        1.6 * np.clip(-f["haz"] - 1, 0, None)
-        + 1.1 * np.clip(-f["whz"] - 1, 0, None)
-        + 0.6 * np.clip(-f["waz"] - 1, 0, None)
-        + 12.0 * np.clip(-f["haz_velocity"], 0, None)
-        + 6.0 * np.clip(-f["waz_velocity"], 0, None)
-        + 0.55 * f["diarrhea"]
-        + 0.3 * f["fever"]
+    return (
+        0.9 * f["low_birth_weight"]
+        + 0.6 * f["premature"]
+        + 0.5 * (1 - f["exclusive_breastfeeding"])
+        + 0.75 * f["weight_not_gaining"]
+        + 0.5 * f["diarrhea"]
+        + 0.25 * f["fever"]
         + 0.2 * f["respiratory"]
-        + 0.6 * f["repeated_infection"]
-        + 0.5 * f["poor_appetite"]
-        + 0.25 * np.clip(4 - f["dietary_diversity"], 0, None)
-        + 0.15 * np.clip(3 - f["animal_protein_days"], 0, None)
+        + 0.55 * f["repeated_infection"]
+        + 0.4 * f["poor_appetite"]
+        + 0.3 * np.clip(4 - f["dietary_diversity"], 0, None)
+        + 0.18 * np.clip(3 - f["animal_protein_days"], 0, None)
+        + 0.35 * (1 - f["immunization_complete"])
+        + 0.5 * f["mother_short"]
+        + 0.45 * f["mother_kek"]
         + 0.3 * (1 - f["clean_water"])
-        + 0.3 * (1 - f["sanitation"])
-        + 0.35 * f["low_birth_weight"]
-        + 0.012 * (f["regional_prevalence"] - 20)
+        + 0.35 * (1 - f["sanitation"])
+        + 0.15 * f["rural"]
+        + 0.25 * np.clip(f["age_months"] - 6, 0, 18) / 18  # stunting builds up over the first two years
     )
-    return s + rng.normal(0, 0.3, len(s))
 
 
-def _label(X: np.ndarray, s: np.ndarray) -> np.ndarray:
-    haz, whz = X[:, FEATURE_NAMES.index("haz")], X[:, FEATURE_NAMES.index("whz")]
-    y = np.where(s < 2.2, 0, np.where(s < 4.4, 1, 2))
-    y = np.where(haz < -2, np.maximum(y, 1), y)
-    y = np.where((haz < -3) | (whz < -3), 2, y)
-    return y
+def generate_synthetic_cohort(n: int = 6000, seed: int = 42, return_haz: bool = False):
+    """Synthetic under-5 cohort resembling rural NTT (about a third stunted).
 
-
-def generate_synthetic_cohort(n: int = 6000, seed: int = 42) -> tuple[np.ndarray, np.ndarray]:
-    """Synthetic under-5 cohort resembling rural NTT (mean HAZ about -1.4, ~35% stunted)."""
+    Each child's future height-for-age is simulated from its risk factors plus noise, and the label
+    comes from that outcome (high: HAZ < -2, medium: -2 to -1). The HAZ itself is never a feature.
+    """
     rng = np.random.default_rng(seed)
     age = rng.uniform(0, 60, n)
     sex = rng.integers(0, 2, n).astype(float)
     rural = (rng.random(n) < 0.8).astype(float)
-    prevalence = np.where(rural == 1, rng.normal(35, 6, n), rng.normal(22, 5, n)).clip(8, 55)
     water = (rng.random(n) < np.where(rural == 1, 0.62, 0.9)).astype(float)
     sanitation = (rng.random(n) < np.where(rural == 1, 0.55, 0.88)).astype(float)
-    lbw = (rng.random(n) < 0.12).astype(float)
+    mother_short = (rng.random(n) < 0.3).astype(float)
+    mother_kek = (rng.random(n) < 0.2 + 0.1 * rural).astype(float)
+    lbw = (rng.random(n) < 0.08 + 0.1 * mother_kek + 0.05 * mother_short).astype(float)
+    premature = (rng.random(n) < 0.06 + 0.25 * lbw).astype(float)
+    ebf = (rng.random(n) < 0.7).astype(float)
     diversity = np.clip(np.round(rng.normal(4.2, 1.5, n) - (1 - water) * 0.5), 0, 8)
     protein = np.clip(np.round(rng.normal(3.5, 2.0, n) + (diversity - 4) * 0.4), 0, 7)
-
-    # Anthropometry depends on the household context so the classifier has real signal to learn.
-    env = 0.35 * (1 - water) + 0.35 * (1 - sanitation) + 0.5 * lbw + 0.15 * (4 - diversity) + 0.01 * (prevalence - 25)
-    haz = rng.normal(-0.9, 1.05, n) - env * 0.9 - (age / 60) * 0.5
-    whz = rng.normal(-0.3, 1.0, n) - env * 0.4
-    waz = 0.6 * haz + 0.55 * whz + rng.normal(0, 0.35, n)
-    haz_vel = rng.normal(-0.01, 0.035, n) - env * 0.012
-    waz_vel = rng.normal(-0.005, 0.04, n) - env * 0.01
+    imm = (rng.random(n) < 0.72).astype(float)
     ill_p = 0.12 + 0.12 * (1 - water) + 0.1 * (1 - sanitation)
     diarrhea = (rng.random(n) < ill_p).astype(float)
     fever = (rng.random(n) < ill_p + 0.05).astype(float)
     respiratory = (rng.random(n) < 0.18).astype(float)
     repeated = (rng.random(n) < ill_p * 0.8).astype(float)
     appetite = (rng.random(n) < 0.1 + 0.25 * diarrhea + 0.15 * fever).astype(float)
+    faltering_p = 0.1 + 0.15 * diarrhea + 0.1 * repeated + 0.1 * (diversity < 3)
+    not_gaining = (rng.random(n) < faltering_p).astype(float) + (rng.random(n) < faltering_p * 0.6).astype(float)
 
     X = np.column_stack([
-        age, sex, haz.clip(-5.5, 3.5), waz.clip(-5.5, 3.5), whz.clip(-5, 4), haz_vel, waz_vel,
-        diarrhea, fever, respiratory, repeated, appetite, diversity, protein, water, sanitation, lbw, rural, prevalence,
+        age, sex, lbw, premature, ebf, not_gaining, diarrhea, fever, respiratory, repeated, appetite, diversity, protein, imm,
+        mother_short, mother_kek, water, sanitation, rural,
     ])
-    y = _label(X, _latent_risk(X, rng))
-    return X, y
+    haz = (0.05 - 0.85 * _latent_risk(X) + rng.normal(0, 0.4, n)).clip(-5.5, 3.5)
+    y = np.where(haz < -2, 2, np.where(haz < -1, 1, 0))
+    return (X, y, haz) if return_haz else (X, y)
 
 
 def _metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict:
@@ -212,12 +217,19 @@ class RiskModel:
 
     @staticmethod
     def vectorize(features: dict) -> np.ndarray:
-        return np.array([float(features.get(name, ref)) for name, ref in FEATURES], dtype=float)
+        vals = []
+        for name, ref in FEATURES:
+            v = features.get(name)
+            vals.append(ref if v is None else float(v))
+        return np.array(vals, dtype=float)
 
     def _score(self, X: np.ndarray) -> np.ndarray:
         return self.model.predict_proba(X) @ RISK_WEIGHTS
 
-    def predict(self, features: dict, danger_signs: list[str] | None = None, review_threshold: float = 0.6) -> Prediction:
+    def predict(self, features: dict, danger_signs: list[str] | None = None, review_threshold: float = 0.6,
+                who_status: dict | None = None) -> Prediction:
+        """`features` are the model inputs. `who_status` (haz / whz from the latest measurement) is used only by the
+        guardrails after the model has spoken, never as an input."""
         x = self.vectorize(features)
         proba = self.model.predict_proba(x.reshape(1, -1))[0]
         model_idx = int(np.argmax(proba))
@@ -238,10 +250,11 @@ class RiskModel:
 
         # Clinical guardrails: WHO cut-offs and IMCI danger signs can raise, never lower, the level.
         guardrail = None
-        haz, whz = features.get("haz"), features.get("whz")
+        who = who_status or {}
+        haz, whz = who.get("haz"), who.get("whz")
         if danger_signs:
             guardrail, level_idx = "danger_signs_present", 2
-        elif (haz is not None and haz < -3) or (whz is not None and whz < -3):
+        elif who.get("oedema") or (haz is not None and haz < -3) or (whz is not None and whz < -3):
             guardrail, level_idx = "severe_stunting_or_wasting", 2
         elif haz is not None and haz < -2 and level_idx < 1:
             guardrail, level_idx = "stunted_minimum_medium", 1

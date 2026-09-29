@@ -30,7 +30,13 @@ _ADDED_COLUMNS = {
     "case_notes": {"visible_to_caregiver": "BOOLEAN DEFAULT FALSE"},
     "meal_logs": {"client_uuid": "VARCHAR(64)"},
     "symptom_reports": {"client_uuid": "VARCHAR(64)"},
+    "regions": {"puskesmas_name": "VARCHAR(160)", "puskesmas_phone": "VARCHAR(40)", "facility_km": "FLOAT", "posyandu_day": "INTEGER"},
+    "children": {"birth_gestational_weeks": "FLOAT"},
+    "growth_measurements": {"measured_by": "VARCHAR(10)", "oedema": "BOOLEAN"},
+    "pregnancies": {"birth_info": "JSON"},
 }
+# Columns that became optional: phone-only accounts have no email.
+_RELAXED_NOT_NULL = {"users": ["email"]}
 
 
 def ensure_columns() -> None:
@@ -45,3 +51,33 @@ def ensure_columns() -> None:
             for name, ddl in cols.items():
                 if name not in existing:
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"))
+        for table, names in _RELAXED_NOT_NULL.items():
+            if not insp.has_table(table):
+                continue
+            strict = [c["name"] for c in insp.get_columns(table) if c["name"] in names and not c["nullable"]]
+            if not strict:
+                continue
+            if engine.dialect.name == "sqlite":
+                _sqlite_rebuild(conn, table)
+            else:
+                for name in strict:
+                    conn.execute(text(f"ALTER TABLE {table} ALTER COLUMN {name} DROP NOT NULL"))
+
+
+def _sqlite_rebuild(conn, table: str) -> None:
+    """SQLite cannot drop NOT NULL in place: rebuild the table from the current model (sqlite.org/lang_altertable.html)."""
+    from sqlalchemy import inspect, text
+    from sqlalchemy.schema import CreateIndex, CreateTable
+
+    t = Base.metadata.tables[table]
+    old = {c["name"] for c in inspect(conn).get_columns(table)}
+    cols = ", ".join(c.name for c in t.columns if c.name in old)
+    conn.execute(text("PRAGMA foreign_keys=OFF"))
+    ddl = str(CreateTable(t).compile(conn)).replace(f"CREATE TABLE {table} ", f"CREATE TABLE {table}__new ", 1)
+    conn.execute(text(ddl))
+    conn.execute(text(f"INSERT INTO {table}__new ({cols}) SELECT {cols} FROM {table}"))
+    conn.execute(text(f"DROP TABLE {table}"))
+    conn.execute(text(f"ALTER TABLE {table}__new RENAME TO {table}"))
+    for ix in t.indexes:
+        conn.execute(CreateIndex(ix))
+    conn.execute(text("PRAGMA foreign_keys=ON"))

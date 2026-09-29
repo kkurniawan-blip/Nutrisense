@@ -190,8 +190,8 @@ def _notify_ready(db: Session, req: SupplyRequest) -> None:
     locker = req.locker
     notify(db, req.child.caregiver_id, "pickup_ready",
            {"id": "Paket gizi siap diambil", "en": "Nutrition package ready"},
-           {"id": f"Loker {locker.name} ({locker.code}). Kode: {req.pickup_code}. Berlaku {PICKUP_VALID_DAYS} hari.",
-            "en": f"Locker {locker.name} ({locker.code}). Code: {req.pickup_code}. Valid for {PICKUP_VALID_DAYS} days."},
+           {"id": f"{locker.name} ({locker.code}). Kode: {req.pickup_code}. Berlaku {PICKUP_VALID_DAYS} hari.",
+            "en": f"{locker.name} ({locker.code}). Code: {req.pickup_code}. Valid for {PICKUP_VALID_DAYS} days."},
            supply_request_id=req.id, locker_code=locker.code)
 
 

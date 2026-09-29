@@ -12,6 +12,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 TERM_DAYS = 280
+TERM_WEEKS = 37  # born before 37 completed weeks = premature (kurang bulan)
 KEK_MUAC_CM = 23.5
 ANEMIA_HB = 11.0
 SEVERE_ANEMIA_HB = 7.0
@@ -129,3 +130,51 @@ def nifas_schedule(birth: date, done: list[str], on: date) -> list[dict]:
         out.append({**v, "window_start": (birth + timedelta(days=v["from_day"])).isoformat(),
                     "window_end": (birth + timedelta(days=v["to_day"])).isoformat(), "status": status})
     return out
+
+
+RISK_LEVELS = ["ok", "monitor", "action", "urgent"]
+RISK_LABEL = {
+    "unknown": {"id": "Belum dicek", "en": "Not checked yet"},
+    "ok": {"id": "Risiko rendah", "en": "Low risk"},
+    "monitor": {"id": "Perlu dipantau", "en": "Keep an eye on"},
+    "action": {"id": "Risiko sedang", "en": "Medium risk"},
+    "urgent": {"id": "Risiko tinggi", "en": "High risk"},
+}
+_REASON = {
+    "kek": {"id": "KEK", "en": "CED"},
+    "anemia": {"id": "Anemia", "en": "Anaemia"},
+    "severe_anemia": {"id": "Anemia berat", "en": "Severe anaemia"},
+    "short_stature": {"id": "Tinggi < 145 cm", "en": "Height < 145 cm"},
+    "danger": {"id": "Tanda bahaya", "en": "Danger sign"},
+    "not_checked": {"id": "LiLA & Hb belum dicek", "en": "LiLA & Hb not checked"},
+}
+
+
+def mother_risk(flags: list[dict], checked: bool, missed_visits: int, recent_danger: bool, lang: str) -> dict:
+    """One level for the mother, from the Buku KIA screening and the check-ups.
+
+    Risiko tinggi: KEK and anaemia together, severe anaemia, or a danger sign in the last 3 days.
+    Risiko sedang: KEK or anaemia. Perlu dipantau: short stature. Each missed K visit lowers the status one step
+    (two at most). With no LiLA/Hb yet the status is "Belum dicek", never "healthy"."""
+    L = "id" if lang == "id" else "en"
+    codes = {f["code"] for f in flags}
+    reasons = [_REASON[c][L] for c in ("severe_anemia", "kek", "anemia", "short_stature") if c in codes]
+    if recent_danger or "severe_anemia" in codes or {"kek", "anemia"} <= codes:
+        base = 3
+    elif codes & {"kek", "anemia"}:
+        base = 2
+    elif "short_stature" in codes:
+        base = 1
+    else:
+        base = 0
+    if recent_danger:
+        reasons.insert(0, _REASON["danger"][L])
+    if missed_visits:
+        reasons.append({"id": f"{missed_visits} kunjungan terlewat", "en": f"{missed_visits} missed visit{'s' if missed_visits > 1 else ''}"}[L])
+    if not checked and base == 0 and not missed_visits:
+        return {"key": "unknown", "label": RISK_LABEL["unknown"][L], "reasons": [_REASON["not_checked"][L]], "contact": False}
+    if not checked:
+        reasons.append(_REASON["not_checked"][L])
+    level = min(3, base + min(missed_visits, 2))
+    key = RISK_LEVELS[level]
+    return {"key": key, "label": RISK_LABEL[key][L], "reasons": reasons, "contact": level >= 2}

@@ -46,7 +46,8 @@ def triage(
     lang: str = "id",
 ) -> dict:
     intake = intake or {}
-    if danger_signs:
+    # Oedema of both feet is a sign of severe acute malnutrition (IMCI): refer now, like a danger sign.
+    if danger_signs or z.get("oedema"):
         urgency, referral = "emergency", "emergency"
     elif risk_level == "high":
         urgency, referral = "doctor_48h", "doctor"

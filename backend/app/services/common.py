@@ -36,3 +36,24 @@ def notify_roles(db: Session, roles: list[str], region_id: int | None, kind: str
         if u.role == "kader" and region_id is not None and region_id not in u.coverage():
             continue
         notify(db, u.id, kind, title, body, **data)
+
+
+def normalize_phone(phone: str | None) -> str | None:
+    """Indonesian mobile numbers in one form: digits only, starting with 0 (+62 812... and 62812... become 0812...)."""
+    if not phone:
+        return None
+    digits = "".join(ch for ch in phone if ch.isdigit())
+    if digits.startswith("62"):
+        digits = "0" + digits[2:]
+    elif digits.startswith("8"):
+        digits = "0" + digits
+    return digits or None
+
+
+def find_by_phone(db: Session, phone: str | None) -> User | None:
+    """Stored numbers may be written differently (spaces, +62), so compare the normalised forms."""
+    want = normalize_phone(phone)
+    if not want:
+        return None
+    return next((u for u in db.scalars(select(User).where(User.phone.is_not(None)).order_by(User.id)).all()
+                 if normalize_phone(u.phone) == want), None)

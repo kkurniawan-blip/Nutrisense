@@ -12,35 +12,45 @@ def trained():
 
 def test_model_quality(trained):
     m = trained.metrics
-    assert m["f1_macro"] > 0.8
-    assert m["false_negative_rate_high"] < 0.2
+    # Predicting from risk factors alone (no height, no z-scores) is harder than re-reading height-for-age.
+    assert m["f1_macro"] > 0.65
+    assert m["false_negative_rate_high"] < 0.3
     assert len(m["confusion_matrix"]["matrix"]) == 3
-    assert "haz" in list(trained.feature_importances)[:3]
+
+
+def test_model_never_uses_child_size_or_region():
+    from app.ai.risk_model import EXCLUDED_INPUTS, FEATURE_NAMES
+
+    assert not EXCLUDED_INPUTS & set(FEATURE_NAMES)
+    assert "regional_prevalence" not in FEATURE_NAMES
 
 
 def test_cohort_resembles_ntt():
-    X, y = generate_synthetic_cohort(n=3000)
-    stunted = (X[:, 2] < -2).mean()
+    X, y, haz = generate_synthetic_cohort(n=3000, return_haz=True)
+    stunted = (haz < -2).mean()
     assert 0.25 < stunted < 0.45
+    assert X.shape[1] == len(RiskModel.vectorize({}))
 
 
 def test_guardrails_raise_level(trained):
     model = RiskModel(trained.model)
-    healthy = {"age_months": 20, "haz": 0.3, "waz": 0.2, "whz": 0.1, "dietary_diversity": 6, "animal_protein_days": 6}
+    healthy = {"age_months": 20, "dietary_diversity": 6, "animal_protein_days": 6}
     assert model.predict(healthy).risk_level == "low"
     p = model.predict(healthy, danger_signs=["convulsions"])
     assert p.risk_level == "high" and p.guardrail == "danger_signs_present" and p.needs_review
-    severe = model.predict({**healthy, "haz": -3.4, "waz": -2.5})
-    assert severe.risk_level == "high"
+    # The WHO status raises the level after the model; it is not a model input.
+    assert model.predict(healthy, who_status={"haz": -3.4}).risk_level == "high"
+    assert model.predict(healthy, who_status={"oedema": True}).risk_level == "high"
+    assert model.predict({**healthy, "haz": -3.4}).risk_level == "low"
 
 
 def test_explanations_point_to_drivers(trained):
     model = RiskModel(trained.model)
-    p = model.predict({"age_months": 24, "haz": -2.5, "waz": -2.0, "whz": -0.9, "haz_velocity": -0.08, "diarrhea": 1,
-                       "clean_water": 0, "sanitation": 0, "dietary_diversity": 2, "animal_protein_days": 1})
+    p = model.predict({"age_months": 24, "low_birth_weight": 1, "weight_not_gaining": 2, "diarrhea": 1, "repeated_infection": 1,
+                       "clean_water": 0, "sanitation": 0, "dietary_diversity": 2, "animal_protein_days": 1, "mother_kek": 1})
     assert p.risk_level == "high"
     assert p.contributions[0]["contribution"] > 0
-    assert {c["feature"] for c in p.contributions[:3]} & {"haz", "waz", "haz_velocity"}
+    assert {c["feature"] for c in p.contributions[:4]} & {"weight_not_gaining", "dietary_diversity", "low_birth_weight"}
 
 
 @pytest.mark.parametrize("text,expected", [

@@ -56,12 +56,17 @@ class Region(Base):
     rural: Mapped[bool] = mapped_column(Boolean, default=True)
     prevalence_benchmark: Mapped[float | None] = mapped_column(Float, nullable=True)  # % stunting, reference data
     transport_difficulty: Mapped[int] = mapped_column(Integer, default=1)  # 1 (easy) .. 3 (island / no road)
+    # Nearest health facility and the monthly posyandu day, for the emergency card and the next-posyandu reminder.
+    puskesmas_name: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    puskesmas_phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    facility_km: Mapped[float | None] = mapped_column(Float, nullable=True)  # village to the Puskesmas
+    posyandu_day: Mapped[int | None] = mapped_column(Integer, nullable=True)  # day of the month
 
 
 class User(Base):
     __tablename__ = "users"
     id: Mapped[int] = mapped_column(primary_key=True)
-    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    email: Mapped[str | None] = mapped_column(String(255), unique=True, index=True, nullable=True)  # phone-only accounts have none
     password_hash: Mapped[str] = mapped_column(String(255))
     full_name: Mapped[str] = mapped_column(String(160))
     phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
@@ -93,6 +98,7 @@ class Child(Base):
     clean_water_access: Mapped[bool] = mapped_column(Boolean, default=True)
     sanitation_access: Mapped[bool] = mapped_column(Boolean, default=True)
     exclusive_breastfeeding: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    birth_gestational_weeks: Mapped[float | None] = mapped_column(Float, nullable=True)  # < 37 = premature
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
 
     caregiver: Mapped[User] = relationship(foreign_keys=[caregiver_id])
@@ -117,6 +123,8 @@ class GrowthMeasurement(Base):
     waz: Mapped[float | None] = mapped_column(Float, nullable=True)
     whz: Mapped[float | None] = mapped_column(Float, nullable=True)
     source: Mapped[str] = mapped_column(String(20), default="app")  # app | kader | iot
+    measured_by: Mapped[str | None] = mapped_column(String(10), nullable=True)  # mother | kader: who held the scale / board
+    oedema: Mapped[bool | None] = mapped_column(Boolean, nullable=True)  # pitting oedema of both feet (gizi buruk sign)
     client_uuid: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True)  # offline sync idempotency
     recorded_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
@@ -411,7 +419,8 @@ class Pregnancy(Base):
     education: Mapped[str | None] = mapped_column(String(20), nullable=True)  # none | sd | smp | sma | higher
     gravida: Mapped[int | None] = mapped_column(Integer, nullable=True)  # which pregnancy this is
     status: Mapped[str] = mapped_column(String(20), default="active")  # active | delivered | ended
-    birth_plan: Mapped[dict] = mapped_column(JSON, default=dict)  # place, transport, companion
+    birth_plan: Mapped[dict] = mapped_column(JSON, default=dict)  # place, transport, companion, helper, blood donor, funding
+    birth_info: Mapped[dict] = mapped_column(JSON, default=dict)  # place, attendant, gestational weeks at birth
     delivered_at: Mapped[date | None] = mapped_column(Date, nullable=True)
     child_id: Mapped[int | None] = mapped_column(ForeignKey("children.id"), nullable=True)
     nifas_done: Mapped[list] = mapped_column(JSON, default=list)  # KF1..KF4 / KN1..KN3 codes
@@ -471,3 +480,29 @@ class PregnancyDangerReport(Base):
     danger: Mapped[bool] = mapped_column(Boolean, default=False)
     reported_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+
+
+class KiaRecord(Base):
+    """An immunisation visit, vitamin A capsule or deworming dose from the Buku KIA schedule, marked as given."""
+
+    __tablename__ = "kia_records"
+    __table_args__ = (UniqueConstraint("child_id", "item_key"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    child_id: Mapped[int] = mapped_column(ForeignKey("children.id"), index=True)
+    item_key: Mapped[str] = mapped_column(String(20))  # imm_2, vita_12, worm_18 ...
+    given_at: Mapped[date] = mapped_column(Date)
+    recorded_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+
+
+class BreastfeedingLog(Base):
+    """One day of the ASI eksklusif tracker (0-5 months): ASI only, or what else the baby was given."""
+
+    __tablename__ = "breastfeeding_logs"
+    __table_args__ = (UniqueConstraint("child_id", "day"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    child_id: Mapped[int] = mapped_column(ForeignKey("children.id"), index=True)
+    day: Mapped[date] = mapped_column(Date)
+    asi_only: Mapped[bool] = mapped_column(Boolean, default=True)
+    feeds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    other: Mapped[list] = mapped_column(JSON, default=list)  # water, formula, honey, rice water, food
+    client_uuid: Mapped[str | None] = mapped_column(String(64), nullable=True)

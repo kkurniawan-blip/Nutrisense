@@ -6,13 +6,16 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..ai import development, nutrition
+from .. import serializers as S
+from ..ai import development, kia, nutrition
 from ..ai.growth import age_in_months
 from ..ai.recipes import RECIPES
 from ..database import get_db
 from ..deps import get_child, get_current_user, lang_of
-from ..models import Case, CaseNote, Child, DevelopmentCheck, MealLog, RiskAssessment, SupplyRequest, SymptomReport, User
+from ..models import (BreastfeedingLog, Case, CaseNote, Child, DevelopmentCheck, KiaRecord, MealLog, RiskAssessment, SupplyRequest,
+                      SymptomReport, User)
 from ..services.common import audit
+from ..services.local import facility, next_posyandu
 
 router = APIRouter(prefix="/api", tags=["family companion"])
 
@@ -41,16 +44,32 @@ def today_checklist(child_id: int, lang: str | None = None, user: User = Depends
         items.append({"key": "measure", "status": "action", "action": "measure",
                       "text": {"id": "Belum diukur bulan ini", "en": "Not measured this month"}[L]})
 
+    wg = S.weight_gain(child)
+    if wg["two_t"]:
+        items.append({"key": "two_t", "status": "action", "action": "measure",
+                      "text": {"id": "Berat tidak naik 2× (2T)", "en": "No weight gain twice (2T)"}[L]})
+
+    age = age_in_months(child.birth_date, date.today())
     meals = db.scalars(select(MealLog).where(MealLog.child_id == child.id, MealLog.eaten_at >= now - timedelta(days=2))).all()
     today_meals = [m for m in meals if _aware(m.eaten_at).date() == now.date()]
     groups = {g for m in today_meals for g in (m.food_groups or []) if g != "breast_milk"}
-    if today_meals:
+    if age < kia.ASI_EXCLUSIVE_MONTHS:
+        # 0-5 months: ASI only, no meal log.
+        log = db.scalar(select(BreastfeedingLog).where(BreastfeedingLog.child_id == child.id, BreastfeedingLog.day == date.today()))
+        if log is None:
+            items.append({"key": "asi", "status": "action", "action": "asi", "text": {"id": "Catat ASI hari ini", "en": "Log breastfeeding today"}[L]})
+        elif log.asi_only:
+            items.append({"key": "asi", "status": "ok", "action": "asi", "text": {"id": "ASI saja hari ini", "en": "Breast milk only today"}[L]})
+        else:
+            items.append({"key": "asi", "status": "monitor", "action": "asi",
+                          "text": {"id": "Bukan ASI saja hari ini", "en": "Not breast milk only today"}[L]})
+    elif today_meals:
         items.append({"key": "meals", "status": "ok", "action": "meal",
                       "text": {"id": f"Makan {len(today_meals)}×", "en": f"Ate {len(today_meals)}×"}[L]})
         n = len(groups)
         items.append({"key": "diversity", "status": "ok" if n >= 5 else "monitor", "action": "meal", "count": n,
                       "text": {"id": f"{n}/8 kelompok makanan", "en": f"{n}/8 food groups"}[L]})
-    elif age_in_months(child.birth_date, date.today()) >= 6:
+    else:
         items.append({"key": "meals", "status": "action", "action": "meal",
                       "text": {"id": "Belum catat makan", "en": "No meals logged yet"}[L]})
 
@@ -66,6 +85,13 @@ def today_checklist(child_id: int, lang: str | None = None, user: User = Depends
     else:
         items.append({"key": "symptoms", "status": "ok", "action": "symptoms",
                       "text": {"id": "Tidak ada gejala", "en": "No symptoms"}[L]})
+
+    given = {r.item_key: r.given_at for r in db.scalars(select(KiaRecord).where(KiaRecord.child_id == child.id)).all()}
+    due = [r for r in kia.schedule(child.birth_date, given)["immunization"] if r["status"] in ("due", "overdue")]
+    if due:
+        items.append({"key": "kia", "status": "action", "action": "kia",
+                      "text": {"id": f"Imunisasi {due[0]['vaccines'][0]}", "en": f"Vaccine {due[0]['vaccines'][0]}"}[L]
+                      + ({"id": " terlewat", "en": " missed"}[L] if due[0]["status"] == "overdue" else {"id": " bulan ini", "en": " this month"}[L])})
 
     ready = db.scalar(select(SupplyRequest).where(SupplyRequest.child_id == child.id, SupplyRequest.status == "ready_for_pickup"))
     if ready:
@@ -132,8 +158,9 @@ def care_info(db: Session, child: Child, lang: str) -> dict:
     if child.kader:
         team.append({"role": "kader", "emoji": "👩‍⚕️", "name": child.kader.full_name, "label": ROLE_LABEL["kader"][L],
                      "phone": child.kader.phone})
-    if child.region:
-        team.append({"role": "facility", "emoji": "🏥", "name": f"Puskesmas · {child.region.district}",
+    fac = facility(child.region)
+    if fac:
+        team.append({"role": "facility", "emoji": "🏥", "name": fac["name"], "phone": fac["phone"],
                      "label": {"id": "Fasilitas kesehatan", "en": "Health facility"}[L]})
 
     recs = []
@@ -149,4 +176,5 @@ def care_info(db: Session, child: Child, lang: str) -> dict:
         recs.append({"kind": "note", "author": n.author.full_name, "role": n.author.role,
                      "role_label": ROLE_LABEL.get(n.author.role, {}).get(L), "text": n.text, "at": n.created_at.isoformat()})
     recs.sort(key=lambda r: r["at"], reverse=True)
-    return {"care_team": team, "professional_recommendations": recs, "last_reviewed": recs[0] if recs else None}
+    return {"care_team": team, "professional_recommendations": recs, "last_reviewed": recs[0] if recs else None, "facility": fac,
+            "posyandu": next_posyandu(child.region)}

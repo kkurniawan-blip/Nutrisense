@@ -9,7 +9,7 @@ from ..deps import get_current_user, require_roles
 from ..models import Consent, Region, User
 from ..schemas import LoginIn, PasswordChangeIn, ProfileUpdateIn, RegisterIn, StaffCreateIn
 from ..security import create_access_token, hash_password, verify_password
-from ..services.common import audit
+from ..services.common import audit, find_by_phone, normalize_phone
 
 router = APIRouter(prefix="/api", tags=["auth & users"])
 
@@ -23,12 +23,17 @@ def register(body: RegisterIn, db: Session = Depends(get_db)):
     """Caregiver self-registration. Consent to data processing is mandatory (privacy by design)."""
     if not body.consent_data_processing:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Consent to data processing is required to use NutriSense")
-    if db.scalar(select(User).where(User.email == body.email.lower())):
+    phone = normalize_phone(body.phone)
+    if not body.email and not phone:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Give an email or a phone number")
+    if body.email and db.scalar(select(User).where(User.email == body.email.lower())):
         raise HTTPException(status.HTTP_409_CONFLICT, "Email already registered")
+    if phone and find_by_phone(db, phone):
+        raise HTTPException(status.HTTP_409_CONFLICT, "Phone number already registered")
     if body.region_id is not None and db.get(Region, body.region_id) is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Unknown region")
-    user = User(email=body.email.lower(), password_hash=hash_password(body.password), full_name=body.full_name,
-                phone=body.phone, role="caregiver", region_id=body.region_id, language=body.language if body.language in ("id", "en") else "id")
+    user = User(email=body.email.lower() if body.email else None, password_hash=hash_password(body.password), full_name=body.full_name,
+                phone=phone, role="caregiver", region_id=body.region_id, language=body.language if body.language in ("id", "en") else "id")
     db.add(user)
     db.flush()
     for scope, granted in (("data_processing", True), ("ai_analysis", body.consent_ai_analysis),
@@ -42,9 +47,13 @@ def register(body: RegisterIn, db: Session = Depends(get_db)):
 
 @router.post("/auth/login")
 def login(body: LoginIn, db: Session = Depends(get_db)):
-    user = db.scalar(select(User).where(User.email == body.email.lower()))
+    """Log in with an email or a phone number (many mothers in NTT have a phone but no email)."""
+    ident = (body.phone or body.email or "").strip()
+    if not ident:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Give an email or a phone number")
+    user = db.scalar(select(User).where(User.email == ident.lower())) if "@" in ident else find_by_phone(db, ident)
     if user is None or not verify_password(body.password, user.password_hash) or not user.is_active:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Incorrect email or password")
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Incorrect email/phone or password")
     audit(db, user, "login", "user", user.id)
     db.commit()
     return _token_response(user)
@@ -69,7 +78,12 @@ def update_me(body: ProfileUpdateIn, user: User = Depends(get_current_user), db:
     if "full_name" in data and not data["full_name"]:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Name is required")
     if "phone" in data:
-        data["phone"] = (data["phone"] or "").strip() or None
+        data["phone"] = normalize_phone(data["phone"])
+        other = find_by_phone(db, data["phone"])
+        if other is not None and other.id != user.id:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Phone number already registered")
+        if data["phone"] is None and not user.email:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Keep a phone number: it is how you log in")
     for field, value in data.items():
         setattr(user, field, value)
     audit(db, user, "update_profile", "user", user.id, fields=sorted(data))

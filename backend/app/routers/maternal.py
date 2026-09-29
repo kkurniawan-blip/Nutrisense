@@ -9,11 +9,13 @@ from sqlalchemy.orm import Session
 from .. import serializers as S
 from ..ai import growth, maternal as M
 from ..database import get_db
-from ..deps import OVERSIGHT, get_current_user, lang_of
-from ..models import AncVisit, Child, MaternalMeasurement, Pregnancy, PregnancyDailyLog, PregnancyDangerReport, User
-from ..schemas import MeasurementIn
+from ..deps import OVERSIGHT, get_current_user, lang_of, require_roles
+from ..models import AncVisit, Child, Consent, MaternalMeasurement, Pregnancy, PregnancyDailyLog, PregnancyDangerReport, Region, User
+from ..schemas import MeasurementIn, MotherRegisterIn
+from ..security import hash_password
 from ..services.assessment import run_assessment
-from ..services.common import audit, has_consent, notify, notify_roles
+from ..services.common import audit, find_by_phone, has_consent, normalize_phone, notify, notify_roles
+from ..services.local import facility
 from .family import ROLE_LABEL
 
 router = APIRouter(prefix="/api", tags=["ibu hamil"])
@@ -66,6 +68,9 @@ class BirthIn(BaseModel):
     sex: str = Field(pattern="^(male|female)$")
     birth_weight_kg: float = Field(gt=0.5, lt=7)
     birth_length_cm: float = Field(gt=30, lt=65)
+    birth_place: str | None = Field(default=None, pattern="^(puskesmas|rs|bidan|polindes|home|on_the_way)$")
+    birth_attendant: str | None = Field(default=None, pattern="^(bidan|dokter|dukun|family|none)$")
+    gestational_weeks: float | None = Field(default=None, ge=20, le=44, description="At birth; from HPHT if not given")
 
 
 class NifasIn(BaseModel):
@@ -125,13 +130,17 @@ def view(db: Session, p: Pregnancy, lang: str, today: date | None = None) -> dic
     last_danger = db.scalar(select(PregnancyDangerReport).where(PregnancyDangerReport.pregnancy_id == p.id)
                             .order_by(PregnancyDangerReport.id.desc()))
     kek = any(f["code"] == "kek" for f in flags)
+    recent_danger = bool(last_danger and last_danger.danger and (today - last_danger.created_at.date()).days <= 3)
+    missed = sum(1 for v in schedule if v["status"] == "overdue") if p.status == "active" else 0
+    risk = M.mother_risk(flags, last_muac is not None or last_hb is not None, missed, recent_danger and p.status == "active", L)
 
     team = [{"role": "mother", "emoji": "🤰", "name": p.mother.full_name, "label": {"id": "Ibu hamil", "en": "Mother"}[L], "phone": p.mother.phone}]
     if p.kader:
         team.append({"role": "kader", "emoji": "👩‍⚕️", "name": p.kader.full_name, "label": ROLE_LABEL["kader"][L], "phone": p.kader.phone})
-    if p.region:
-        team.append({"role": "facility", "emoji": "🏥", "name": f"Puskesmas · {p.region.district}",
-                     "label": {"id": "Bidan & fasilitas kesehatan", "en": "Midwife & health facility"}[L]})
+    fac = facility(p.region)
+    if fac:
+        team.append({"role": "facility", "emoji": "🏥", "name": fac["name"], "phone": fac["phone"],
+                     "label": {"id": "Bidan & Puskesmas", "en": "Midwife & Puskesmas"}[L]})
 
     # "Untuk hari ini": short lines, the same shape as the child checklist.
     today_log = logs.get(today)
@@ -163,10 +172,11 @@ def view(db: Session, p: Pregnancy, lang: str, today: date | None = None) -> dic
         "gestational_days": days, "gestational_weeks": weeks, "gestational_extra_days": days % 7, "trimester": M.trimester(weeks),
         "days_to_hpl": (M.hpl(p.hpht) - today).days, "mother_height_cm": p.mother_height_cm, "education": p.education,
         "gravida": p.gravida, "birth_plan": p.birth_plan or {}, "measurements": [_measurement(m) for m in ms],
-        "latest": {"muac_cm": last_muac, "hb_g_dl": last_hb}, "flags": flags, "anc": schedule, "next_anc": nxt,
+        "latest": {"muac_cm": last_muac, "hb_g_dl": last_hb}, "flags": flags, "risk": risk, "facility": fac,
+        "anc": schedule, "next_anc": nxt, "anc_missed": missed,
         "anc_done": len(visits), "daily_week": week, "today_log": {"ttd": bool(today_log and today_log.ttd), "pmt": bool(today_log and today_log.pmt)},
         "ttd_total": ttd_total, "pmt_needed": kek, "today": items, "care_team": team,
-        "delivered_at": p.delivered_at.isoformat() if p.delivered_at else None, "child_id": p.child_id,
+        "delivered_at": p.delivered_at.isoformat() if p.delivered_at else None, "child_id": p.child_id, "birth_info": p.birth_info or {},
         "nifas": M.nifas_schedule(p.delivered_at, p.nifas_done or [], today) if p.delivered_at else None,
     }
     return out
@@ -214,6 +224,51 @@ def create_pregnancy(body: PregnancyIn, user: User = Depends(get_current_user), 
     return view(db, p, lang_of(user))
 
 
+@router.post("/kader/mothers", status_code=201)
+def register_mother(body: MotherRegisterIn, user: User = Depends(require_roles("kader", "officer", "admin")),
+                    db: Session = Depends(get_db)):
+    """Tambah ibu hamil: a Kader registers a pregnant mother. She gets an account on her phone number and a
+    temporary password (8 digits) to log in later; the Kader reads it to her once."""
+    import secrets
+
+    if not body.consent_given:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "The mother's consent is required")
+    phone = normalize_phone(body.phone)
+    region_id = body.region_id or user.region_id
+    if region_id is None or db.get(Region, region_id) is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Choose the mother's village")
+    if user.role == "kader" and region_id not in user.coverage():
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "This village is outside your area")
+    today = date.today()
+    hpht = body.hpht or (M.hpht_from_weeks(body.gestational_weeks, today) if body.gestational_weeks else None)
+    if hpht is None or hpht > today or (today - hpht).days > 44 * 7:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Give the HPHT date or the weeks of pregnancy")
+    mother = find_by_phone(db, phone)
+    temp_password = None
+    if mother is not None and mother.role != "caregiver":
+        raise HTTPException(status.HTTP_409_CONFLICT, "This phone number belongs to a staff account")
+    if mother is None:
+        temp_password = f"{secrets.randbelow(10**8):08d}"
+        mother = User(email=None, phone=phone, full_name=body.full_name.strip(), password_hash=hash_password(temp_password),
+                      role="caregiver", region_id=region_id, language="id")
+        db.add(mother)
+        db.flush()
+        for scope, granted in (("data_processing", True), ("ai_analysis", True), ("satusehat_sharing", False), ("research_use", False)):
+            db.add(Consent(user_id=mother.id, scope=scope, granted=granted))
+        audit(db, user, "register_mother", "user", mother.id, consent="verbal, witnessed by kader")
+    elif db.scalar(select(Pregnancy).where(Pregnancy.mother_id == mother.id, Pregnancy.status == "active")):
+        raise HTTPException(status.HTTP_409_CONFLICT, "This mother already has an active pregnancy")
+    kader = user if user.role == "kader" else _region_kader(db, region_id)
+    p = Pregnancy(mother_id=mother.id, region_id=region_id, kader_id=kader.id if kader else None, hpht=hpht,
+                  mother_height_cm=body.mother_height_cm, education=body.education, gravida=body.gravida, birth_plan={})
+    db.add(p)
+    db.flush()
+    audit(db, user, "create_pregnancy", "pregnancy", p.id, by="kader")
+    db.commit()
+    db.refresh(p)
+    return {"mother": S.user(mother), "temp_password": temp_password, "pregnancy": view(db, p, lang_of(user))}
+
+
 @router.get("/pregnancies/{pid}")
 def get_pregnancy_detail(pid: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     p = get_pregnancy(pid, db, user)
@@ -225,7 +280,7 @@ def update_pregnancy(pid: int, body: PregnancyUpdateIn, user: User = Depends(get
     p = get_pregnancy(pid, db, user)
     data = body.model_dump(exclude_unset=True)
     if "birth_plan" in data:
-        allowed = {"place", "transport", "companion", "helper", "blood_donor"}
+        allowed = {"place", "transport", "companion", "helper", "blood_donor", "funding"}
         data["birth_plan"] = {k: str(v)[:80] for k, v in (data["birth_plan"] or {}).items() if k in allowed and v}
     for k, v in data.items():
         setattr(p, k, v)
@@ -317,7 +372,8 @@ def report_danger(pid: int, body: DangerIn, user: User = Depends(get_current_use
                      pregnancy_id=p.id)
     audit(db, user, "report_pregnancy_danger", "pregnancy", p.id, signs=signs)
     db.commit()
-    return {"danger": danger, "signs": signs, "kader": {"name": p.kader.full_name, "phone": p.kader.phone} if p.kader else None}
+    return {"danger": danger, "signs": signs, "kader": {"name": p.kader.full_name, "phone": p.kader.phone} if p.kader else None,
+            "facility": facility(p.region)}
 
 
 @router.post("/pregnancies/{pid}/birth", status_code=201)
@@ -329,8 +385,9 @@ def record_birth(pid: int, body: BirthIn, user: User = Depends(get_current_user)
     born = body.birth_date or date.today()
     if born > date.today() or born < p.hpht + timedelta(weeks=20):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Birth date must be after 20 weeks of pregnancy and not in the future")
+    weeks = body.gestational_weeks or round(M.gestational_days(p.hpht, born) / 7, 1)
     child = Child(name=body.name, sex=body.sex, birth_date=born, caregiver_id=p.mother_id, kader_id=p.kader_id, region_id=p.region_id,
-                  birth_weight_kg=body.birth_weight_kg, birth_length_cm=body.birth_length_cm)
+                  birth_weight_kg=body.birth_weight_kg, birth_length_cm=body.birth_length_cm, birth_gestational_weeks=weeks)
     db.add(child)
     db.flush()
     from .children import _record_measurement
@@ -338,10 +395,14 @@ def record_birth(pid: int, body: BirthIn, user: User = Depends(get_current_user)
     m, _ = _record_measurement(db, child, MeasurementIn(measured_at=born, weight_kg=body.birth_weight_kg, height_cm=body.birth_length_cm,
                                                         position="lying", run_assessment=False), user)
     p.status, p.delivered_at, p.child_id = "delivered", born, child.id
+    p.birth_info = {"place": body.birth_place, "attendant": body.birth_attendant, "gestational_weeks": weeks}
+    premature = weeks < M.TERM_WEEKS
     if p.kader_id:
+        extra = {"id": (" BBLR." if body.birth_weight_kg < 2.5 else "") + (" Prematur." if premature else ""),
+                 "en": (" Low birth weight." if body.birth_weight_kg < 2.5 else "") + (" Premature." if premature else "")}
         notify(db, p.kader_id, "birth", {"id": "Kelahiran baru", "en": "New birth"},
-               {"id": f"{p.mother.full_name} melahirkan {body.name} ({body.birth_weight_kg} kg). Jadwalkan kunjungan nifas.",
-                "en": f"{p.mother.full_name} gave birth to {body.name} ({body.birth_weight_kg} kg). Plan the postpartum visits."},
+               {"id": f"{p.mother.full_name} melahirkan {body.name} ({body.birth_weight_kg} kg).{extra['id']} Jadwalkan kunjungan nifas.",
+                "en": f"{p.mother.full_name} gave birth to {body.name} ({body.birth_weight_kg} kg).{extra['en']} Plan the postpartum visits."},
                pregnancy_id=p.id, child_id=child.id)
     audit(db, user, "record_birth", "pregnancy", p.id, child_id=child.id)
     db.commit()
@@ -351,6 +412,7 @@ def record_birth(pid: int, body: BirthIn, user: User = Depends(get_current_user)
         run_assessment(db, child, user, lang_of(user), measurement_id=m.id)
         db.refresh(child)
     return {"child": S.child(child), "pregnancy": view(db, p, lang_of(user)), "low_birth_weight": body.birth_weight_kg < 2.5,
+            "premature": premature, "gestational_weeks": weeks,
             "z": growth.compute_z_scores(body.sex, 0, body.birth_weight_kg, body.birth_length_cm, "lying").as_dict()}
 
 
