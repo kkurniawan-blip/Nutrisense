@@ -6,9 +6,11 @@ import { useAuth } from '../lib/auth';
 import { formatDate } from '../lib/fun';
 import { FEATURE_LABELS, label } from '../lib/i18n';
 import { motherStatus, txt, zWords } from '../lib/status';
-import type { Assessment } from '../lib/types';
+import type { Assessment, Facility } from '../lib/types';
 import { colors, statusColor, StatusKey } from '../theme';
+import { AudioButton } from './AudioButton';
 import { Mascot } from './Mascot';
+import { Escalation } from './SymptomTiles';
 import { Text } from './Text';
 import { Bar, Card, H2, ListRow, MoreLink, P, RiskBadge, Row, SourceTag, StatusPill } from './ui';
 
@@ -50,7 +52,9 @@ function FactorRow({ name, value, status }: { name: string; value: string; statu
   );
 }
 
-function MotherResult({ a, compact, hideEmergency }: { a: Assessment; compact?: boolean; hideEmergency?: boolean }) {
+type Props = { a: Assessment; compact?: boolean; hideEmergency?: boolean; facility?: Facility | null; kaderPhone?: string | null };
+
+function MotherResult({ a, compact, hideEmergency, facility, kaderPhone }: Props) {
   const { t, lang } = useAuth();
   const [why, setWhy] = useState(false);
   const st = motherStatus(a);
@@ -66,7 +70,8 @@ function MotherResult({ a, compact, hideEmergency }: { a: Assessment; compact?: 
     if (codes.has('keep_breastfeeding')) actions.push({ emoji: '🤱', title: t('actKeepFeeding') });
   } else {
     actions.push({ emoji: '📏', title: codes.has('remeasure_2w') ? `${t('actMeasureNext')} · ${t('in2Weeks')}` : t('actMeasureNext'), go: () => router.push(`/child/${id}/measure`) });
-    actions.push({ emoji: '🍽️', title: t('actWatchMeals'), go: () => router.push(`/child/${id}/meal?action=manual`) });
+    if (Number(f.age_months) < 6) actions.push({ emoji: '🤱', title: t('asiOnly'), go: () => router.push(`/child/${id}/asi`) });
+    else actions.push({ emoji: '🍽️', title: t('actWatchMeals'), go: () => router.push(`/child/${id}/meal?action=manual`) });
     actions.push({ emoji: '📅', title: t('actFollowPlan'), go: () => router.push(`/child/${id}/nutrition`) });
     if (codes.has('ors_zinc')) actions.push({ emoji: '💊', title: t('actOrs') });
     actions.push({ emoji: '👩‍⚕️', title: t('actDiscuss') });
@@ -91,12 +96,7 @@ function MotherResult({ a, compact, hideEmergency }: { a: Assessment; compact?: 
   return (
     <>
       {/* One red warning per screen: skip it when the screen already shows its own (e.g. symptom checker with a call button). */}
-      {emergency && !hideEmergency && (
-        <Card tint={statusColor.urgent.bg} style={{ borderColor: colors.danger, borderWidth: 2 }}>
-          <Text style={{ color: colors.danger, fontWeight: '900', fontSize: 18 }}>🚨 {t('seekHelpNow')}</Text>
-          <Text style={{ marginTop: 4 }}>{t('urgentExplain')}</Text>
-        </Card>
-      )}
+      {emergency && !hideEmergency && <Escalation facility={facility} phone={kaderPhone} />}
 
       <Card>
         <SourceTag kind="ai" />
@@ -105,6 +105,7 @@ function MotherResult({ a, compact, hideEmergency }: { a: Assessment; compact?: 
           <View style={{ flex: 1, gap: 4 }}>
             <Text style={{ fontSize: 17, fontWeight: '800', color: statusColor[st.key].fg }}>{txt(emergency ? st.label : st.headline, lang)}</Text>
             <Text style={{ color: colors.muted }}>{line}</Text>
+            <AudioButton text={`${txt(emergency ? st.label : st.headline, lang)}. ${line} ${actions.map((x) => x.title).join('. ')}`} />
           </View>
         </Row>
         {!compact && <MoreLink label={t('seeReasons')} open={why} onPress={() => setWhy(!why)} />}
@@ -113,6 +114,11 @@ function MotherResult({ a, compact, hideEmergency }: { a: Assessment; compact?: 
             <FactorRow name={t('fHeightAge')} value={hz.text} status={hz.key} />
             <FactorRow name={t('fWeightAge')} value={wz.text} status={wz.key} />
             <FactorRow name={t('fTrend')} value={trend[lang]} status={trend.key} />
+            <FactorRow
+              name={t('fWeightGain')}
+              value={Number(f.weight_not_gaining) >= 2 ? t('twoT') : Number(f.weight_not_gaining) === 1 ? t('oneT') : t('gainOk')}
+              status={Number(f.weight_not_gaining) >= 2 ? 'action' : Number(f.weight_not_gaining) === 1 ? 'monitor' : 'ok'}
+            />
             <FactorRow
               name={t('fDiet')}
               value={imputed.includes('dietary_diversity') ? t('fNoMeals') : `${Math.round(Number(f.dietary_diversity))}/8 ${t('groups')}`}
@@ -172,7 +178,7 @@ export function TechnicalDetails({ a }: { a: Assessment }) {
 }
 
 /** Staff keep the clinical view (level, urgency, confidence, factors), still labelled as AI output. */
-function StaffResult({ a, compact, hideEmergency }: { a: Assessment; compact?: boolean; hideEmergency?: boolean }) {
+function StaffResult({ a, compact, hideEmergency }: Props) {
   const { t, lang } = useAuth();
   const emergency = a.triage.urgency === 'emergency';
   return (
@@ -223,11 +229,7 @@ function StaffResult({ a, compact, hideEmergency }: { a: Assessment; compact?: b
   );
 }
 
-export function AssessmentView({ a, compact, hideEmergency }: { a: Assessment; compact?: boolean; hideEmergency?: boolean }) {
+export function AssessmentView(props: Props) {
   const { user } = useAuth();
-  return user?.role === 'caregiver' ? (
-    <MotherResult a={a} compact={compact} hideEmergency={hideEmergency} />
-  ) : (
-    <StaffResult a={a} compact={compact} hideEmergency={hideEmergency} />
-  );
+  return user?.role === 'caregiver' ? <MotherResult {...props} /> : <StaffResult {...props} />;
 }

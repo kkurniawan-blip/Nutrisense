@@ -63,7 +63,7 @@ export default function Symptoms() {
   if (offlineSaved)
     return (
       <Screen>
-        {urgentSelected && <Escalation phone={kader?.phone} />}
+        {urgentSelected && <Escalation phone={kader?.phone} facility={child.data?.facility} />}
         <Card tint={statusColor.info.bg}>
           <Text style={{ fontWeight: '900', color: statusColor.info.fg }}>📶 {t('savedOnPhone')}</Text>
           <Text style={{ color: statusColor.info.fg }}>{t('symptomOfflineNote')}</Text>
@@ -76,7 +76,7 @@ export default function Symptoms() {
     const r = result.report;
     return (
       <Screen>
-        {r.danger_signs.length > 0 && <Escalation phone={kader?.phone} />}
+        {r.danger_signs.length > 0 && <Escalation phone={kader?.phone} facility={child.data?.facility} />}
         <Card>
           <SourceTag kind="ai" />
           <H2 emoji="🧠">{t('interpretedAs')}</H2>
@@ -103,7 +103,7 @@ export default function Symptoms() {
       <Bubble mood="caring">
         {t('howIs')} {name} {t('today')}?
       </Bubble>
-      {urgentSelected && <Escalation phone={kader?.phone} />}
+      {urgentSelected && <Escalation phone={kader?.phone} facility={child.data?.facility} />}
 
       <H2 emoji="🤒">{t('commonSymptoms')}</H2>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>

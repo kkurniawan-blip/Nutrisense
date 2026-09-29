@@ -9,11 +9,12 @@ import { Mascot } from '../../components/Mascot';
 import { PregnancyHome } from '../../components/PregnancyHome';
 import { SyncBanner } from '../../components/SyncBanner';
 import { Text } from '../../components/Text';
-import { Button, Card, Empty, ErrorBox, ListRow, Loading, PressScale, QuickAction, Row, Section, StatusPill, Tile, Wash } from '../../components/ui';
+import { Button, Card, Empty, ErrorBox, IconChip, ListRow, Loading, PressScale, QuickAction, Row, Section, StatusPill, Tile, Wash } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
 import { childEmoji, formatAge, greeting } from '../../lib/fun';
 import { motherStatus, txt } from '../../lib/status';
-import type { Child, Pregnancy, TodayChecklist } from '../../lib/types';
+import { formatDate } from '../../lib/fun';
+import type { Child, Facility, Posyandu, Pregnancy, TodayChecklist } from '../../lib/types';
 import { useApi } from '../../lib/useApi';
 import { colors, glass, radius, statusColor, Tone } from '../../theme';
 
@@ -28,11 +29,31 @@ function FeatureGroup({ emoji, tone, title, children }: { emoji: string; tone: T
   );
 }
 
+/** "Posyandu berikutnya": the date and how many days to go. */
+function PosyanduCard({ p }: { p: Posyandu }) {
+  const { t, lang } = useAuth();
+  return (
+    <Card style={{ paddingVertical: 14 }}>
+      <Row style={{ gap: 12 }}>
+        <IconChip emoji="📅" size={44} />
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontWeight: '700' }}>{t('nextPosyandu')}</Text>
+          <Text style={{ color: colors.muted, fontSize: 13 }}>
+            {formatDate(p.date, lang)} · {p.place}
+          </Text>
+        </View>
+        <StatusPill status="info" label={p.days === 0 ? t('todayLbl') : `${p.days} ${t('daysLeft')}`} />
+      </Row>
+    </Card>
+  );
+}
+
 function MotherHome() {
   const { user, t, lang } = useAuth();
   const insets = useSafeAreaInsets();
   const children = useApi<Child[]>('/api/children');
   const pregnancies = useApi<Pregnancy[]>('/api/pregnancies');
+  const local = useApi<{ facility: Facility | null; posyandu: Posyandu | null }>('/api/local');
   const [picked, setPicked] = useState<number | 'mom' | null>(null);
   const [adding, setAdding] = useState(false);
   const kids = children.data ?? [];
@@ -50,6 +71,8 @@ function MotherHome() {
     const routes: Record<string, string> = {
       measure: `/child/${child.id}/measure`,
       meal: `/child/${child.id}/meal?action=manual`,
+      asi: `/child/${child.id}/asi`,
+      kia: `/child/${child.id}/kia`,
       symptoms: `/child/${child.id}/symptoms`,
       pickups: '/pickups',
     };
@@ -60,6 +83,7 @@ function MotherHome() {
     void children.reload();
     void pregnancies.reload();
     void today.reload();
+    void local.reload();
   };
 
   return (
@@ -115,9 +139,19 @@ function MotherHome() {
               accessibilityRole="button"
               accessibilityState={{ expanded: adding }}
               accessibilityLabel={`${t('addChild')} / ${t('addPregnancy')}`}
-              style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: '#CFC8F2', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' }}
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                borderWidth: 1.5,
+                borderColor: adding ? colors.primary : '#CFC8F2',
+                borderStyle: adding ? 'solid' : 'dashed',
+                backgroundColor: adding ? colors.primarySoft : 'transparent',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
             >
-              <Ionicons name={adding ? 'close' : 'add'} size={22} color={colors.primary} />
+              <Ionicons name="add" size={22} color={colors.primary} />
             </Pressable>
           </Row>
         )}
@@ -149,6 +183,7 @@ function MotherHome() {
         )}
 
         {momOn && preg && <PregnancyHome p={preg} />}
+        {momOn && local.data?.posyandu && <PosyanduCard p={local.data.posyandu} />}
 
         {child && (
           <>
@@ -164,9 +199,10 @@ function MotherHome() {
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#A09CB5" />
               </Row>
-              <View style={{ marginTop: 14 }}>
+              <Row style={{ marginTop: 14, flexWrap: 'wrap', gap: 6 }}>
                 <StatusPill status={st.key} label={txt(st.headline, lang)} large />
-              </View>
+                {child.weight_gain?.two_t ? <StatusPill status="action" label={t('twoTBadge')} large /> : null}
+              </Row>
               {m ? (
                 <Text style={{ fontSize: 22, fontWeight: '900', marginTop: 12 }}>
                   {m.height_cm} <Text style={{ fontSize: 14, color: colors.muted, fontWeight: '500' }}>cm</Text>
@@ -195,9 +231,15 @@ function MotherHome() {
               })}
             </Card>
 
-            {/* Quick actions */}
+            {local.data?.posyandu && <PosyanduCard p={local.data.posyandu} />}
+
+            {/* Quick actions: ASI instead of meals before 6 months */}
             <Row style={{ alignItems: 'flex-start', gap: 4, marginTop: 4, marginBottom: 20 }}>
-              <QuickAction emoji="📸" tone="orange" label={t('actLogMeal')} onPress={() => router.push(`/child/${child.id}/meal?action=manual`)} />
+              {child.age_months < 6 ? (
+                <QuickAction emoji="🤱" tone="pink" label={t('asiTitle')} onPress={() => router.push(`/child/${child.id}/asi`)} />
+              ) : (
+                <QuickAction emoji="📸" tone="orange" label={t('actLogMeal')} onPress={() => router.push(`/child/${child.id}/meal?action=manual`)} />
+              )}
               <QuickAction emoji="📏" tone="blue" label={t('tileMeasure')} onPress={() => router.push(`/child/${child.id}/measure`)} />
               <QuickAction emoji="🤒" tone="pink" label={t('actCheckSymptoms')} onPress={() => router.push(`/child/${child.id}/symptoms`)} />
               <QuickAction emoji="💬" tone="lavender" label={t('tileConsult')} onPress={() => router.push('/assistant')} />
@@ -209,12 +251,19 @@ function MotherHome() {
               <ListRow emoji="📏" title={t('tileMeasure')} onPress={() => router.push(`/child/${child.id}/measure`)} />
               <ListRow emoji="📈" title={t('growthHistory')} onPress={() => router.push(`/child/${child.id}/history`)} />
               <ListRow emoji="🧠" title={t('development')} onPress={() => router.push(`/child/${child.id}/development`)} />
+              <ListRow emoji="💉" title={t('kiaTitle')} onPress={() => router.push(`/child/${child.id}/kia`)} />
             </FeatureGroup>
             <FeatureGroup emoji="🥗" tone="green" title={t('jNutrition')}>
-              <ListRow emoji="📸" title="NutriScan" onPress={() => router.push(`/nutriscan?child=${child.id}`)} />
-              <ListRow emoji="✍️" title={t('actLogMeal')} onPress={() => router.push(`/child/${child.id}/meal?action=manual`)} />
-              <ListRow emoji="🗓️" title={t('nutritionPlan')} onPress={() => router.push(`/child/${child.id}/nutrition`)} />
-              <ListRow emoji="👩‍🍳" title={t('recipes')} onPress={() => router.push(`/child/${child.id}/recipes`)} />
+              {child.age_months < 6 ? (
+                <ListRow emoji="🤱" title={t('asiTitle')} onPress={() => router.push(`/child/${child.id}/asi`)} />
+              ) : (
+                <>
+                  <ListRow emoji="📸" title="NutriScan" onPress={() => router.push(`/nutriscan?child=${child.id}`)} />
+                  <ListRow emoji="✍️" title={t('actLogMeal')} onPress={() => router.push(`/child/${child.id}/meal?action=manual`)} />
+                  <ListRow emoji="🗓️" title={t('nutritionPlan')} onPress={() => router.push(`/child/${child.id}/nutrition`)} />
+                  <ListRow emoji="👩‍🍳" title={t('recipes')} onPress={() => router.push(`/child/${child.id}/recipes`)} />
+                </>
+              )}
             </FeatureGroup>
             <FeatureGroup emoji="💬" tone="lavender" title={t('jHelp')}>
               <ListRow emoji="🤒" title={t('actCheckSymptoms')} onPress={() => router.push(`/child/${child.id}/symptoms`)} />

@@ -12,11 +12,35 @@ export interface Region {
   rural: boolean;
   prevalence_benchmark: number | null;
   transport_difficulty: number;
+  puskesmas_name?: string | null;
+  puskesmas_phone?: string | null;
+  facility_km?: number | null;
+}
+
+/** Nearest Puskesmas for the emergency card: phone, distance and the ambulance number. */
+export interface Facility {
+  name: string;
+  phone: string | null;
+  distance_km: number | null;
+  transport_difficulty: number;
+  ambulance: string;
+}
+
+export interface Posyandu {
+  date: string;
+  days: number;
+  place: string;
+}
+
+/** "Every figure shows its source and year." */
+export interface SourceRef {
+  label: string | { id: string; en: string };
+  year: number;
 }
 
 export interface User {
   id: number;
-  email: string;
+  email: string | null;
   full_name: string;
   phone: string | null;
   role: Role;
@@ -42,6 +66,8 @@ export interface Measurement {
   waz_class: string;
   whz_class: string;
   source: string;
+  measured_by?: 'mother' | 'kader' | null;
+  oedema?: boolean | null;
 }
 
 export interface Reason {
@@ -117,14 +143,58 @@ export interface Child {
   region_id: number | null;
   region: Region | null;
   birth_weight_kg: number | null;
+  birth_gestational_weeks?: number | null;
+  exclusive_breastfeeding?: boolean | null;
   clean_water_access: boolean;
   sanitation_access: boolean;
+  weight_gain?: WeightGain;
   latest_measurement: Measurement | null;
   measurement_count: number;
   latest_assessment: Assessment | null;
   care_team?: CareMember[];
   professional_recommendations?: ProRecommendation[];
   last_reviewed?: ProRecommendation | null;
+  facility?: Facility | null;
+  posyandu?: Posyandu | null;
+}
+
+/** KMS weighing results: N (naik), T (tidak naik, below the minimum gain) or O (not judged). */
+export interface WeightGain {
+  weighings: { date: string; result: 'N' | 'T' | 'O'; gain_g: number; kbm_g: number }[];
+  not_gaining: number;
+  two_t: boolean;
+  source: string;
+}
+
+export interface KiaItem {
+  key: string;
+  age: number;
+  vaccines?: string[];
+  dose?: 'biru' | 'merah';
+  target_date: string;
+  status: VisitStatus;
+  given_at: string | null;
+}
+
+export interface KiaSchedule {
+  age_months: number;
+  immunization: KiaItem[];
+  vitamin_a: KiaItem[];
+  deworming: KiaItem[];
+  next: KiaItem | null;
+  source: string;
+}
+
+export interface AsiTracker {
+  age_months: number;
+  in_window: boolean;
+  days_logged: number;
+  days_asi_only: number;
+  broken: boolean;
+  until: string;
+  streak: number;
+  week: { day: string; asi_only: boolean | null; feeds: number | null }[];
+  today: { asi_only: boolean; feeds: number | null; other: string[] } | null;
 }
 
 export interface CareMember {
@@ -149,7 +219,7 @@ export type ChecklistStatus = 'ok' | 'monitor' | 'action' | 'urgent' | 'info';
 
 export interface TodayChecklist {
   child_id: number;
-  items: { key: string; status: ChecklistStatus; text: string; action: 'measure' | 'meal' | 'symptoms' | 'pickups'; count?: number }[];
+  items: { key: string; status: ChecklistStatus; text: string; action: 'measure' | 'meal' | 'symptoms' | 'pickups' | 'asi' | 'kia'; count?: number }[];
   groups_today: string[];
 }
 
@@ -435,13 +505,16 @@ export interface Pregnancy {
   mother_height_cm: number | null;
   education: string | null;
   gravida: number | null;
-  birth_plan: { place?: string; transport?: string; companion?: string };
+  birth_plan: { place?: string; transport?: string; companion?: string; helper?: string; blood_donor?: string; funding?: string };
   measurements: { id: number; measured_at: string; gestational_weeks: number; muac_cm: number | null; hb_g_dl: number | null; weight_kg: number | null }[];
   latest: { muac_cm: number | null; hb_g_dl: number | null };
   flags: MotherFlag[];
+  risk: MotherRisk;
+  facility: Facility | null;
   anc: AncVisit[];
   next_anc: AncVisit | null;
   anc_done: number;
+  anc_missed: number;
   daily_week: { day: string; ttd: boolean; pmt: boolean }[];
   today_log: { ttd: boolean; pmt: boolean };
   ttd_total: number;
@@ -450,5 +523,14 @@ export interface Pregnancy {
   care_team: { role: string; emoji: string; name: string; label: string; phone?: string | null }[];
   delivered_at: string | null;
   child_id: number | null;
+  birth_info: { place?: string | null; attendant?: string | null; gestational_weeks?: number | null };
   nifas: NifasVisit[] | null;
+}
+
+/** One level for the mother: Belum dicek, Risiko rendah, Perlu dipantau, Risiko sedang, Risiko tinggi. */
+export interface MotherRisk {
+  key: 'unknown' | 'ok' | 'monitor' | 'action' | 'urgent';
+  label: string;
+  reasons: string[];
+  contact: boolean;
 }

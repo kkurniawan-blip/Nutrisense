@@ -21,6 +21,7 @@ import { FOOD_GROUPS, FRIENDLY_RISK } from '../lib/fun';
 import { clinicalStatus } from '../lib/status';
 import type { RiskLevel } from '../lib/types';
 import { colors, fonts, glass, radius, shadow, StatusKey, statusColor, Tone, tones, TOUCH } from '../theme';
+import { AudioButton } from './AudioButton';
 import { Mascot, Mood } from './Mascot';
 import { Text, TextInput } from './Text';
 
@@ -50,7 +51,8 @@ const ICONS: Record<string, [IconName, Tone]> = {
   '☁️': ['cloud', 'blue'], '🚁': ['airplane', 'blue'], '📦': ['cube', 'orange'], '💊': ['bandage', 'pink'],
   '🧪': ['flask', 'lavender'], '🎯': ['locate', 'orange'], '⏰': ['alarm', 'orange'], '📞': ['call', 'green'],
   '📱': ['phone-portrait', 'lavender'], '🧾': ['receipt', 'orange'], '🔄': ['sync', 'blue'], '👪': ['people', 'lavender'],
-  '👥': ['people', 'lavender'], '💡': ['bulb', 'yellow'],
+  '👥': ['people', 'lavender'], '💡': ['bulb', 'yellow'], '🤱': ['heart', 'pink'], '💉': ['medkit', 'blue'],
+  '🚑': ['medical', 'pink'], '🏥': ['business', 'blue'], '🤰': ['heart-circle', 'pink'],
 };
 export const iconFor = (emoji?: string): IconName | undefined => (emoji ? ICONS[emoji.trim()]?.[0] : undefined);
 const toneFor = (emoji?: string): Tone => (emoji ? ICONS[emoji.trim()]?.[1] : undefined) ?? 'lavender';
@@ -594,17 +596,36 @@ export function QuickAction({ emoji, label, onPress, tone }: { emoji: string; la
   );
 }
 
-/** Nuri talking to the mother. */
-export function Bubble({ children, mood = 'happy', tint = colors.card }: { children: React.ReactNode; mood?: Mood; tint?: string }) {
+/** Nuri talking to the mother. With `audio`, a "Dengar" button reads the guidance aloud (plain text is read by default). */
+export function Bubble({ children, mood = 'happy', tint = colors.card, audio }: { children: React.ReactNode; mood?: Mood; tint?: string; audio?: string | boolean }) {
   // Plain text (including "Hi {name}!" style mixes of strings) gets the app font; elements render as given.
-  const plain = React.Children.toArray(children).every((c) => typeof c === 'string' || typeof c === 'number');
+  const parts = React.Children.toArray(children);
+  const plain = parts.every((c) => typeof c === 'string' || typeof c === 'number');
+  const spoken = typeof audio === 'string' ? audio : audio && plain ? parts.join('') : null;
   return (
     <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginBottom: 14 }}>
       <Mascot size={56} mood={mood} />
       <View style={[styles.bubble, tint === colors.card ? glass : { backgroundColor: tint }]}>
         {plain ? <Text style={[styles.p, { fontWeight: '600' }]}>{children}</Text> : children}
+        {spoken ? (
+          <View style={{ marginTop: 8 }}>
+            <AudioButton text={spoken} />
+          </View>
+        ) : null}
       </View>
     </View>
+  );
+}
+
+/** Where a figure comes from: "Sumber: SSGI 2024, Kemenkes RI · 2024". Every figure shows its source and year. */
+export function Source({ label, year, style }: { label: string | { id: string; en: string }; year?: number | string; style?: object }) {
+  const { lang } = useAuth();
+  const text = typeof label === 'string' ? label : label[lang];
+  return (
+    <Text style={[{ color: colors.muted, fontSize: 12, lineHeight: 17, marginTop: 6 }, style]}>
+      {lang === 'id' ? 'Sumber' : 'Source'}: {text}
+      {year && !String(text).includes(String(year)) ? ` · ${year}` : ''}
+    </Text>
   );
 }
 

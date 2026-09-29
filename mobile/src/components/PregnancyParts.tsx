@@ -1,14 +1,49 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { View } from 'react-native';
+import { Linking, View } from 'react-native';
 
 import { useAuth } from '../lib/auth';
 import { formatDate } from '../lib/fun';
 import { NIFAS_LABEL, VISIT_STATUS } from '../lib/pregnancy';
-import type { AncVisit, NifasVisit } from '../lib/types';
+import type { AncVisit, NifasVisit, Pregnancy } from '../lib/types';
 import { colors, statusColor } from '../theme';
+import { AudioButton } from './AudioButton';
 import { Text } from './Text';
-import { Row, StatusPill } from './ui';
+import { Button, Card, Row, StatusPill } from './ui';
+
+/**
+ * Risiko sedang / tinggi: the level in large type, why in a few words, and one action: call the midwife
+ * (the Puskesmas number). Shown only when the level asks for contact.
+ */
+export function RiskCard({ p }: { p: Pregnancy }) {
+  const { t } = useAuth();
+  const r = p.risk;
+  if (!r.contact || p.status !== 'active') return null;
+  const c = statusColor[r.key];
+  const tip = r.key === 'urgent' ? t('riskHighTip') : t('riskMidTip');
+  const phone = p.facility?.phone;
+  return (
+    <Card tint={c.bg} style={r.key === 'urgent' ? { borderColor: colors.danger, borderWidth: 2 } : undefined}>
+      <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={{ fontSize: 20, fontWeight: '900', color: c.fg }}>{r.label}</Text>
+          <Text style={{ fontWeight: '700', color: c.fg }}>{r.reasons.join(' · ')}</Text>
+        </View>
+        <AudioButton text={`${r.label}. ${r.reasons.join(', ')}. ${tip}`} compact />
+      </Row>
+      <Text style={{ marginTop: 6 }}>{tip}</Text>
+      {phone ? (
+        <Button variant={r.key === 'urgent' ? 'danger' : 'primary'} title={t('callMidwife')} icon="call" onPress={() => Linking.openURL(`tel:${phone}`)} />
+      ) : null}
+      {p.facility ? (
+        <Text style={{ color: colors.muted, fontSize: 12.5, textAlign: 'center' }}>
+          {p.facility.name}
+          {phone ? ` · ${phone}` : ''}
+        </Text>
+      ) : null}
+    </Card>
+  );
+}
 
 /** K1..K6 as six circles: tick when done, coloured ring when due or missed. */
 export function AncDots({ anc }: { anc: AncVisit[] }) {

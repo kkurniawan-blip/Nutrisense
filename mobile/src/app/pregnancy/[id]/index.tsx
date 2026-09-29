@@ -3,12 +3,12 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import { Linking, Pressable, View } from 'react-native';
 
-import { AncDots, NifasList } from '../../../components/PregnancyParts';
+import { AncDots, NifasList, RiskCard } from '../../../components/PregnancyParts';
 import { Text } from '../../../components/Text';
 import { Bar, Button, Card, ErrorBox, H2, Loading, QuickAction, Row, Screen, Section, StatusMark, StatusPill } from '../../../components/ui';
 import { useAuth } from '../../../lib/auth';
 import { formatDate } from '../../../lib/fun';
-import { BIRTH_PLACES, label, motherState, TRANSPORT, VISIT_STATUS, weeksText } from '../../../lib/pregnancy';
+import { BIRTH_HELPERS, BIRTH_PLACES, BIRTH_ATTENDANTS, BIRTH_PLACES_DONE, FUNDING, label, motherState, TRANSPORT, VISIT_STATUS, weeksText } from '../../../lib/pregnancy';
 import type { Pregnancy } from '../../../lib/types';
 import { useApi } from '../../../lib/useApi';
 import { colors, statusColor, StatusKey, tones } from '../../../theme';
@@ -45,7 +45,7 @@ export default function PregnancyDetail() {
   const p = q.data;
   if (!p) return <Screen>{q.error ? <ErrorBox message={q.error} onRetry={q.reload} /> : <Loading />}</Screen>;
 
-  const st = motherState(p, lang);
+  const st = motherState(p);
   const flag = (code: string) => p.flags.find((f) => f.code === code);
   const kek = flag('kek');
   const anemia = flag('severe_anemia') ?? flag('anemia');
@@ -70,11 +70,20 @@ export default function PregnancyDetail() {
             {p.gravida ? ` · ${t('pregnancyNo')}${p.gravida}` : ''}
           </Text>
           <StatusPill status={st.key} label={st.text} />
+          {st.reasons && !delivered ? <Text style={{ color: statusColor[st.key].fg, fontSize: 13, fontWeight: '600' }}>{st.reasons}</Text> : null}
         </View>
       </Row>
+      <RiskCard p={p} />
 
       {delivered ? (
         <Card>
+          {p.birth_info?.place || p.birth_info?.attendant ? (
+            <Text style={{ color: colors.muted, fontSize: 13, marginBottom: 10 }}>
+              {[label(BIRTH_PLACES_DONE, p.birth_info.place, lang), label(BIRTH_ATTENDANTS, p.birth_info.attendant, lang), p.birth_info.gestational_weeks ? `${p.birth_info.gestational_weeks} ${t('weeksWord')}` : '']
+                .filter(Boolean)
+                .join(' · ')}
+            </Text>
+          ) : null}
           <H2>{t('nifasTitle')}</H2>
           {p.nifas && <NifasList nifas={p.nifas} />}
           {p.child_id && <Button title={t('openChild')} icon="arrow-forward" onPress={() => router.push(`/child/${p.child_id}`)} />}
@@ -188,6 +197,9 @@ export default function PregnancyDetail() {
             { emoji: '🏥', title: t('birthPlace'), value: plan.place ? label(BIRTH_PLACES, plan.place, lang) : null },
             { emoji: '🚑', title: t('transportLbl'), value: plan.transport ? label(TRANSPORT, plan.transport, lang) : null },
             { emoji: '🤝', title: t('companionLbl'), value: plan.companion ?? null },
+            { emoji: '👩‍⚕️', title: t('helperLbl'), value: plan.helper ? label(BIRTH_HELPERS, plan.helper, lang) : null },
+            { emoji: '🩸', title: t('donorLbl'), value: plan.blood_donor ?? null },
+            { emoji: '💳', title: t('fundingLbl'), value: plan.funding ? label(FUNDING, plan.funding, lang) : null },
           ].map((r) => (
             <Row key={r.title} style={{ paddingVertical: 6, gap: 10 }}>
               <Text style={{ fontSize: 18 }}>{r.emoji}</Text>
@@ -208,7 +220,10 @@ export default function PregnancyDetail() {
             </View>
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={{ fontWeight: '700' }}>{mbr.name}</Text>
-              <Text style={{ color: colors.muted, fontSize: 12.5 }}>{mbr.label}</Text>
+              <Text style={{ color: colors.muted, fontSize: 12.5 }}>
+                {mbr.label}
+                {mbr.role === 'facility' && p.facility?.distance_km ? ` · ± ${p.facility.distance_km} km` : ''}
+              </Text>
             </View>
             {mbr.phone && mbr.role !== 'mother' ? (
               <Pressable onPress={() => Linking.openURL(`tel:${mbr.phone}`)} accessibilityLabel={`${t('call')} ${mbr.name}`} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.mintSoft, alignItems: 'center', justifyContent: 'center' }}>

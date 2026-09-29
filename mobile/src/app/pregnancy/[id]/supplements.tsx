@@ -4,36 +4,13 @@ import React, { useState } from 'react';
 import { View } from 'react-native';
 
 import { Text } from '../../../components/Text';
-import { Bar, Bubble, Card, ErrorBox, H2, Loading, PressScale, Row, Screen, StatusPill } from '../../../components/ui';
+import { TodayBox } from '../../../components/TodayBox';
+import { Bar, Bubble, Card, ErrorBox, H2, Loading, Row, Screen, StatusPill } from '../../../components/ui';
 import { api, errorText } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 import type { Pregnancy } from '../../../lib/types';
 import { useApi } from '../../../lib/useApi';
-import { colors, radius, tones } from '../../../theme';
-
-/** A big tick box for today: tap to mark, tap again to undo. */
-function TodayBox({ emoji, title, on, note, onPress }: { emoji: string; title: string; on: boolean; note?: string; onPress: () => void }) {
-  return (
-    <PressScale
-      onPress={onPress}
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked: on }}
-      accessibilityLabel={title}
-      style={{ flex: 1, alignItems: 'center', gap: 6, paddingVertical: 16, paddingHorizontal: 8, borderRadius: radius.lg, borderWidth: 1.5, borderColor: on ? colors.mint : colors.border, backgroundColor: on ? colors.mintSoft : '#fff' }}
-    >
-      {on && (
-        <View style={{ position: 'absolute', top: 8, right: 8 }}>
-          <Ionicons name="checkmark-circle" size={22} color={colors.mint} />
-        </View>
-      )}
-      <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: on ? '#fff' : tones.pink.bg, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ fontSize: 28 }}>{emoji}</Text>
-      </View>
-      <Text style={{ fontWeight: '700', textAlign: 'center', color: on ? colors.ok : colors.text }}>{title}</Text>
-      {note ? <Text style={{ fontSize: 12, color: colors.warn, textAlign: 'center' }}>{note}</Text> : null}
-    </PressScale>
-  );
-}
+import { colors } from '../../../theme';
 
 /** TTD & PMT ibu hamil: today's two ticks, the last seven days, and the running total of iron tablets. */
 export default function Supplements() {

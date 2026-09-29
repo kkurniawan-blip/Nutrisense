@@ -12,6 +12,7 @@ import {
   Card,
   ErrorBox,
   H2,
+  IconChip,
   ListRow,
   Loading,
   MoreLink,
@@ -29,7 +30,8 @@ import { api, errorText } from '../../../lib/api';
 import { isStaff, useAuth } from '../../../lib/auth';
 import { childEmoji, formatAge, formatDate, stickers } from '../../../lib/fun';
 import { clinicalStatus, motherStatus, txt, zWords } from '../../../lib/status';
-import type { Child, Development, Meal, Measurement } from '../../../lib/types';
+import { VISIT_STATUS } from '../../../lib/pregnancy';
+import type { Child, Development, KiaSchedule, Meal, Measurement } from '../../../lib/types';
 import { useApi } from '../../../lib/useApi';
 import { colors, statusColor, tones } from '../../../theme';
 
@@ -112,6 +114,35 @@ function GrowthTrend({ childId, name }: { childId: string; name: string }) {
           <Text style={{ color: colors.muted, fontSize: 13 }}>{t('zExplain')}</Text>
         </View>
       )}
+    </Card>
+  );
+}
+
+/** Buku KIA at a glance: the next vaccine / vitamin A / deworming, and the way to the full schedule. */
+function KiaSummary({ childId }: { childId: string }) {
+  const { t, lang } = useAuth();
+  const kia = useApi<KiaSchedule>(`/api/children/${childId}/kia`);
+  const s = kia.data;
+  if (!s) return null;
+  const n = s.next;
+  const done = s.immunization.filter((r) => r.status === 'done').length;
+  const title = n ? (n.vaccines ? n.vaccines.join(' · ') : n.key.startsWith('vita') ? t('vitA') : t('deworm')) : t('kiaComplete');
+  const st = n ? VISIT_STATUS[n.status] : null;
+  return (
+    <Card onPress={() => router.push(`/child/${childId}/kia`)}>
+      <H2 emoji="💉" right={<Ionicons name="chevron-forward" size={18} color="#A09CB5" />}>
+        {t('kiaTitle')}
+      </H2>
+      <Row style={{ justifyContent: 'space-between', gap: 8 }}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontWeight: '700' }}>{title}</Text>
+          <Text style={{ color: colors.muted, fontSize: 13 }}>
+            {t('immunization')} {done}/{s.immunization.length}
+            {n?.status === 'upcoming' ? ` · ${formatDate(n.target_date, lang)}` : ''}
+          </Text>
+        </View>
+        {st && <StatusPill status={st.key} label={st.label[lang]} />}
+      </Row>
     </Card>
   );
 }
@@ -228,7 +259,10 @@ export default function ChildDetail() {
             {formatAge(c.age_months, lang)}
             {c.region?.name ? ` · 📍 ${c.region.name}` : ''}
           </Text>
-          {mom ? <StatusPill status={st.key} label={txt(st.label, lang)} /> : <StatusPill status={clinicalStatus(a?.risk_level)} label={a ? t(`risk_${a.risk_level}`) : t('notAssessed')} />}
+          <Row style={{ flexWrap: 'wrap', gap: 6 }}>
+            {mom ? <StatusPill status={st.key} label={txt(st.label, lang)} /> : <StatusPill status={clinicalStatus(a?.risk_level)} label={a ? t(`risk_${a.risk_level}`) : t('notAssessed')} />}
+            {c.weight_gain?.two_t ? <StatusPill status="action" label={t('twoTBadge')} /> : null}
+          </Row>
         </View>
       </Row>
 
@@ -249,18 +283,42 @@ export default function ChildDetail() {
       {m && <GrowthTrend childId={id} name={name} />}
 
       {/* Nuri's short guidance and what to do */}
-      {a && <AssessmentView a={a} />}
+      {a && <AssessmentView a={a} facility={c.facility} kaderPhone={kader?.phone} />}
+
+      <KiaSummary childId={id} />
+      {c.posyandu && (
+        <Card>
+          <Row style={{ gap: 12 }}>
+            <IconChip emoji="📅" size={44} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontWeight: '700' }}>{t('nextPosyandu')}</Text>
+              <Text style={{ color: colors.muted, fontSize: 13 }}>
+                {formatDate(c.posyandu.date, lang)} · {c.posyandu.place}
+              </Text>
+            </View>
+            <StatusPill status="info" label={c.posyandu.days === 0 ? t('todayLbl') : `${c.posyandu.days} ${t('daysLeft')}`} />
+          </Row>
+        </Card>
+      )}
 
       <DevelopmentSummary childId={id} />
 
-      {/* Food shortcuts */}
+      {/* Food shortcuts: ASI only before 6 months */}
       <Card>
-        <Row style={{ alignItems: 'flex-start', gap: 4 }}>
-          <QuickAction emoji="📸" tone="orange" label="NutriScan" onPress={() => router.push(`/nutriscan?child=${id}`)} />
-          <QuickAction emoji="✍️" tone="green" label={t('actLogMeal')} onPress={() => router.push(`/child/${id}/meal?action=manual`)} />
-          <QuickAction emoji="🗓️" tone="blue" label={t('nutritionPlan')} onPress={() => router.push(`/child/${id}/nutrition`)} />
-          <QuickAction emoji="👩‍🍳" tone="pink" label={t('recipes')} onPress={() => router.push(`/child/${id}/recipes`)} />
-        </Row>
+        {c.age_months < 6 ? (
+          <Row style={{ alignItems: 'flex-start', gap: 4 }}>
+            <QuickAction emoji="🤱" tone="pink" label={t('asiTitle')} onPress={() => router.push(`/child/${id}/asi`)} />
+            <QuickAction emoji="💉" tone="blue" label={t('kiaTitle')} onPress={() => router.push(`/child/${id}/kia`)} />
+            <QuickAction emoji="📈" tone="green" label={t('growthHistory')} onPress={() => router.push(`/child/${id}/history`)} />
+          </Row>
+        ) : (
+          <Row style={{ alignItems: 'flex-start', gap: 4 }}>
+            <QuickAction emoji="📸" tone="orange" label="NutriScan" onPress={() => router.push(`/nutriscan?child=${id}`)} />
+            <QuickAction emoji="✍️" tone="green" label={t('actLogMeal')} onPress={() => router.push(`/child/${id}/meal?action=manual`)} />
+            <QuickAction emoji="🗓️" tone="blue" label={t('nutritionPlan')} onPress={() => router.push(`/child/${id}/nutrition`)} />
+            <QuickAction emoji="👩‍🍳" tone="pink" label={t('recipes')} onPress={() => router.push(`/child/${id}/recipes`)} />
+          </Row>
+        )}
       </Card>
 
       {mom && (
@@ -289,7 +347,10 @@ export default function ChildDetail() {
             </View>
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={{ fontWeight: '700' }}>{mbr.name}</Text>
-              <Text style={{ color: colors.muted, fontSize: 12.5 }}>{mbr.label}</Text>
+              <Text style={{ color: colors.muted, fontSize: 12.5 }}>
+                {mbr.label}
+                {mbr.role === 'facility' && c.facility?.distance_km ? ` · ± ${c.facility.distance_km} km` : ''}
+              </Text>
               <Row style={{ gap: 5 }}>
                 <StatusMark status="ok" size={7} />
                 <Text style={{ fontSize: 12, color: statusColor.ok.fg }}>{t('active')}</Text>

@@ -48,6 +48,38 @@ export const TRANSPORT: { key: string; emoji: string; label: L }[] = [
   { key: 'perahu', emoji: '⛵', label: { id: 'Perahu', en: 'Boat' } },
 ];
 
+/** Penolong persalinan: who helps at the birth. Buku KIA: always a health worker (bidan or doctor). */
+export const BIRTH_HELPERS: { key: string; emoji: string; label: L }[] = [
+  { key: 'bidan', emoji: '👩‍⚕️', label: { id: 'Bidan', en: 'Midwife' } },
+  { key: 'dokter', emoji: '🩺', label: { id: 'Dokter', en: 'Doctor' } },
+];
+
+/** Who actually helped at a birth (Catat kelahiran): includes the answers that need follow-up. */
+export const BIRTH_ATTENDANTS: { key: string; emoji: string; label: L }[] = [
+  ...BIRTH_HELPERS,
+  { key: 'dukun', emoji: '🧓', label: { id: 'Dukun bayi', en: 'Traditional birth attendant' } },
+  { key: 'family', emoji: '👪', label: { id: 'Keluarga', en: 'Family' } },
+  { key: 'none', emoji: '➖', label: { id: 'Tidak ada', en: 'No one' } },
+];
+
+/** Where the baby was actually born. */
+export const BIRTH_PLACES_DONE: { key: string; emoji: string; label: L }[] = [
+  { key: 'puskesmas', emoji: '🏥', label: { id: 'Puskesmas', en: 'Puskesmas' } },
+  { key: 'rs', emoji: '🏨', label: { id: 'Rumah sakit', en: 'Hospital' } },
+  { key: 'bidan', emoji: '👩‍⚕️', label: { id: 'Praktik bidan', en: 'Midwife clinic' } },
+  { key: 'polindes', emoji: '🏠', label: { id: 'Polindes / Poskesdes', en: 'Village maternity post' } },
+  { key: 'home', emoji: '🛖', label: { id: 'Rumah', en: 'Home' } },
+  { key: 'on_the_way', emoji: '🛵', label: { id: 'Di perjalanan', en: 'On the way' } },
+];
+
+/** Biaya persalinan. */
+export const FUNDING: { key: string; emoji: string; label: L }[] = [
+  { key: 'jkn', emoji: '💳', label: { id: 'JKN / KIS', en: 'JKN / KIS (national insurance)' } },
+  { key: 'jampersal', emoji: '🏛️', label: { id: 'Jampersal', en: 'Jampersal (birth scheme)' } },
+  { key: 'tabulin', emoji: '🐷', label: { id: 'Tabungan ibu bersalin', en: 'Birth savings' } },
+  { key: 'self', emoji: '👛', label: { id: 'Biaya sendiri', en: 'Own money' } },
+];
+
 export const ANC_PLACES: { key: string; label: L }[] = [
   { key: 'puskesmas', label: { id: 'Puskesmas', en: 'Puskesmas' } },
   { key: 'posyandu', label: { id: 'Posyandu', en: 'Posyandu' } },
@@ -89,13 +121,10 @@ export const NIFAS_LABEL: Record<string, L> = {
 export const label = (items: { key: string; label: L }[], key: string | null | undefined, lang: Lang) =>
   items.find((i) => i.key === key)?.label[lang] ?? key ?? '';
 
-/** Overall state of the mother for the status pill: the most serious flag, or healthy. */
-export function motherState(p: Pregnancy, lang: Lang): { key: StatusKey; text: string } {
-  const urgent = p.flags.find((f) => f.status === 'urgent');
-  if (urgent) return { key: 'urgent', text: FLAG_LABEL[urgent.code][lang] };
-  const action = p.flags.filter((f) => f.status === 'action');
-  if (action.length) return { key: 'action', text: action.map((f) => FLAG_LABEL[f.code][lang]).join(' · ') };
-  return { key: 'ok', text: lang === 'id' ? 'Kehamilan sehat' : 'Healthy pregnancy' };
+/** The mother's level for the status pill: from the server's risk (Belum dicek ... Risiko tinggi), with its reasons. */
+export function motherState(p: Pregnancy): { key: StatusKey; text: string; reasons: string } {
+  const key: StatusKey = p.risk.key;
+  return { key, text: p.risk.label, reasons: p.risk.reasons.join(' · ') };
 }
 
 /** "24 minggu 3 hari" */

@@ -8,7 +8,7 @@ import { Bubble, Button, Card, ErrorBox, H2, ListRow, Screen } from '../../../co
 import { api, errorText } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 import { MOTHER_COMMON, MOTHER_DANGER } from '../../../lib/pregnancy';
-import type { Pregnancy } from '../../../lib/types';
+import type { Facility, Pregnancy } from '../../../lib/types';
 import { useApi } from '../../../lib/useApi';
 import { colors, statusColor } from '../../../theme';
 
@@ -20,7 +20,7 @@ export default function MotherDanger() {
   const [selected, setSelected] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sent, setSent] = useState<{ danger: boolean; signs: string[]; kader: { phone: string | null } | null } | null>(null);
+  const [sent, setSent] = useState<{ danger: boolean; signs: string[]; kader: { phone: string | null } | null; facility: Facility | null } | null>(null);
   const kader = q.data?.care_team.find((m) => m.role === 'kader');
   const danger = selected.some((s) => MOTHER_DANGER.some((d) => d.key === s));
   const toggle = (k: string) => setSelected((s) => (s.includes(k) ? s.filter((x) => x !== k) : [...s, k]));
@@ -41,7 +41,7 @@ export default function MotherDanger() {
     const tips = MOTHER_COMMON.filter((c) => sent.signs.includes(c.key));
     return (
       <Screen>
-        {sent.danger && <Escalation phone={sent.kader?.phone ?? kader?.phone} />}
+        {sent.danger && <Escalation phone={sent.kader?.phone ?? kader?.phone} facility={sent.facility ?? q.data?.facility} />}
         <Card tint={sent.danger ? statusColor.info.bg : undefined}>
           <Text style={{ fontWeight: '800', color: sent.danger ? statusColor.info.fg : colors.ok }}>✓ {t('dangerSent')}</Text>
           {sent.danger && <Text style={{ color: statusColor.info.fg }}>{t('kaderTold')}</Text>}
@@ -61,8 +61,8 @@ export default function MotherDanger() {
 
   return (
     <Screen>
-      <Bubble mood="caring">{t('howMom')}</Bubble>
-      {danger && <Escalation phone={kader?.phone} />}
+      <Bubble mood="caring" audio={`${t('howMom')} ${t('dangerAudio')}`}>{t('howMom')}</Bubble>
+      {danger && <Escalation phone={kader?.phone} facility={q.data?.facility} />}
 
       <H2 emoji="🤒">{t('commonSymptoms')}</H2>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>

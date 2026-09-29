@@ -6,7 +6,7 @@ import { Text } from '../../../components/Text';
 import { Bubble, Button, Card, Chip, ErrorBox, Field, Loading, Screen } from '../../../components/ui';
 import { api, errorText } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
-import { BIRTH_PLACES, TRANSPORT } from '../../../lib/pregnancy';
+import { BIRTH_HELPERS, BIRTH_PLACES, FUNDING, TRANSPORT } from '../../../lib/pregnancy';
 import type { Pregnancy } from '../../../lib/types';
 import { useApi } from '../../../lib/useApi';
 import { colors } from '../../../theme';
@@ -24,6 +24,9 @@ function PlanForm({ p, onSaved }: { p: Pregnancy; onSaved: (p: Pregnancy) => voi
   const [place, setPlace] = useState<string | null>(p.birth_plan.place ?? null);
   const [transport, setTransport] = useState<string | null>(p.birth_plan.transport ?? null);
   const [companion, setCompanion] = useState(p.birth_plan.companion ?? '');
+  const [helper, setHelper] = useState<string | null>(p.birth_plan.helper ?? null);
+  const [donor, setDonor] = useState(p.birth_plan.blood_donor ?? '');
+  const [funding, setFunding] = useState<string | null>(p.birth_plan.funding ?? null);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +35,10 @@ function PlanForm({ p, onSaved }: { p: Pregnancy; onSaved: (p: Pregnancy) => voi
     setBusy(true);
     setError(null);
     try {
-      onSaved(await api<Pregnancy>(`/api/pregnancies/${p.id}`, { method: 'PATCH', body: { birth_plan: { place, transport, companion: companion.trim() || null } } }));
+      onSaved(await api<Pregnancy>(`/api/pregnancies/${p.id}`, {
+          method: 'PATCH',
+          body: { birth_plan: { place, transport, companion: companion.trim() || null, helper, blood_donor: donor.trim() || null, funding } },
+        }));
       setSaved(true);
     } catch (e) {
       setError(errorText(e));
@@ -43,7 +49,9 @@ function PlanForm({ p, onSaved }: { p: Pregnancy; onSaved: (p: Pregnancy) => voi
 
   return (
     <Screen>
-      <Bubble mood="happy">{t('planBubble')}</Bubble>
+      <Bubble mood="happy" audio>
+        {t('planBubble')}
+      </Bubble>
       <Card>
         <Text style={{ fontSize: 15, fontWeight: '800', marginBottom: 8 }}>🏥 {t('birthPlace')}</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
@@ -61,7 +69,24 @@ function PlanForm({ p, onSaved }: { p: Pregnancy; onSaved: (p: Pregnancy) => voi
         </View>
       </Card>
       <Card>
+        <Text style={{ fontSize: 15, fontWeight: '800', marginBottom: 8 }}>👩‍⚕️ {t('helperLbl')}</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          {BIRTH_HELPERS.map((b) => (
+            <Chip key={b.key} emoji={b.emoji} label={b.label[lang]} selected={helper === b.key} onPress={() => { setSaved(false); setHelper(helper === b.key ? null : b.key); }} />
+          ))}
+        </View>
+      </Card>
+      <Card>
         <Field label={`🤝 ${t('companionLbl')}`} value={companion} onChangeText={(v) => { setSaved(false); setCompanion(v); }} placeholder={t('companionHint')} />
+        <Field label={`🩸 ${t('donorLbl')}`} value={donor} onChangeText={(v) => { setSaved(false); setDonor(v); }} placeholder={t('donorHint')} />
+      </Card>
+      <Card>
+        <Text style={{ fontSize: 15, fontWeight: '800', marginBottom: 8 }}>💳 {t('fundingLbl')}</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          {FUNDING.map((b) => (
+            <Chip key={b.key} emoji={b.emoji} label={b.label[lang]} selected={funding === b.key} onPress={() => { setSaved(false); setFunding(funding === b.key ? null : b.key); }} />
+          ))}
+        </View>
       </Card>
       {error && <ErrorBox message={error} />}
       {saved && <Text style={{ color: colors.ok, fontWeight: '700', textAlign: 'center', marginBottom: 4 }}>✓ {t('planSaved')}</Text>}

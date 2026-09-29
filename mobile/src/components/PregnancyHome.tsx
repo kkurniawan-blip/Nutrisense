@@ -8,13 +8,14 @@ import { formatDate } from '../lib/fun';
 import { motherState, weeksText } from '../lib/pregnancy';
 import type { Pregnancy } from '../lib/types';
 import { colors, statusColor } from '../theme';
+import { RiskCard } from './PregnancyParts';
 import { Text } from './Text';
 import { Bar, Card, QuickAction, Row, Section, StatusPill } from './ui';
 
 /** Home when "Bunda" is picked: how the pregnancy is, what to do today, four shortcuts. Same shape as the child's home. */
 export function PregnancyHome({ p }: { p: Pregnancy }) {
   const { t, lang } = useAuth();
-  const st = motherState(p, lang);
+  const st = motherState(p);
   const delivered = p.status === 'delivered';
   const go = (action: string) =>
     router.push((({ supplements: `/pregnancy/${p.id}/supplements`, anc: `/pregnancy/${p.id}/anc`, measure: `/pregnancy/${p.id}/measure`, danger: `/pregnancy/${p.id}/danger` }) as Record<string, string>)[action] as never);
@@ -23,7 +24,7 @@ export function PregnancyHome({ p }: { p: Pregnancy }) {
   return (
     <>
       {/* How is the pregnancy? */}
-      <Card onPress={() => router.push(`/pregnancy/${p.id}`)} style={st.key === 'urgent' ? { borderColor: colors.danger, borderWidth: 2 } : undefined}>
+      <Card onPress={() => router.push(`/pregnancy/${p.id}`)}>
         <Row style={{ gap: 14 }}>
           <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: colors.pinkSoft, alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ fontSize: 32 }}>🤰</Text>
@@ -36,8 +37,9 @@ export function PregnancyHome({ p }: { p: Pregnancy }) {
           </View>
           <Ionicons name="chevron-forward" size={20} color="#A09CB5" />
         </Row>
-        <View style={{ marginTop: 14 }}>
+        <View style={{ marginTop: 14, gap: 6 }}>
           <StatusPill status={st.key} label={st.text} large />
+          {st.reasons && !delivered ? <Text style={{ color: statusColor[st.key].fg, fontSize: 13, fontWeight: '600' }}>{st.reasons}</Text> : null}
         </View>
         {!delivered && (
           <View style={{ marginTop: 14 }}>
@@ -45,6 +47,7 @@ export function PregnancyHome({ p }: { p: Pregnancy }) {
           </View>
         )}
       </Card>
+      <RiskCard p={p} />
 
       {/* What to do today */}
       <Section title={t('forToday')} />
