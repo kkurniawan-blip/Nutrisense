@@ -18,8 +18,9 @@ head=$(git rev-parse HEAD)
 stamp=backend/web/.built-from
 if [ "$(cat "$stamp" 2>/dev/null)" != "$head" ]; then
   echo "The code changed since the last build. Rebuilding (a few minutes)..."
-  pkill -f "uvicorn app.main:app" 2>/dev/null && sleep 2
+  # The old version keeps running while the new one builds, so the link keeps working.
   bash .devcontainer/setup.sh || echo "Rebuild failed; see the messages above."
+  pkill -f "bin/uvicorn app.main:app" 2>/dev/null && sleep 2
   # Old demo data and its stored model may not match the new code: set them aside.
   if [ -f backend/nutrisense.db ]; then
     backup="backend/backups/$(date +%Y%m%d-%H%M%S)"
@@ -44,6 +45,7 @@ for _ in $(seq 1 120); do
   fi
   sleep 2
 done
-echo "NutriSense did not start. See /tmp/nutrisense.log"
+echo "NutriSense did not start. The last lines of /tmp/nutrisense.log:"
+tail -n 20 /tmp/nutrisense.log
 exit 1
 }
