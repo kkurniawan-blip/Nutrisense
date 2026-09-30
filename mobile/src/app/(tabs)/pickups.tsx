@@ -13,7 +13,7 @@ import { colors } from '../../theme';
 
 const STEPS = [
   { key: 'pending_approval', emoji: '📝' },
-  { key: 'in_transit', emoji: '🚁' },
+  { key: 'in_transit', emoji: '🚚' },
   { key: 'ready_for_pickup', emoji: '📦' },
   { key: 'picked_up', emoji: '✅' },
 ];

@@ -21,7 +21,7 @@ python3 -m venv .venv && source .venv/bin/activate    # Windows: .venv\Scripts\a
 pip install -r requirements-dev.txt                    # first time only
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
-The first start takes about 20 seconds. It creates demo data (48 children in East Nusa Tenggara, 6 lockers and a drone fleet) and trains the risk model.
+The first start takes about 20 seconds. It creates demo data (49 children and 15 pregnancies in East Nusa Tenggara, 6 lockers and 2 supply hubs) and trains the risk model.
 
 **Terminal 2: the app**
 ```bash
@@ -150,12 +150,12 @@ Tabs: **Beranda** · **Kasus** (cases) · **Tanya Nuri** · **Logistik** · **Pr
 
 ## 5. Health officers and doctors
 
-![Dashboard, package options, drone fleet and the doctor's dashboard](images/5-officer-doctor.png)
+![Dashboard, package options and the doctor's dashboard](images/5-officer-doctor.png)
 
 - **Dasbor** (dashboard): children, stunting rate, urgent cases, the village map, the stunting forecast and how well the AI model performs.
 - **Kasus:** results the AI flagged for checking. Set the correct risk level and add a clinical note.
-- **Logistik → Permintaan paket** (package requests): open a request to see every way to deliver it: locker stock, drone or courier. The app explains why each one is or isn't possible, then **Setujui** (approve). Doctors approve items that need a prescription.
-- **Logistik → Armada drone** (drone fleet): battery, range and flights in progress.
+- **Logistik → Permintaan paket** (package requests): open a request to see every way to deliver it: stock in a nearby locker, or road delivery from a supply hub. The app explains why each one is or isn't possible, then **Setujui** (approve). Doctors approve items that need a prescription.
+- **Logistik → Loker** (lockers): stock in each locker and hub, with a restock button when an item runs low.
 
 ## 6. Good to know
 

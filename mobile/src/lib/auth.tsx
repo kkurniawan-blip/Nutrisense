@@ -12,6 +12,8 @@ const LANG_KEY = 'nutrisense.lang';
 const OWNER_KEY = 'nutrisense.outboxOwner';
 /** The last known profile, so the app opens (and records offline) without a signal. */
 const USER_KEY = 'nutrisense.user';
+/** A language chosen on the login screen, before anyone is logged in: it wins over the account's saved one. */
+const PICKED_KEY = 'nutrisense.langPicked';
 
 interface AuthState {
   ready: boolean;
@@ -82,10 +84,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await setJSON(OWNER_KEY, res.user.id);
     }
     await setToken(res.access_token);
-    await setJSON(USER_KEY, res.user);
-    setUser(res.user);
-    setLangState(res.user.language);
-    await setJSON(LANG_KEY, res.user.language);
+    let me = res.user;
+    const picked = await getJSON<Lang | null>(PICKED_KEY, null);
+    if (picked && picked !== me.language) {
+      me = await api<User>('/api/auth/me', { method: 'PATCH', body: { language: picked } }).catch(() => ({ ...me, language: picked }));
+    }
+    await setJSON(PICKED_KEY, null);
+    await setJSON(USER_KEY, me);
+    setUser(me);
+    setLangState(me.language);
+    await setJSON(LANG_KEY, me.language);
   }, []);
 
   const value = useMemo<AuthState>(
@@ -98,6 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLangState(l);
         await setJSON(LANG_KEY, l);
         if (user) setUser(await api<User>('/api/auth/me', { method: 'PATCH', body: { language: l } }));
+        else await setJSON(PICKED_KEY, l);
       },
       login: async (email, password) => onAuth(await api('/api/auth/login', { body: { email, password } })),
       register: async (body) => onAuth(await api('/api/auth/register', { body })),

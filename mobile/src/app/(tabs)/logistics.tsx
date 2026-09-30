@@ -2,50 +2,28 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { View } from 'react-native';
 
-import { Badge, Bar, Button, Card, ErrorBox, H2, P, Row, Screen, Segmented } from '../../components/ui';
+import { Badge, Button, Card, ErrorBox, P, Row, Screen, Segmented } from '../../components/ui';
 import { api, errorText } from '../../lib/api';
 import { isOversight, useAuth } from '../../lib/auth';
-import { formatDate, formatDuration } from '../../lib/fun';
 import type { Locker, SupplyRequest } from '../../lib/types';
 import { useApi } from '../../lib/useApi';
 import { colors } from '../../theme';
 import { Text } from '../../components/Text';
 
-interface Drone {
-  id: number;
-  code: string;
-  hub_name: string;
-  status: string;
-  battery_pct: number;
-  max_range_km: number;
-}
-
-interface Dispatch {
-  id: number;
-  supply_request_id: number;
-  drone_code: string;
-  distance_km: number;
-  eta_minutes: number;
-  status: string;
-  launched_at: string | null;
-}
-
-type Tab = 'requests' | 'lockers' | 'drones';
+type Tab = 'requests' | 'lockers';
 
 export default function Logistics() {
-  const { t, lang, user } = useAuth();
+  const { t, user } = useAuth();
   const [tab, setTab] = useState<Tab>('requests');
   const requests = useApi<SupplyRequest[]>('/api/supply-requests');
   const lockers = useApi<Locker[]>(tab === 'lockers' ? '/api/lockers' : null);
-  const drones = useApi<Drone[]>(tab === 'drones' ? '/api/drones' : null);
-  const dispatches = useApi<Dispatch[]>(tab === 'drones' ? '/api/dispatches' : null);
   const [msg, setMsg] = useState<string | null>(null);
 
   const simulate = async () => {
     try {
       const r = await api<Record<string, number>>('/api/logistics/simulate?minutes=30', { method: 'POST' });
       setMsg(Object.entries(r).map(([k, v]) => `${k}: ${v}`).join(' · '));
-      [requests, drones, dispatches, lockers].forEach((x) => void x.reload());
+      [requests, lockers].forEach((x) => void x.reload());
     } catch (e) {
       setMsg(errorText(e));
     }
@@ -64,14 +42,13 @@ export default function Logistics() {
   const sorted = [...(requests.data ?? [])].sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9));
 
   return (
-    <Screen refreshing={requests.loading} onRefresh={() => [requests, lockers, drones, dispatches].forEach((x) => void x.reload())}>
+    <Screen refreshing={requests.loading} onRefresh={() => [requests, lockers].forEach((x) => void x.reload())}>
       <Segmented<Tab>
         value={tab}
         onChange={setTab}
         options={[
           { value: 'requests', label: t('supplyRequests') },
           { value: 'lockers', label: t('lockers') },
-          { value: 'drones', label: t('drones') },
         ]}
       />
       <Row style={{ flexWrap: 'wrap' }}>
@@ -125,35 +102,6 @@ export default function Logistics() {
           </Card>
         ))}
 
-      {tab === 'drones' && (
-        <>
-          <H2>{t('drones')}</H2>
-          {(drones.data ?? []).map((d) => (
-            <Card key={d.id}>
-              <Row style={{ justifyContent: 'space-between' }}>
-                <Text style={{ fontWeight: '700', color: colors.text }}>
-                  {d.code} · {d.hub_name}
-                </Text>
-                <Badge text={t(`drone_${d.status}`)} fg={d.status === 'in_flight' ? colors.info : colors.muted} bg={d.status === 'in_flight' ? colors.infoSoft : '#F1EFF8'} />
-              </Row>
-              <Row style={{ marginTop: 6 }}>
-                <Text style={{ color: colors.muted, width: 90, fontSize: 12 }}>🔋 {Math.round(d.battery_pct)}%</Text>
-                <Bar pct={d.battery_pct} />
-              </Row>
-              <P muted style={{ fontSize: 12 }}>{t('droneRange')} {d.max_range_km} km</P>
-            </Card>
-          ))}
-          <H2>{t('dispatches')}</H2>
-          {(dispatches.data ?? []).map((d) => (
-            <Card key={d.id} onPress={() => router.push(`/supply/${d.supply_request_id}`)}>
-              <Text style={{ color: colors.text }}>
-                {d.drone_code} · {d.distance_km} km · {t('eta')} {formatDuration(d.eta_minutes, lang)} · {t(`dispatch_${d.status}`)}
-              </Text>
-              {d.launched_at && <P muted style={{ fontSize: 12 }}>{formatDate(d.launched_at, lang, true)}</P>}
-            </Card>
-          ))}
-        </>
-      )}
     </Screen>
   );
 }

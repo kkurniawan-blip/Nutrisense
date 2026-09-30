@@ -48,7 +48,7 @@ const ICONS: Record<string, [IconName, Tone]> = {
   '🗺️': ['map', 'green'], '🔑': ['key', 'yellow'], '📶': ['cloud-upload', 'blue'], '📍': ['location', 'pink'],
   '📄': ['document-text', 'blue'], '📋': ['clipboard', 'lavender'], '👩‍⚕️': ['medkit', 'pink'], '🩺': ['medkit', 'pink'],
   '👤': ['person', 'lavender'], '🏠': ['home', 'orange'], '🏅': ['ribbon', 'yellow'], '🌏': ['globe', 'blue'],
-  '☁️': ['cloud', 'blue'], '🚁': ['airplane', 'blue'], '📦': ['cube', 'orange'], '💊': ['bandage', 'pink'],
+  '☁️': ['cloud', 'blue'], '🚚': ['car', 'blue'], '📦': ['cube', 'orange'], '💊': ['bandage', 'pink'],
   '🧪': ['flask', 'lavender'], '🎯': ['locate', 'orange'], '⏰': ['alarm', 'orange'], '📞': ['call', 'green'],
   '📱': ['phone-portrait', 'lavender'], '🧾': ['receipt', 'orange'], '🔄': ['sync', 'blue'], '👪': ['people', 'lavender'],
   '👥': ['people', 'lavender'], '💡': ['bulb', 'yellow'], '🤱': ['heart', 'pink'], '💉': ['medkit', 'blue'],

@@ -312,16 +312,13 @@ export interface Locker {
 }
 
 export interface LogisticsOption {
-  type: 'locker_stock' | 'drone' | 'courier';
+  type: 'locker_stock' | 'courier';
   locker_name: string;
   locker_code: string;
   hub_name?: string;
-  drone_code?: string | null;
   distance_km?: number;
   distance_to_family_km?: number;
   eta_minutes: number;
-  battery_needed_pct?: number;
-  weather_risk?: number;
   feasible: boolean;
   reason: string;
 }

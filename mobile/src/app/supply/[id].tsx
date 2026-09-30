@@ -12,7 +12,7 @@ import { useApi } from '../../lib/useApi';
 import { colors } from '../../theme';
 import { Text } from '../../components/Text';
 
-const ICON = { locker_stock: 'file-tray-stacked-outline', drone: 'airplane-outline', courier: 'bicycle-outline' } as const;
+const ICON = { locker_stock: 'file-tray-stacked-outline', courier: 'bicycle-outline' } as const;
 
 export default function SupplyDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -93,12 +93,6 @@ export default function SupplyDetail() {
                   ? ` · ${o.distance_to_family_km} km ${t('fromFamily')}`
                   : ` · ${t('eta')} ${formatDuration(o.eta_minutes, lang)}`}
               </P>
-              {o.type === 'drone' && (
-                <P muted style={{ fontSize: 12 }}>
-                  🚁 {o.drone_code ?? t('noDroneFree')} · 🔋 {t('batteryNeeded')} {Math.round(o.battery_needed_pct ?? 0)}% ({t('batteryRoundTrip')}) · 🌦️{' '}
-                  {t('weatherRisk')} {t(`weather_${(o.weather_risk ?? 0) > 0.5 ? 'high' : (o.weather_risk ?? 0) >= 0.3 ? 'medium' : 'low'}`)}
-                </P>
-              )}
               {!o.feasible && <P muted style={{ fontSize: 12 }}>⚠️ {t(`why_${o.reason}`)}</P>}
               {pending && o.feasible && !isChosen && (
                 <Button small variant="ghost" title={`${t('approve')} (${t(`via_${o.type}`)})`} onPress={() => act('approve', { option_index: i })} />

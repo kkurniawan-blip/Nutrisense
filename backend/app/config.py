@@ -39,9 +39,6 @@ class Settings(BaseSettings):
     review_confidence_threshold: float = 0.6
 
     # N.E.X.U.S. simulation parameters
-    drone_cruise_speed_kmh: float = 60.0
-    drone_battery_pct_per_km: float = 0.8  # fixed-wing VTOL
-    drone_reserve_battery_pct: float = 20.0
 
     seed_demo_data: bool = True
     cors_origins: str = "*"

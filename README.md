@@ -47,7 +47,7 @@ npx expo start
 |---|---|---|
 | Caregiver | `ibu.maria@nutrisense.id` | Budi (high risk, declining trend), Adel (low risk). Record a measurement, report symptoms, log a meal, show the locker QR in **Pickups**, chat with NutriBot |
 | Kader | `kader.oesapa@nutrisense.id` | Priority visit list, register a child for a caregiver, offline measurement capture, **Locker pickup** (scan QR / enter code) |
-| Health officer | `officer@nutrisense.id` | Dashboard (KPIs, village heat map, prevalence projection, model card), approve supply requests (locker / drone / courier), fast-forward the drone simulation, review AI results |
+| Health officer | `officer@nutrisense.id` | Dashboard (KPIs, village heat map, prevalence projection, model card), approve supply requests (locker stock or road delivery from a hub), fast-forward the delivery simulation, review AI results |
 | Doctor | `doctor@nutrisense.id` | Human-in-the-loop review, approve RUTF / deworming (doctor-only items), referrals |
 | Admin | `admin@nutrisense.id` | Everything above, plus user management, audit log and model retraining (API) |
 
@@ -125,7 +125,7 @@ docker run -p 8000:8000 nutrisense      # then open http://localhost:8000
 
 **Logistics layer (N.E.X.U.S.)**: `services/logistics.py`
 - `checkStock()`: inventory with reservations.
-- `simulateRoute()`: scores locker stock vs. drone vs. courier using distance, battery, range, payload, simulated weather and urgency.
+- `simulateRoute()`: picks stock in a locker near the family (within 12 km), otherwise the fastest road delivery from a supply hub to the family's locker, using distance and how hard the village is to reach.
 - Signed QR plus 6-digit pickup codes, expiry, and restock alerts.
 
 **Governance layer**
@@ -255,7 +255,7 @@ Useful commands: `python -m app.cli train` (retrain and activate a new model run
 ## What is simulated (by design, per the proposal's scope)
 
 - **Training data:** the risk model is trained on a synthetic cohort shaped like rural NTT (about 33% stunted). Replace it with real, consented data via `risk_model.train(X, y)` before any field use.
-- **Hardware:** drone flights, weather and smart-locker hardware are simulated. Officers can fast-forward flights from the Logistics tab.
+- **Hardware:** road deliveries and smart-locker hardware are simulated. Officers can fast-forward deliveries from the Logistics tab.
 - **SATUSEHAT:** submission is simulated. The FHIR bundle is generated and validated structurally, but not sent to the Ministry's servers.
 - **Demo data:** village coordinates are approximate, and every region uses the NTT provincial SSGI 2024 benchmark (37.0%) until district figures are loaded. All demo people are fictional.
 - **Nutrient values** are approximations from TKPI and USDA, meant for education and screening.

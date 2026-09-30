@@ -6,7 +6,7 @@ from .. import serializers as S
 from ..ai.triage import SUPPLY_CATALOG
 from ..database import get_db
 from ..deps import OVERSIGHT, STAFF, can_access_child, get_child, get_current_user, lang_of, require_roles
-from ..models import Child, Drone, DroneDispatch, Locker, SupplyRequest, User
+from ..models import Locker, SupplyRequest, User
 from ..schemas import ApproveIn, PickupIn, RejectIn, RestockIn, SupplyRequestIn
 from ..services import logistics
 from ..services.common import audit, notify
@@ -119,7 +119,7 @@ def _request_or_404(db: Session, request_id: int, user: User) -> SupplyRequest:
 
 @router.get("/supply-requests/{request_id}/plan")
 def preview_plan(request_id: int, user: User = Depends(require_roles(*STAFF)), db: Session = Depends(get_db)):
-    """Dispatch decision support: every feasible pathway (locker stock, drone, courier) with ETA and constraints."""
+    """Decision support: every pathway (stock in a nearby locker, or road delivery from a hub) with ETA and constraints."""
     req = _request_or_404(db, request_id, user)
     try:
         return logistics.plan(db, req)
@@ -154,32 +154,15 @@ def reject(request_id: int, body: RejectIn, user: User = Depends(require_roles(*
     return S.supply_request(req, lang_of(user), include_code=False)
 
 
-@router.get("/drones")
-def list_drones(user: User = Depends(require_roles(*STAFF)), db: Session = Depends(get_db)):
-    logistics.tick(db)
-    return [S.drone(d) for d in db.scalars(select(Drone).order_by(Drone.code)).all()]
-
-
-@router.get("/dispatches")
-def list_dispatches(user: User = Depends(require_roles(*STAFF)), db: Session = Depends(get_db)):
-    logistics.tick(db)
-    return [S.dispatch(d) for d in db.scalars(select(DroneDispatch).order_by(DroneDispatch.id.desc()).limit(100)).all()]
-
-
 @router.post("/logistics/simulate")
 def simulate(minutes: float = 0, user: User = Depends(require_roles(*OVERSIGHT)), db: Session = Depends(get_db)):
-    """Fast-forward the drone/courier simulation (demo and evaluation of simulated response time)."""
+    """Fast-forward the road-delivery simulation (demo and evaluation of simulated response time)."""
     if not 0 <= minutes <= 7 * 24 * 60:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "minutes must be between 0 and 10080")
     # Shift in-flight timestamps back so the fast-forward persists.
     from datetime import timedelta
 
     delta = timedelta(minutes=minutes)
-    active = select(DroneDispatch).join(Drone).where(DroneDispatch.status.in_(["launched", "delivered", "returned"]),
-                                                     Drone.status.in_(["in_flight", "charging"]))
-    for d in db.scalars(active).all():
-        d.launched_at = d.launched_at - delta if d.launched_at else None
-        d.delivered_at = d.delivered_at - delta if d.delivered_at else None
     for r in db.scalars(select(SupplyRequest).where(SupplyRequest.status == "in_transit")).all():
         r.approved_at = r.approved_at - delta if r.approved_at else None
     db.commit()

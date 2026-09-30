@@ -103,7 +103,7 @@ def delete_child(child_id: int, user: User = Depends(get_current_user), db: Sess
     child = get_child(child_id, db, user)
     if user.role not in ("caregiver", "admin"):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Only the caregiver or an admin can delete a record")
-    from ..models import (Case, ChatMessage, Consent, DevelopmentCheck, DroneDispatch, FhirSyncLog, MealLog, NutritionRecommendation,
+    from ..models import (Case, ChatMessage, Consent, DevelopmentCheck, FhirSyncLog, MealLog, NutritionRecommendation,
                           SupplyRequest)
 
     for model in (NutritionRecommendation, MealLog, ChatMessage, FhirSyncLog, Consent, DevelopmentCheck):
@@ -112,9 +112,6 @@ def delete_child(child_id: int, user: User = Depends(get_current_user), db: Sess
     for req in db.scalars(select(SupplyRequest).where(SupplyRequest.child_id == child.id)).all():
         if req.status in ("in_transit", "ready_for_pickup"):
             raise HTTPException(status.HTTP_409_CONFLICT, "A supply package is in progress; cancel or collect it first")
-        for dsp in db.scalars(select(DroneDispatch).where(DroneDispatch.supply_request_id == req.id)).all():
-            db.delete(dsp)
-        db.flush()
         db.delete(req)
     for row in db.scalars(select(Case).where(Case.child_id == child.id)).all():
         db.delete(row)

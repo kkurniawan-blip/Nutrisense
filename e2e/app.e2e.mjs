@@ -329,7 +329,7 @@ await session('officer', 'officer@nutrisense.id', async ({ page, step, go, scrol
   await step('package options are readable', async () => {
     await go(`/supply/${pending[1].id}`);
     await scroll(900);
-    for (const bad of ['too far for family', 'no drone available', 'battery 1', 'weather risk 0']) {
+    for (const bad of ['too far for family', 'hub_out_of_stock', 'why_', 'drone']) {
       if (await page.getByText(bad, { exact: false }).count()) throw new Error(`raw text shown: ${bad}`);
     }
   });
@@ -339,9 +339,10 @@ await session('officer', 'officer@nutrisense.id', async ({ page, step, go, scrol
     await text('Setujui').click();
     await page.waitForTimeout(2000);
   });
-  await step('logistics and drones', async () => {
+  await step('logistics: requests and lockers, no drones', async () => {
     await go('/logistics');
-    await text('Armada drone').click();
+    await text('Loker').click();
+    if (await page.getByText('drone', { exact: false }).count()) throw new Error('drone still shown');
   });
   await step('review a case', async () => {
     await go(`/case/${otherCases[0].id}`);

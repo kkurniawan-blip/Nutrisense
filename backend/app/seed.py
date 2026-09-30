@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 from .ai import nutrition, symptoms
 from .ai.growth import _lms, _value_at, age_in_months, compute_z_scores
 from .ai import kia
-from .models import (AncVisit, BreastfeedingLog, Child, Consent, Drone, GrowthMeasurement, InventoryItem, KiaRecord, Locker,
+from .models import (AncVisit, BreastfeedingLog, Child, Consent, GrowthMeasurement, InventoryItem, KiaRecord, Locker,
                      MaternalMeasurement, MealLog, Pregnancy, PregnancyDailyLog, Region, SupplyRequest, SymptomReport, User)
 from .security import hash_password
 from .services import logistics, model_registry
@@ -193,13 +193,6 @@ def seed_if_empty(db: Session) -> bool:
         lockers[r.id] = lk
     db.add_all([hub_kpg, hub_soe])
     db.flush()
-    db.add_all([
-        Drone(code="NX-01", hub_id=hub_kpg.id, battery_pct=100, max_range_km=90, payload_kg=3.0),
-        Drone(code="NX-02", hub_id=hub_kpg.id, battery_pct=85, max_range_km=90, payload_kg=3.0),
-        Drone(code="NX-03", hub_id=hub_kpg.id, battery_pct=40, max_range_km=60, payload_kg=2.0, status="charging"),
-        Drone(code="NX-04", hub_id=hub_soe.id, battery_pct=100, max_range_km=80, payload_kg=3.0),
-        Drone(code="NX-05", hub_id=hub_soe.id, battery_pct=95, max_range_km=80, payload_kg=2.5),
-    ])
     db.flush()
 
     today = date.today()
@@ -339,7 +332,7 @@ def seed_if_empty(db: Session) -> bool:
         if c.measurements:
             run_assessment(db, c, region_kader[c.region_id], "id", use_ai=False)
 
-    # Show every logistics state: ready at locker, drone in flight, pending approval.
+    # Show every logistics state: ready at a locker, on the road from a hub, pending approval.
     pending = db.scalars(select(SupplyRequest).where(SupplyRequest.status == "pending_approval").order_by(SupplyRequest.id)).all()
     for req in pending:
         if req.child_id == c2.id:

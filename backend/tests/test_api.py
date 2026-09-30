@@ -122,18 +122,19 @@ def test_offline_sync_is_idempotent(client, auth):
     assert again["results"][0]["status"] == "duplicate"
 
 
-def test_logistics_locker_and_drone_flow(client, auth):
+def test_logistics_locker_and_road_flow(client, auth):
     officer = auth("officer@nutrisense.id")
     maria = auth("ibu.maria@nutrisense.id")
     kader = auth("kader.oesapa@nutrisense.id")
     child = client.get("/api/children", headers=maria).json()[0]
 
-    # Semau island locker is nearly empty, so a supply request for a Semau child needs the drone.
+    # Semau island locker is nearly empty, so a supply request for a Semau child goes by road from a hub.
     semau_kid = next(c for c in client.get("/api/children", headers=officer).json() if c["region_id"] == 3)
     req = client.post("/api/supply-requests", headers=officer, json={
         "child_id": semau_kid["id"], "items": [{"item_key": "pmt_biscuit", "quantity": 2}], "urgency": "doctor_48h"}).json()
     plan = client.get(f"/api/supply-requests/{req['id']}/plan", headers=officer).json()
-    assert plan["chosen"]["type"] in ("drone", "courier")
+    assert plan["chosen"]["type"] == "courier" and plan["chosen"]["hub_name"]
+    assert not any(o["type"] == "drone" for o in plan["options"])  # drones are not part of the product
     assert any(o["type"] == "locker_stock" and not o["feasible"] for o in plan["options"])
     approved = client.post(f"/api/supply-requests/{req['id']}/approve", headers=officer, json={}).json()
     assert approved["status"] == "in_transit"

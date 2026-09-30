@@ -4,7 +4,7 @@ from datetime import date
 from .ai import kia
 from .ai.growth import age_in_months, classify_haz, classify_waz, classify_whz
 from .ai.triage import SUPPLY_CATALOG
-from .models import (Case, Child, Drone, DroneDispatch, GrowthMeasurement, Locker, MealLog, Notification, Region, RiskAssessment,
+from .models import (Case, Child, GrowthMeasurement, Locker, MealLog, Notification, Region, RiskAssessment,
                      SupplyRequest, SymptomReport, User)
 from .services.logistics import available
 
@@ -107,19 +107,6 @@ def locker(lk: Locker, lang: str = "id") -> dict:
             "inventory": [{"item_key": i.item_key, "name": item_name(i.item_key, lang), "quantity": i.quantity, "reserved": i.reserved,
                            "available": available(i), "restock_threshold": i.restock_threshold,
                            "low": available(i) <= i.restock_threshold} for i in sorted(lk.inventory, key=lambda x: x.item_key)]}
-
-
-def drone(d: Drone) -> dict:
-    return {"id": d.id, "code": d.code, "hub_id": d.hub_id, "hub_name": d.hub.name, "status": d.status,
-            "battery_pct": d.battery_pct, "max_range_km": d.max_range_km, "payload_kg": d.payload_kg}
-
-
-def dispatch(d: DroneDispatch) -> dict:
-    return {"id": d.id, "supply_request_id": d.supply_request_id, "drone_code": d.drone.code, "origin_id": d.origin_id,
-            "destination_id": d.destination_id, "distance_km": d.distance_km, "eta_minutes": d.eta_minutes,
-            "battery_needed_pct": d.battery_needed_pct, "weather_risk": d.weather_risk, "payload_kg": d.payload_kg,
-            "status": d.status, "route": d.route, "launched_at": d.launched_at.isoformat() if d.launched_at else None,
-            "delivered_at": d.delivered_at.isoformat() if d.delivered_at else None}
 
 
 def notification(n: Notification) -> dict:

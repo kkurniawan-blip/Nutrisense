@@ -1,30 +1,26 @@
-"""N.E.X.U.S. logistics layer: smart-locker inventory, supply decisions and simulated drone dispatch.
+"""N.E.X.U.S. logistics layer: smart-locker inventory, supply decisions and simulated road delivery.
 
-checkStock() and simulateRoute() from the class diagram live here. Drone flights are simulated:
-a flight "lands" once its ETA has elapsed, which `tick()` evaluates whenever logistics data is read
-(or when an officer fast-forwards the simulation from the dashboard).
+checkStock() and simulateRoute() from the class diagram live here. A package comes from the nearest
+stocked locker, or by road (courier) from a supply hub to the family's locker. Road trips are
+simulated: a package arrives once its ETA has elapsed, which `tick()` evaluates whenever logistics
+data is read (or when an officer fast-forwards the simulation from the dashboard).
 """
 from __future__ import annotations
 
-import hashlib
 import math
 import secrets
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..ai.triage import SUPPLY_CATALOG
-from ..config import get_settings
-from ..models import Child, Drone, DroneDispatch, InventoryItem, Locker, Region, SupplyRequest, User
+from ..models import Child, InventoryItem, Locker, Region, SupplyRequest, User
 from ..security import sign_payload
 from .common import audit, notify, notify_roles
 
-settings = get_settings()
-
 LOCKER_MAX_TRAVEL_KM = 12.0  # a caregiver can reasonably reach this locker by foot / ojek
 PICKUP_VALID_DAYS = 3
-CHARGE_MINUTES = 30
 COURIER_SPEED_KMH = 30.0
 
 
@@ -56,12 +52,6 @@ def haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     return 2 * r * math.asin(math.sqrt(a))
 
 
-def weather_risk(region_id: int | None, on: date | None = None) -> float:
-    """Deterministic simulated weather risk (0 calm .. 1 storm) per region per day."""
-    seed = f"{region_id}:{(on or date.today()).isoformat()}".encode()
-    return round(int(hashlib.sha256(seed).hexdigest()[:4], 16) / 0xFFFF * 0.7, 2)
-
-
 def available(inv: InventoryItem) -> int:
     return inv.quantity - inv.reserved
 
@@ -73,10 +63,6 @@ def _inventory(locker: Locker) -> dict[str, InventoryItem]:
 def check_stock(locker: Locker, items: list[dict]) -> bool:
     inv = _inventory(locker)
     return all(k["item_key"] in inv and available(inv[k["item_key"]]) >= k["quantity"] for k in items)
-
-
-def payload_kg(items: list[dict]) -> float:
-    return round(sum(SUPPLY_CATALOG.get(i["item_key"], {}).get("weight_kg", 0.2) * i["quantity"] for i in items), 2)
 
 
 def _child_location(child: Child) -> tuple[float, float, Region | None]:
@@ -105,38 +91,11 @@ def plan(db: Session, req: SupplyRequest) -> dict:
         })
 
     destination = by_distance[0] if by_distance else None
-    w = weather_risk(region.id if region else None)
-    kg = payload_kg(req.items)
     if destination is not None:
+        difficulty = region.transport_difficulty if region else 1
         for hub in hubs:
             dist = haversine_km(hub.lat, hub.lng, destination.lat, destination.lng)
             hub_ok = check_stock(hub, req.items)
-            drones = db.scalars(select(Drone).where(Drone.hub_id == hub.id)).all()
-            needed = dist * 2 * settings.drone_battery_pct_per_km
-            best = None
-            for dr in drones:
-                if dr.status != "idle" or dr.payload_kg < kg or dist * 2 > dr.max_range_km:
-                    continue
-                if dr.battery_pct - needed < settings.drone_reserve_battery_pct:
-                    continue
-                if best is None or dr.battery_pct > best.battery_pct:
-                    best = dr
-            reason = "ok"
-            if not hub_ok:
-                reason = "hub_out_of_stock"
-            elif w > 0.5:
-                reason = "weather_unsafe"
-            elif best is None:
-                reason = "no_drone_available_or_out_of_range"
-            options.append({
-                "type": "drone", "hub_id": hub.id, "hub_name": hub.name, "drone_id": best.id if best else None,
-                "drone_code": best.code if best else None, "locker_id": destination.id, "locker_code": destination.code,
-                "locker_name": destination.name, "distance_km": round(dist, 1), "payload_kg": kg,
-                "battery_needed_pct": round(needed, 1), "weather_risk": w,
-                "eta_minutes": round(dist / settings.drone_cruise_speed_kmh * 60 + 5, 1),
-                "feasible": reason == "ok", "reason": reason,
-            })
-            difficulty = region.transport_difficulty if region else 1
             options.append({
                 "type": "courier", "hub_id": hub.id, "hub_name": hub.name, "locker_id": destination.id,
                 "locker_code": destination.code, "locker_name": destination.name, "distance_km": round(dist, 1),
@@ -146,20 +105,10 @@ def plan(db: Session, req: SupplyRequest) -> dict:
 
     feasible = [o for o in options if o["feasible"]]
     urgent = req.urgency in ("doctor_48h", "emergency")
-    chosen = None
-    if feasible:
-        local = [o for o in feasible if o["type"] == "locker_stock"]
-        if local:
-            chosen = min(local, key=lambda o: o["distance_to_family_km"])  # no transport needed
-        else:
-            flying = [o for o in feasible if o["type"] == "drone"]
-            ground = [o for o in feasible if o["type"] == "courier"]
-            fastest = min(feasible, key=lambda o: o["eta_minutes"])
-            # Drones are reserved for urgent cases or when the road trip is long (> 2 h).
-            if flying and (urgent or (ground and min(g["eta_minutes"] for g in ground) > 120) or not ground):
-                chosen = min(flying, key=lambda o: o["eta_minutes"])
-            else:
-                chosen = min(ground, key=lambda o: o["eta_minutes"]) if ground else fastest
+    local = [o for o in feasible if o["type"] == "locker_stock"]
+    road = [o for o in feasible if o["type"] == "courier"]
+    # A stocked locker near the family needs no transport; otherwise the fastest road trip from a hub.
+    chosen = min(local, key=lambda o: o["distance_to_family_km"]) if local else (min(road, key=lambda o: o["eta_minutes"]) if road else None)
     return {"chosen": chosen, "options": options, "evaluated_at": _now().isoformat(), "urgent": urgent}
 
 
@@ -234,17 +183,6 @@ def approve(db: Session, req: SupplyRequest, approver: User, override_option: in
         for it in req.items:
             inv[it["item_key"]].reserved += it["quantity"]
         req.status = "in_transit"
-        if chosen["type"] == "drone":
-            drone = db.get(Drone, chosen["drone_id"])
-            drone.status = "in_flight"
-            dst = db.get(Locker, chosen["locker_id"])
-            db.add(DroneDispatch(
-                supply_request_id=req.id, drone_id=drone.id, origin_id=hub.id, destination_id=dst.id,
-                distance_km=chosen["distance_km"], eta_minutes=chosen["eta_minutes"],
-                battery_needed_pct=chosen["battery_needed_pct"], weather_risk=chosen["weather_risk"],
-                payload_kg=chosen["payload_kg"], status="launched", launched_at=_now(),
-                route=[[hub.lat, hub.lng], [dst.lat, dst.lng]],
-            ))
         notify(db, req.child.caregiver_id, "supply_in_transit", {"id": "Paket gizi sedang dikirim", "en": "Package on the way"},
                {"id": f"Perkiraan tiba ~{eta_text(chosen['eta_minutes'])} di {chosen['locker_name']}.",
                 "en": f"Arrives in about {eta_text(chosen['eta_minutes'], 'en')} at {chosen['locker_name']}."}, supply_request_id=req.id)
@@ -253,24 +191,9 @@ def approve(db: Session, req: SupplyRequest, approver: User, override_option: in
 
 
 def tick(db: Session, fast_forward_minutes: float = 0) -> dict:
-    """Advance the simulation: land drones whose ETA passed, deliver couriers, recharge drones."""
+    """Advance the simulation: deliver road trips whose ETA passed, expire uncollected packages."""
     now = _now() + timedelta(minutes=fast_forward_minutes)
-    landed, delivered, recharged = 0, 0, 0
-
-    for dsp in db.scalars(select(DroneDispatch).where(DroneDispatch.status.in_(["launched", "delivered"]))).all():
-        launched = _aware(dsp.launched_at)
-        if dsp.status == "launched" and launched + timedelta(minutes=dsp.eta_minutes) <= now:
-            req = db.get(SupplyRequest, dsp.supply_request_id)
-            _move_stock(db, db.get(Locker, dsp.origin_id), db.get(Locker, dsp.destination_id), req.items)
-            dsp.status, dsp.delivered_at = "delivered", launched + timedelta(minutes=dsp.eta_minutes)
-            _issue_pickup(req)
-            _notify_ready(db, req)
-            landed += 1
-        if dsp.status == "delivered" and _aware(dsp.delivered_at) + timedelta(minutes=dsp.eta_minutes) <= now:
-            dsp.status = "returned"
-            drone = dsp.drone
-            drone.battery_pct = max(0.0, round(drone.battery_pct - dsp.battery_needed_pct, 1))
-            drone.status = "charging"
+    delivered = 0
 
     for req in db.scalars(select(SupplyRequest).where(SupplyRequest.status == "in_transit", SupplyRequest.fulfillment == "courier")).all():
         eta = req.decision.get("chosen", {}).get("eta_minutes", 60)
@@ -281,13 +204,6 @@ def tick(db: Session, fast_forward_minutes: float = 0) -> dict:
             _notify_ready(db, req)
             delivered += 1
 
-    for drone in db.scalars(select(Drone).where(Drone.status == "charging")).all():
-        last = db.scalar(select(DroneDispatch).where(DroneDispatch.drone_id == drone.id).order_by(DroneDispatch.id.desc()))
-        returned_at = _aware(last.delivered_at) + timedelta(minutes=last.eta_minutes) if last and last.delivered_at else now
-        if returned_at + timedelta(minutes=CHARGE_MINUTES) <= now:
-            drone.battery_pct, drone.status = 100.0, "idle"
-            recharged += 1
-
     for req in db.scalars(select(SupplyRequest).where(SupplyRequest.status == "ready_for_pickup")).all():
         if _aware(req.expires_at) and _aware(req.expires_at) < now:
             inv = _inventory(req.locker)
@@ -297,7 +213,7 @@ def tick(db: Session, fast_forward_minutes: float = 0) -> dict:
             notify(db, req.child.caregiver_id, "pickup_expired", {"id": "Kode kedaluwarsa", "en": "Pickup expired"},
                    {"id": "Hubungi Kader untuk menjadwalkan ulang.", "en": "Contact your Kader to reschedule."}, supply_request_id=req.id)
     db.commit()
-    return {"drones_landed": landed, "couriers_delivered": delivered, "drones_recharged": recharged}
+    return {"couriers_delivered": delivered}
 
 
 def verify_pickup(db: Session, locker_code: str, pickup_code: str | None, qr_payload: str | None, actor: User | None) -> SupplyRequest:

@@ -246,7 +246,7 @@ class CaseNote(Base):
 
 
 class Locker(Base):
-    """A N.E.X.U.S. smart locker (kind=locker) or a supply hub / Puskesmas warehouse with drones (kind=hub)."""
+    """A N.E.X.U.S. smart locker (kind=locker) or a supply hub / Puskesmas warehouse that restocks lockers by road (kind=hub)."""
 
     __tablename__ = "lockers"
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -287,7 +287,7 @@ class SupplyRequest(Base):
     items: Mapped[list] = mapped_column(JSON, default=list)  # [{item_key, quantity}]
     urgency: Mapped[str] = mapped_column(String(20), default="routine")
     status: Mapped[str] = mapped_column(String(30), default="pending_approval")
-    fulfillment: Mapped[str | None] = mapped_column(String(20), nullable=True)  # locker_stock | drone
+    fulfillment: Mapped[str | None] = mapped_column(String(20), nullable=True)  # locker_stock | courier
     locker_id: Mapped[int | None] = mapped_column(ForeignKey("lockers.id"), nullable=True)
     pickup_code: Mapped[str | None] = mapped_column(String(10), nullable=True)
     qr_payload: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -301,40 +301,6 @@ class SupplyRequest(Base):
 
     child: Mapped[Child] = relationship()
     locker: Mapped[Locker | None] = relationship()
-
-
-class Drone(Base):
-    __tablename__ = "drones"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    code: Mapped[str] = mapped_column(String(20), unique=True)
-    hub_id: Mapped[int] = mapped_column(ForeignKey("lockers.id"))
-    status: Mapped[str] = mapped_column(String(20), default="idle")  # idle|in_flight|charging|maintenance
-    battery_pct: Mapped[float] = mapped_column(Float, default=100.0)
-    max_range_km: Mapped[float] = mapped_column(Float, default=40.0)
-    payload_kg: Mapped[float] = mapped_column(Float, default=3.0)
-
-    hub: Mapped[Locker] = relationship()
-
-
-class DroneDispatch(Base):
-    __tablename__ = "drone_dispatches"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    supply_request_id: Mapped[int] = mapped_column(ForeignKey("supply_requests.id"), index=True)
-    drone_id: Mapped[int] = mapped_column(ForeignKey("drones.id"))
-    origin_id: Mapped[int] = mapped_column(ForeignKey("lockers.id"))
-    destination_id: Mapped[int] = mapped_column(ForeignKey("lockers.id"))
-    distance_km: Mapped[float] = mapped_column(Float)
-    eta_minutes: Mapped[float] = mapped_column(Float)
-    battery_needed_pct: Mapped[float] = mapped_column(Float)
-    weather_risk: Mapped[float] = mapped_column(Float, default=0.1)
-    payload_kg: Mapped[float] = mapped_column(Float, default=0.0)
-    status: Mapped[str] = mapped_column(String(20), default="planned")  # planned|launched|delivered|returned|aborted
-    route: Mapped[list] = mapped_column(JSON, default=list)
-    launched_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
-    delivered_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
-
-    drone: Mapped[Drone] = relationship()
 
 
 class Consent(Base):

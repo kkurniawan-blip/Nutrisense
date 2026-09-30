@@ -34,7 +34,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.app_name,
     version="1.0.0",
-    description="Backend for NutriSense (caregiver & Kader mobile app) and N.E.X.U.S. (smart-locker and drone logistics). "
+    description="Backend for NutriSense (caregiver & Kader mobile app) and N.E.X.U.S. (smart-locker logistics). "
     "AI outputs are decision support, not medical diagnosis.",
     lifespan=lifespan,
 )
