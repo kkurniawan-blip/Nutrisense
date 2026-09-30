@@ -100,6 +100,9 @@ export async function api<T = any>(path: string, opts: Options = {}): Promise<T>
   if (res.status === 204) return undefined as T;
   const data = await res.json().catch(() => null);
   if (!res.ok) {
+    // The API always answers in JSON. A bare 404/5xx page comes from the host in between (a stopped or
+    // restarting codespace or server), so treat it like no connection: offline saving takes over.
+    if (data === null && [404, 502, 503, 504].includes(res.status)) throw new NetworkError(`Cannot reach the NutriSense server at ${baseUrl}`);
     if (res.status === 401 && onUnauthorized && !path.startsWith('/api/auth/login')) onUnauthorized();
     const detail = data?.detail;
     throw new ApiError(res.status, messageFrom(detail, `Request failed (${res.status})`), detail);
