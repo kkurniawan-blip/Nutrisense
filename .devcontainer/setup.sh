@@ -16,4 +16,5 @@ if ! grep -q NUTRISENSE_JWT_SECRET backend/.env 2>/dev/null; then
     echo "NUTRISENSE_ENCRYPTION_KEY=$(python -c 'import secrets; print(secrets.token_hex(32))')"
   } >> backend/.env
 fi
+git rev-parse HEAD > backend/web/.built-from  # start.sh rebuilds when the code moves on
 echo "NutriSense is set up."

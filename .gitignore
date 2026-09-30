@@ -10,6 +10,7 @@ backend/model_store/
 backend/uploads/
 backend/.env
 backend/web/
+backend/backups/
 
 # OS / editors
 .DS_Store
