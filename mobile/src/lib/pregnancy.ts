@@ -88,15 +88,15 @@ export const ANC_PLACES: { key: string; label: L }[] = [
 ];
 
 export const FLAG_LABEL: Record<MotherFlag['code'], L> = {
-  kek: { id: 'KEK', en: 'CED' },
-  anemia: { id: 'Anemia', en: 'Anaemia' },
-  severe_anemia: { id: 'Anemia berat', en: 'Severe anaemia' },
+  kek: { id: 'Lengan kecil (KEK)', en: 'Thin arm (CED)' },
+  anemia: { id: 'Kurang darah (anemia)', en: 'Anaemia' },
+  severe_anemia: { id: 'Sangat kurang darah', en: 'Severe anaemia' },
   short_stature: { id: 'Tinggi < 145 cm', en: 'Height < 145 cm' },
 };
 
 export const FLAG_ADVICE: Record<MotherFlag['code'], L> = {
-  kek: { id: 'Makan PMT ibu hamil setiap hari', en: 'Eat the supplementary food every day' },
-  anemia: { id: 'Minum TTD setiap hari', en: 'Take the iron tablet every day' },
+  kek: { id: 'Makan makanan tambahan ibu hamil setiap hari', en: 'Eat the supplementary food every day' },
+  anemia: { id: 'Minum tablet tambah darah setiap hari', en: 'Take the iron tablet every day' },
   severe_anemia: { id: 'Segera ke Puskesmas', en: 'Go to the Puskesmas now' },
   short_stature: { id: 'Rencanakan bersalin di Puskesmas atau RS', en: 'Plan to give birth at a Puskesmas or hospital' },
 };

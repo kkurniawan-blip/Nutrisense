@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Card, Empty, ErrorBox, H2, Loading, MoreLink, P, RiskBadge, Row, Screen, Segmented, StatusPill } from '../../components/ui';
+import { SyncBanner } from '../../components/SyncBanner';
 import { useAuth } from '../../lib/auth';
 import { formatDate } from '../../lib/fun';
 import { PRIORITY_STATUS } from '../../lib/status';
@@ -26,6 +27,7 @@ export default function Cases() {
 
   return (
     <Screen refreshing={cases.loading} onRefresh={() => [cases.reload(), reviews.reload()]}>
+      <SyncBanner stale={cases.stale} />
       <Segmented
         value={filter}
         onChange={setFilter}

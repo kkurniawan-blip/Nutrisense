@@ -17,7 +17,7 @@ const S = (key: StatusKey, label: Text, headline: Text): Status => ({ key, label
 export function motherStatus(a: Assessment | null | undefined): Status {
   if (!a) return S('unknown', { id: 'Belum dinilai', en: 'Not assessed yet' }, { id: 'Catat pengukuran untuk melihat status', en: 'Record a measurement to see status' });
   if (a.triage.urgency === 'emergency')
-    return S('urgent', { id: 'Perlu pertolongan segera', en: 'Needs help now' }, { id: 'Segera cari pertolongan medis', en: 'Seek medical help now' });
+    return S('urgent', { id: 'Perlu pertolongan segera', en: 'Needs help now' }, { id: 'Perlu pertolongan segera', en: 'Needs help now' });
   if (a.risk_level === 'high')
     return S('action', { id: 'Perlu perhatian', en: 'Needs attention' }, { id: 'Pertumbuhan perlu diperhatikan', en: 'Growth needs attention' });
   if (a.risk_level === 'medium')

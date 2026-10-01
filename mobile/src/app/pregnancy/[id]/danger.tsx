@@ -1,10 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { Linking, View } from 'react-native';
 
 import { Escalation, SymptomTile } from '../../../components/SymptomTiles';
 import { Text } from '../../../components/Text';
-import { Bubble, Button, Card, ErrorBox, H2, ListRow, Screen } from '../../../components/ui';
+import { Bubble, Button, Card, ErrorBox, H2, ListRow, Row, Screen } from '../../../components/ui';
 import { api, errorText } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 import { MOTHER_COMMON, MOTHER_DANGER } from '../../../lib/pregnancy';
@@ -62,7 +62,20 @@ export default function MotherDanger() {
   return (
     <Screen>
       <Bubble mood="caring" audio={`${t('howMom')} ${t('dangerAudio')}`}>{t('howMom')}</Bubble>
-      {danger && <Escalation phone={kader?.phone} facility={q.data?.facility} />}
+      {danger ? (
+        <Escalation phone={kader?.phone} facility={q.data?.facility} />
+      ) : (
+        <Row style={{ gap: 8, marginBottom: 12 }}>
+          {q.data?.facility?.phone ? (
+            <View style={{ flex: 1 }}>
+              <Button small variant="secondary" icon="call" title={t('callMidwife')} onPress={() => Linking.openURL(`tel:${q.data!.facility!.phone}`)} />
+            </View>
+          ) : null}
+          <View style={{ flex: 1 }}>
+            <Button small variant="secondary" icon="medkit" title="119" onPress={() => Linking.openURL('tel:119')} />
+          </View>
+        </Row>
+      )}
 
       <Card tint={statusColor.urgent.bg}>
         <H2 emoji="🚨">{t('urgentSigns')}</H2>

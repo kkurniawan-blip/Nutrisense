@@ -28,7 +28,7 @@ export default function CaseDetail() {
   const [error, setError] = useState<string | null>(null);
 
   const c = kase.data;
-  if (!c) return <Screen>{kase.error ? <ErrorBox message={kase.error} /> : <Loading />}</Screen>;
+  if (!c) return <Screen>{kase.error ? <ErrorBox message={kase.error} onRetry={kase.reload} /> : <Loading />}</Screen>;
   const a = c.assessment;
   const staff = !!user && user.role !== 'caregiver';
   // Kaders can confirm or raise a result; only a doctor/officer can lower a high one.

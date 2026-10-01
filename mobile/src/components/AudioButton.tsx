@@ -45,6 +45,8 @@ export function AudioButton({ text, compact }: { text: string; compact?: boolean
         gap: 6,
         minHeight: 44,
         paddingHorizontal: compact ? 9 : 12,
+        minWidth: 44,
+        justifyContent: 'center',
         borderRadius: radius.pill,
         backgroundColor: on ? colors.primary : colors.primarySoft,
       }}

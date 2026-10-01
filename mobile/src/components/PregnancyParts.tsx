@@ -68,7 +68,7 @@ export function AncDots({ anc }: { anc: AncVisit[] }) {
             >
               {done ? <Ionicons name="checkmark" size={20} color="#fff" /> : <Text style={{ fontWeight: '800', fontSize: 13, color: v.status === 'upcoming' ? colors.muted : c.fg }}>K{v.number}</Text>}
             </View>
-            <Text style={{ fontSize: 11, color: colors.muted }}>TM{v.trimester}</Text>
+            <Text style={{ fontSize: 12, color: colors.muted }}>Tri {v.trimester}</Text>
           </View>
         );
       })}

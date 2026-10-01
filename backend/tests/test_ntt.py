@@ -59,7 +59,7 @@ def test_mother_risk_levels():
     assert M.mother_risk([], True, 0, False, "id")["key"] == "ok"
     assert M.mother_risk([kek], True, 0, False, "id")["key"] == "action"
     high = M.mother_risk([kek, anemia], True, 0, False, "id")
-    assert high["label"] == "Risiko tinggi" and high["contact"] and high["reasons"] == ["KEK", "Anemia"]
+    assert high["label"] == "Risiko tinggi" and high["contact"] and high["reasons"] == ["Lengan kecil (KEK)", "Kurang darah (anemia)"]
     # Missed K visits lower the status, even before any check.
     assert M.mother_risk([], False, 1, False, "id")["key"] == "monitor"
     assert M.mother_risk([], True, 2, False, "id")["key"] == "action"

@@ -205,14 +205,14 @@ await session('mother', 'ibu.maria@nutrisense.id', async (h) => {
   await step('symptoms: tapping a danger sign warns at once', async () => {
     await go(`/child/${kid1.id}/symptoms`);
     await text('Kejang').click();
-    await text('🚨 Perlu pertolongan').waitFor();
+    await text('🚨 Perlu pertolongan segera').waitFor();
   });
   await step('symptoms: typed danger sign gives one clear warning', async () => {
     await go(`/child/${kid2.id}/symptoms`);
     await field(SYMPTOM_BOX).fill('badannya panas sejak kemarin dan napasnya cepat sekali');
     await text('Periksa gejala').click();
     await text('Dipahami sebagai', false).waitFor({ timeout: 20000 });
-    const warnings = await page.getByText('🚨 Perlu pertolongan', { exact: true }).count();
+    const warnings = await page.getByText('🚨 Perlu pertolongan segera', { exact: true }).count();
     if (warnings !== 1) throw new Error(`expected 1 red warning, found ${warnings}`);
     if (await page.getByText('Tidak apa-apa, Bunda', { exact: false }).count()) throw new Error('reassuring text shown in an emergency');
     await text('Bunda tidak sendiri', false).waitFor();
@@ -222,7 +222,7 @@ await session('mother', 'ibu.maria@nutrisense.id', async (h) => {
     await field(SYMPTOM_BOX).fill('tidak demam, tidak sesak, cuma pilek');
     await text('Periksa gejala').click();
     await text('Dipahami sebagai', false).waitFor({ timeout: 20000 });
-    if (await page.getByText('🚨 Perlu pertolongan', { exact: true }).count()) throw new Error('false emergency');
+    if (await page.getByText('🚨 Perlu pertolongan segera', { exact: true }).count()) throw new Error('false emergency');
   });
   await step('nutriscan start screen', async () => {
     await go('/nutriscan');
@@ -283,6 +283,7 @@ await session('kader', 'kader.oesapa@nutrisense.id', async (h) => {
     await text('Wilayah saya', false).waitFor();
   });
   await step('filters and paging', async () => {
+    await text('Cari & filter', false).click();
     await text('Semua').click();
     await text('Filter lainnya', false).click();
     await text('🔴 Risiko tinggi').click();
@@ -296,6 +297,7 @@ await session('kader', 'kader.oesapa@nutrisense.id', async (h) => {
   });
   await step('search shows plain words, no codes', async () => {
     await go('/home');
+    await text('Cari & filter', false).click();
     await field('Cari nama anak').fill(first(kid2));
     await page.waitForTimeout(1500);
     const code = page.getByText(/[a-z]+_[a-z]+/);

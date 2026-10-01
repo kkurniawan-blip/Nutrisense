@@ -96,21 +96,21 @@ const main = async () => {
 
   // ---- B. Mother ----
   const M = await open('ibu.maria@nutrisense.id', 'Demo1234!', 'maria');
-  await tc('B1', 'Mother', 'Maria: Bunda card shows Risiko tinggi, KEK · Anemia and Hubungi bidan', async () => {
+  await tc('B1', 'Mother', 'Maria: Bunda card shows Risiko tinggi, plain reasons and Hubungi bidan', async () => {
     await M.go('/home'); await M.text('Bunda').click(); await M.page.waitForTimeout(1200);
-    expect(await M.has('Risiko tinggi'), 'level'); expect(await M.has('Hubungi bidan'), 'button'); expect(await M.has('KEK · Anemia'), 'reasons');
+    expect(await M.has('Risiko tinggi'), 'level'); expect(await M.has('Hubungi bidan'), 'button'); expect(await M.has('Lengan kecil (KEK) · Kurang darah (anemia)'), 'reasons');
   });
-  await tc('B2', 'Mother', 'Catat ibu: normal values show no flags; Hb 6.5 shows Anemia berat', async () => {
+  await tc('B2', 'Mother', 'Catat ibu: normal values show no flags; Hb 6.5 shows Sangat kurang darah', async () => {
     await M.go(`/pregnancy/${mariaP.id}/measure`); await M.field('📏 LiLA (cm)').fill('25'); await M.text('Lanjut').click();
     await M.field('🩸 Hb (g/dL)').fill('12'); await M.text('Lanjut').click(); await M.text('Simpan').click();
     await M.text('Hasil cek ibu tersimpan', false).waitFor({ timeout: 12000 });
     expect(!(await M.has('Lengan kecil (KEK)', true)) && !(await M.has('Kurang darah (anemia)', true)), 'flags on normal values');
     await M.go(`/pregnancy/${mariaP.id}/measure`); await M.text('Lanjut').click(); await M.field('🩸 Hb (g/dL)').fill('6.5'); await M.text('Lanjut').click(); await M.text('Simpan').click();
     await M.text('Hasil cek ibu tersimpan', false).waitFor({ timeout: 12000 });
-    expect(await M.has('Anemia berat', true), 'no severe flag');
+    expect(await M.has('Sangat kurang darah', true), 'no severe flag');
   });
   await tc('B3', 'Mother', 'Severe anaemia makes the pregnancy Risiko tinggi', async () => {
-    const p = (await call('GET', `/api/pregnancies/${mariaP.id}`, null, maria)).json; expect(p.risk.key === 'urgent' && p.risk.reasons.includes('Anemia berat'), JSON.stringify(p.risk));
+    const p = (await call('GET', `/api/pregnancies/${mariaP.id}`, null, maria)).json; expect(p.risk.key === 'urgent' && p.risk.reasons.includes('Sangat kurang darah'), JSON.stringify(p.risk));
   });
   await tc('B4', 'Mother', 'ANC: Tandai sudah then Batal', async () => {
     await M.go(`/pregnancy/${mariaP.id}/anc`); await M.text('Tandai sudah').click(); await M.page.waitForTimeout(1500);

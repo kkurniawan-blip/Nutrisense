@@ -148,20 +148,20 @@ def view(db: Session, p: Pregnancy, lang: str, today: date | None = None) -> dic
     items = []
     if p.status == "active":
         items.append({"key": "ttd", "status": "ok" if today_log and today_log.ttd else "action", "action": "supplements",
-                      "text": {"id": "TTD sudah diminum" if today_log and today_log.ttd else "Minum TTD hari ini",
+                      "text": {"id": "Tablet tambah darah sudah diminum" if today_log and today_log.ttd else "Minum tablet tambah darah hari ini",
                                "en": "Iron tablet taken" if today_log and today_log.ttd else "Take today's iron tablet"}[L]})
         if kek:
             items.append({"key": "pmt", "status": "ok" if today_log and today_log.pmt else "action", "action": "supplements",
-                          "text": {"id": "PMT sudah dimakan" if today_log and today_log.pmt else "Makan PMT ibu hamil",
+                          "text": {"id": "Makanan tambahan sudah dimakan" if today_log and today_log.pmt else "Makan makanan tambahan ibu hamil",
                                    "en": "Supplementary food eaten" if today_log and today_log.pmt else "Eat the supplementary food"}[L]})
         if nxt:
             st = "action" if nxt["status"] in ("due", "overdue") else "ok"
             when = {"overdue": {"id": "terlewat", "en": "overdue"}, "due": {"id": "sekarang", "en": "now"},
                     "upcoming": {"id": f"mulai {nxt['window_start']}", "en": f"from {nxt['window_start']}"}}[nxt["status"]][L]
-            items.append({"key": "anc", "status": st, "action": "anc", "text": f"{'Periksa hamil' if L == 'id' else 'Antenatal visit'} K{nxt['number']}: {when}"})
+            items.append({"key": "anc", "status": st, "action": "anc", "text": f"{'Periksa hamil ke-' if L == 'id' else 'Antenatal visit '}{nxt['number']}: {when}"})
         if not ms or (today - ms[-1].measured_at).days > 30:
             items.append({"key": "measure", "status": "action", "action": "measure",
-                          "text": {"id": "Cek LiLA & Hb bulan ini", "en": "Check LiLA & Hb this month"}[L]})
+                          "text": {"id": "Ukur lengan & cek darah bulan ini", "en": "Check LiLA & Hb this month"}[L]})
         if last_danger and last_danger.danger and (today - last_danger.created_at.date()).days <= 3:
             items.append({"key": "danger", "status": "urgent", "action": "danger",
                           "text": {"id": "Tanda bahaya! Segera ke Puskesmas", "en": "Danger sign! Go to the Puskesmas"}[L]})

@@ -18,7 +18,7 @@ export const colors = {
   lavenderSoft: '#EFECFF',
   sky: '#2F6FE0',
   skySoft: '#EAF2FF',
-  pink: '#C73E73',
+  pink: '#B5336A',
   pinkSoft: '#FFEEF3',
   orange: '#C2410C',
   orangeSoft: '#FFF1E6',
@@ -71,7 +71,7 @@ export const tones = {
   blue: { from: '#7DB4FF', to: '#3B7BF6', fg: '#2563C9', bg: '#EDF4FF' },
   green: { from: '#6FDB9E', to: '#1FA06A', fg: '#15803D', bg: '#EAF8F0' },
   orange: { from: '#FFC078', to: '#F97316', fg: '#C2410C', bg: '#FFF3E8' },
-  pink: { from: '#FF9CBC', to: '#E0578B', fg: '#C73E73', bg: '#FFF0F5' },
+  pink: { from: '#FF9CBC', to: '#E0578B', fg: '#B5336A', bg: '#FFF0F5' },
   yellow: { from: '#FFDA70', to: '#F2A60C', fg: '#8A5A00', bg: '#FFF8E1' },
 } as const;
 export type Tone = keyof typeof tones;

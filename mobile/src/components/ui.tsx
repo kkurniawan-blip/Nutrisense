@@ -402,10 +402,14 @@ export function PasswordField({ label, hint, error, showLabel, hideLabel, ...pro
 
 export function Toggle({ label, value, onChange, disabled }: { label: string; value: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
-    <View style={styles.toggleRow}>
+    // The whole row is the target (at least 44 px), not only the small switch.
+    <Pressable onPress={() => !disabled && onChange(!value)} accessibilityRole="switch" accessibilityLabel={label} accessibilityState={{ checked: value, disabled }} style={[styles.toggleRow, { minHeight: 44 }]}>
       <Text style={[styles.p, { flex: 1, marginRight: 8 }]}>{label}</Text>
-      <Switch value={value} onValueChange={onChange} disabled={disabled} accessibilityLabel={label} trackColor={{ true: colors.primary, false: '#DAD6EA' }} thumbColor="#fff" />
-    </View>
+      {/* Visual only: the row handles the press and is the one switch screen readers see. */}
+      <View pointerEvents="none" aria-hidden>
+        <Switch value={value} disabled={disabled} trackColor={{ true: colors.primary, false: '#DAD6EA' }} thumbColor="#fff" />
+      </View>
+    </Pressable>
   );
 }
 

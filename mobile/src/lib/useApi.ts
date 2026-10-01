@@ -77,12 +77,12 @@ export async function prefetchForOffline(user: User, lang: Lang): Promise<void> 
     }
   };
   const mother = user.role === 'caregiver';
-  const [children, pregnancies] = await Promise.all([
+  const [children, pregnancies, , , cases] = await Promise.all([
     save<{ id: number }[]>('/api/children'),
     save<{ id: number }[]>('/api/pregnancies'),
     save(`/api/foods?lang=${lang}`),
     save('/api/local'),
-    mother ? null : save('/api/cases?status_filter=open,in_progress,referred'),
+    mother ? null : save<{ id: number }[]>('/api/cases?status_filter=open,in_progress,referred'),
   ]);
   const paths: string[] = [];
   // Officers and doctors see the whole province online; only mothers and Kader need every child offline.
@@ -91,6 +91,7 @@ export async function prefetchForOffline(user: User, lang: Lang): Promise<void> 
     if (mother) paths.push(`/api/children/${c.id}/growth-chart?indicator=hfa`, `/api/children/${c.id}/kia`, `/api/children/${c.id}/meals?limit=100`);
   }
   for (const p of pregnancies ?? []) paths.push(`/api/pregnancies/${p.id}`);
+  for (const k of cases ?? []) paths.push(`/api/cases/${k.id}`);
   // A few at a time, so a weak connection is not flooded.
   for (let i = 0; i < paths.length; i += 4) await Promise.all(paths.slice(i, i + 4).map((p) => save(p)));
 }

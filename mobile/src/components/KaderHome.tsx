@@ -55,6 +55,7 @@ export function KaderHome() {
   const [q, setQ] = useState('');
   const [showMore, setShowMore] = useState(false);
   const [allRows, setAllRows] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   // Extra pages, remembered per filter combination so a new filter starts from page one.
   const [extra, setExtra] = useState<{ key: string; rows: AreaChildRow[] }>({ key: '', rows: [] });
   const [loadingMore, setLoadingMore] = useState(false);
@@ -169,78 +170,82 @@ export function KaderHome() {
         </Card>
 
         {/* Priority list with filters */}
-        <Section title={t('visitList')} />
-        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: radius.pill, paddingHorizontal: 16, marginBottom: 12, borderWidth: 1.5, borderColor: '#E4E0F3', minHeight: 48 }}>
-          <Ionicons name="search" size={18} color={colors.muted} />
-          <TextInput
-            value={q}
-            onChangeText={setQ}
-            placeholder={t('searchChild')}
-            placeholderTextColor={colors.muted}
-            accessibilityLabel={t('searchChild')}
-            style={{ flex: 1, paddingHorizontal: 8, paddingVertical: 10, fontSize: 16 }}
+        <Section title={t('visitList')} right={<MoreLink label={`🔍 ${t('searchFilter')}`} open={searchOpen} onPress={() => setSearchOpen(!searchOpen)} />} />
+        {/* Search and filters fold away, so the most urgent children are on the first screen. */}
+        {(searchOpen || q.trim() !== '' || extraFilters > 0 || filter !== 'priority') && (
+          <>
+          <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: radius.pill, paddingHorizontal: 16, marginBottom: 12, borderWidth: 1.5, borderColor: '#E4E0F3', minHeight: 48 }}>
+            <Ionicons name="search" size={18} color={colors.muted} />
+            <TextInput
+              value={q}
+              onChangeText={setQ}
+              placeholder={t('searchChild')}
+              placeholderTextColor={colors.muted}
+              accessibilityLabel={t('searchChild')}
+              style={{ flex: 1, paddingHorizontal: 8, paddingVertical: 10, fontSize: 16 }}
+            />
+          </View>
+          <Segmented<Filter>
+            value={filter}
+            onChange={setFilter}
+            options={[
+              { value: 'all', label: t('filterAll') },
+              { value: 'priority', label: t('filterPriority') },
+              { value: 'new', label: t('filterNew') },
+              { value: 'followup', label: t('filterFollowup') },
+            ]}
           />
-        </View>
-        <Segmented<Filter>
-          value={filter}
-          onChange={setFilter}
-          options={[
-            { value: 'all', label: t('filterAll') },
-            { value: 'priority', label: t('filterPriority') },
-            { value: 'new', label: t('filterNew') },
-            { value: 'followup', label: t('filterFollowup') },
-          ]}
-        />
-        <Pressable onPress={() => setShowMore(!showMore)} accessibilityRole="button" accessibilityState={{ expanded: showMore }} style={{ minHeight: 44, justifyContent: 'center' }}>
-          <Text style={{ fontWeight: '800', color: colors.primary }}>
-            <Ionicons name="options" size={16} /> {t('moreFilters')}
-            {extraFilters ? ` (${extraFilters})` : ''} {showMore ? '▲' : '▼'}
-          </Text>
-        </Pressable>
-        {showMore && (
-          <Card>
-            {d && d.regions.length > 1 && (
-              <>
-                <Text style={{ fontWeight: '800', marginBottom: 6 }}>📍 {t('area')}</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                  <Chip label={t('filterAll')} selected={regionId === null} onPress={() => setRegionId(null)} />
-                  {d.regions.map((r) => (
-                    <Chip key={r.id} label={r.name} selected={regionId === r.id} onPress={() => setRegionId(r.id)} />
-                  ))}
-                </View>
-              </>
-            )}
-            <Text style={{ fontWeight: '800', marginBottom: 6 }}>🚦 {t('riskStatus')}</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-              <Chip label={t('filterAll')} selected={risk === null} onPress={() => setRisk(null)} />
-              {(['high', 'medium', 'low'] as const).map((l) => (
-                <Chip key={l} emoji={statusColor[l === 'high' ? 'urgent' : l === 'medium' ? 'action' : 'ok'].dot} label={t(`risk_${l}`)} selected={risk === l} onPress={() => setRisk(l)} />
-              ))}
-            </View>
-            <Text style={{ fontWeight: '800', marginBottom: 6 }}>📏 {t('lastMeasuredFilter')}</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-              <Chip label={t('filterAll')} selected={notMeasured === null} onPress={() => setNotMeasured(null)} />
-              <Chip label={`> 30 ${t('days')}`} selected={notMeasured === 30} onPress={() => setNotMeasured(30)} />
-              <Chip label={`> 60 ${t('days')}`} selected={notMeasured === 60} onPress={() => setNotMeasured(60)} />
-            </View>
-            <Toggle label={`🏠 ${t('needsVisitOnly')}`} value={visitOnly} onChange={setVisitOnly} />
-            {extraFilters > 0 && (
-              <Button
-                small
-                variant="ghost"
-                title={t('clearFilters')}
-                icon="close"
-                onPress={() => {
-                  setRegionId(null);
-                  setRisk(null);
-                  setNotMeasured(null);
-                  setVisitOnly(false);
-                }}
-              />
-            )}
-          </Card>
+          <Pressable onPress={() => setShowMore(!showMore)} accessibilityRole="button" accessibilityState={{ expanded: showMore }} style={{ minHeight: 44, justifyContent: 'center' }}>
+            <Text style={{ fontWeight: '800', color: colors.primary }}>
+              <Ionicons name="options" size={16} /> {t('moreFilters')}
+              {extraFilters ? ` (${extraFilters})` : ''} {showMore ? '▲' : '▼'}
+            </Text>
+          </Pressable>
+          {showMore && (
+            <Card>
+              {d && d.regions.length > 1 && (
+                <>
+                  <Text style={{ fontWeight: '800', marginBottom: 6 }}>📍 {t('area')}</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                    <Chip label={t('filterAll')} selected={regionId === null} onPress={() => setRegionId(null)} />
+                    {d.regions.map((r) => (
+                      <Chip key={r.id} label={r.name} selected={regionId === r.id} onPress={() => setRegionId(r.id)} />
+                    ))}
+                  </View>
+                </>
+              )}
+              <Text style={{ fontWeight: '800', marginBottom: 6 }}>🚦 {t('riskStatus')}</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                <Chip label={t('filterAll')} selected={risk === null} onPress={() => setRisk(null)} />
+                {(['high', 'medium', 'low'] as const).map((l) => (
+                  <Chip key={l} emoji={statusColor[l === 'high' ? 'urgent' : l === 'medium' ? 'action' : 'ok'].dot} label={t(`risk_${l}`)} selected={risk === l} onPress={() => setRisk(l)} />
+                ))}
+              </View>
+              <Text style={{ fontWeight: '800', marginBottom: 6 }}>📏 {t('lastMeasuredFilter')}</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                <Chip label={t('filterAll')} selected={notMeasured === null} onPress={() => setNotMeasured(null)} />
+                <Chip label={`> 30 ${t('days')}`} selected={notMeasured === 30} onPress={() => setNotMeasured(30)} />
+                <Chip label={`> 60 ${t('days')}`} selected={notMeasured === 60} onPress={() => setNotMeasured(60)} />
+              </View>
+              <Toggle label={`🏠 ${t('needsVisitOnly')}`} value={visitOnly} onChange={setVisitOnly} />
+              {extraFilters > 0 && (
+                <Button
+                  small
+                  variant="ghost"
+                  title={t('clearFilters')}
+                  icon="close"
+                  onPress={() => {
+                    setRegionId(null);
+                    setRisk(null);
+                    setNotMeasured(null);
+                    setVisitOnly(false);
+                  }}
+                />
+              )}
+            </Card>
+          )}
+          </>
         )}
-
         {list.error && <ErrorBox message={list.error} onRetry={list.reload} />}
         {!d && list.loading && <Loading />}
         {d && (

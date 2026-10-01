@@ -159,6 +159,7 @@ export default function Measure() {
           <Text style={{ color: statusColor.info.fg }}>{t('offlineQueued')}</Text>
         </Card>
         <Button title={`${t('seeProfileOf')} ${name}`} icon="arrow-forward" onPress={() => router.replace(`/child/${id}`)} />
+        {user?.role === 'kader' && <Button title={t('nextChild')} variant="secondary" icon="people" onPress={() => router.replace('/home')} />}
       </Screen>
     );
 
@@ -175,12 +176,15 @@ export default function Measure() {
         </Card>
         {result.assessment && <AssessmentView a={result.assessment} facility={c?.facility} kaderPhone={c?.care_team?.find((x) => x.role === 'kader')?.phone} />}
         <Button title={`${t('seeProfileOf')} ${name}`} onPress={() => router.replace(`/child/${id}`)} icon="arrow-forward" />
+        {/* At the posyandu a Kader measures one child after another: straight back to the visit list. */}
+        {user?.role === 'kader' && <Button title={t('nextChild')} variant="secondary" icon="people" onPress={() => router.replace('/home')} />}
       </Screen>
     );
   }
 
   return (
-    <Screen>
+    // Each step opens at the top, with the step dots and its title in view.
+    <Screen key={`step${step}`}>
       <Steps step={step} />
 
       {step === 1 && (

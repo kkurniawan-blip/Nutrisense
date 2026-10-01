@@ -126,6 +126,12 @@ export default function Assistant() {
       .catch(() => setMessages([]));
   }, [childId]);
 
+  useEffect(() => {
+    // Wait for the answer (and the folding suggestions) to lay out, then show its end.
+    const timer = setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 350);
+    return () => clearTimeout(timer);
+  }, [messages, busy]);
+
   const send = async (override?: string) => {
     const msg = (override ?? text).trim();
     if (!msg || busy) return;

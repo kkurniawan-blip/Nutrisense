@@ -47,7 +47,6 @@ function Stepper({ value, onChange }: { value: number; onChange: (v: number) => 
 export default function MealScreen() {
   const { id, action } = useLocalSearchParams<{ id: string; action?: string }>();
   const { t, lang } = useAuth();
-  const [foods, setFoods] = useState<Food[]>([]);
   const [items, setItems] = useState<MealItem[]>([]);
   const [mealType, setMealType] = useState<MealType>(() => {
     const h = new Date().getHours();
@@ -70,9 +69,9 @@ export default function MealScreen() {
   const [todayMeals, setTodayMeals] = useState<Meal[]>([]);
   const autoLaunched = useRef(false);
 
-  useEffect(() => {
-    api<{ foods: Food[] }>(`/api/foods?lang=${lang}`).then((r) => setFoods(r.foods)).catch((e) => setError(errorText(e)));
-  }, [lang]);
+  // Through useApi, so the food list saved on the phone at login is used when there is no signal.
+  const foodList = useApi<{ foods: Food[] }>(`/api/foods?lang=${lang}`);
+  const foods = useMemo(() => foodList.data?.foods ?? [], [foodList.data]);
 
   const foodName = (key: string) => foods.find((f) => f.key === key)?.name ?? key;
   const groupOf = (key: string) => foods.find((f) => f.key === key)?.group;
@@ -293,7 +292,9 @@ export default function MealScreen() {
 
       <Card>
         <Row style={{ justifyContent: 'space-between', marginBottom: 6 }}>
-          <H2 emoji="🍽️">{t('detectedFoods')}</H2>
+          <View style={{ flex: 1 }}>
+            <H2 emoji="🍽️">{t('detectedFoods')}</H2>
+          </View>
           <RainbowPlate groups={mealGroups} size={54} />
         </Row>
         {!items.length && <Text style={{ color: colors.muted }}>{t('pickFoodsHint')}</Text>}
@@ -332,6 +333,7 @@ export default function MealScreen() {
 
       <Card>
         <H2 emoji="➕">{t('addFood')}</H2>
+        {foodList.error && !foodList.data && <ErrorBox message={foodList.error} onRetry={foodList.reload} />}
         <TextInput
           value={filter}
           onChangeText={setFilter}

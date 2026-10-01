@@ -141,12 +141,12 @@ RISK_LABEL = {
     "urgent": {"id": "Risiko tinggi", "en": "High risk"},
 }
 _REASON = {
-    "kek": {"id": "KEK", "en": "CED"},
-    "anemia": {"id": "Anemia", "en": "Anaemia"},
-    "severe_anemia": {"id": "Anemia berat", "en": "Severe anaemia"},
+    "kek": {"id": "Lengan kecil (KEK)", "en": "Thin arm (CED)"},
+    "anemia": {"id": "Kurang darah (anemia)", "en": "Low blood (anaemia)"},
+    "severe_anemia": {"id": "Sangat kurang darah", "en": "Severe anaemia"},
     "short_stature": {"id": "Tinggi < 145 cm", "en": "Height < 145 cm"},
     "danger": {"id": "Tanda bahaya", "en": "Danger sign"},
-    "not_checked": {"id": "LiLA & Hb belum dicek", "en": "LiLA & Hb not checked"},
+    "not_checked": {"id": "Lengan & darah belum dicek", "en": "Arm & blood not checked"},
 }
 
 

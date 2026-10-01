@@ -8,7 +8,7 @@ import { Text } from '../../../components/Text';
 import { Bar, Button, Card, ErrorBox, H2, Loading, QuickAction, Row, Screen, Section, StatusMark, StatusPill } from '../../../components/ui';
 import { useAuth } from '../../../lib/auth';
 import { formatDate } from '../../../lib/fun';
-import { BIRTH_HELPERS, BIRTH_PLACES, BIRTH_ATTENDANTS, BIRTH_PLACES_DONE, FUNDING, label, motherState, TRANSPORT, VISIT_STATUS, weeksText } from '../../../lib/pregnancy';
+import { BIRTH_HELPERS, BIRTH_PLACES, BIRTH_ATTENDANTS, BIRTH_PLACES_DONE, FUNDING, label, motherState, TRANSPORT, VISIT_STATUS, weeksText, FLAG_LABEL } from '../../../lib/pregnancy';
 import type { Pregnancy } from '../../../lib/types';
 import { useApi } from '../../../lib/useApi';
 import { colors, statusColor, StatusKey, tones } from '../../../theme';
@@ -106,7 +106,7 @@ export default function PregnancyDetail() {
           value={p.latest.muac_cm?.toFixed(1) ?? '–'}
           unit="cm"
           status={p.latest.muac_cm == null ? 'unknown' : kek ? 'action' : 'ok'}
-          word={p.latest.muac_cm == null ? t('notMeasured') : kek ? 'KEK' : 'Normal'}
+          word={p.latest.muac_cm == null ? t('notMeasured') : kek ? FLAG_LABEL.kek[lang] : 'Normal'}
           tone="orange"
           icon="body"
         />
@@ -115,7 +115,7 @@ export default function PregnancyDetail() {
           value={p.latest.hb_g_dl?.toFixed(1) ?? '–'}
           unit="g/dL"
           status={p.latest.hb_g_dl == null ? 'unknown' : anemia ? anemia.status : 'ok'}
-          word={p.latest.hb_g_dl == null ? t('notMeasured') : anemia ? (anemia.code === 'severe_anemia' ? 'Anemia berat' : 'Anemia') : 'Normal'}
+          word={p.latest.hb_g_dl == null ? t('notMeasured') : anemia ? FLAG_LABEL[anemia.code][lang] : 'Normal'}
           tone="pink"
           icon="water"
         />

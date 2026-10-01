@@ -24,8 +24,8 @@ type IconName = keyof typeof Ionicons.glyphMap;
 
 export default function TabsLayout() {
   const { ready, user, t } = useAuth();
-  // Tab labels follow the chosen text size too (capped so five labels still fit).
-  const scale = Math.min(useContext(TextScaleContext), 1.25);
+  // Tab labels follow the chosen text size too (capped so five short labels still fit on a 360 px phone).
+  const scale = Math.min(useContext(TextScaleContext), 1.15);
   if (!ready) return <Loading />;
   if (!user) return <Redirect href="/login" />;
 
@@ -74,8 +74,8 @@ export default function TabsLayout() {
       {tab('home', t('home'), 'home-outline', 'home', { headerShown: false })}
       {tab('dashboard', t('dashboard'), 'stats-chart-outline', 'stats-chart')}
       {tab('cases', t('cases'), 'medkit-outline', 'medkit')}
-      {tab('assistant', t('assistant'), 'chatbubble-ellipses-outline', 'chatbubble-ellipses')}
-      {tab('nutriscan', 'NutriScan', 'scan-outline', 'scan')}
+      {tab('assistant', t('assistant'), 'chatbubble-ellipses-outline', 'chatbubble-ellipses', { tabBarLabel: 'Nuri' })}
+      {tab('nutriscan', 'NutriScan', 'scan-outline', 'scan', { tabBarLabel: 'Scan' })}
       {tab('logistics', t('logistics'), 'cube-outline', 'cube')}
       {tab('pickups', t('pickups'), 'gift-outline', 'gift')}
       {tab('profile', t('profile'), 'person-circle-outline', 'person-circle')}

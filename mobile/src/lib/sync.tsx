@@ -57,7 +57,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   }, [pending]);
 
   useEffect(() => {
-    onConnectivity(setOffline);
+    onConnectivity((online) => setOffline(!online));
     return () => onConnectivity(null);
   }, []);
 

@@ -818,6 +818,8 @@ const en = {
   changeLocker: "Change locker",
   seeProfileOf: "See the profile of",
   chartNeedsSignal: "The chart shows again when there is signal.",
+  searchFilter: "Search & filter",
+  nextChild: "Measure the next child",
 };
 
 type Dict = typeof en;
@@ -1205,7 +1207,7 @@ const id: Dict = {
   seeDetails: "Lihat detail",
   seeMenuIdeas: "Lihat ide menu",
   seeProfile: "Lihat profil",
-  seekHelpNow: "Perlu pertolongan",
+  seekHelpNow: "Perlu pertolongan segera",
   shareWithFamily: "Bagikan catatan ini ke keluarga",
   shareWithFamilyHint: "Ibu akan melihat catatan ini sebagai rekomendasi tenaga kesehatan.",
   sharedWith: "Dibagikan kepada",
@@ -1640,6 +1642,8 @@ const id: Dict = {
   changeLocker: "Ganti loker",
   seeProfileOf: "Lihat profil",
   chartNeedsSignal: "Grafik tampil lagi saat ada sinyal.",
+  searchFilter: "Cari & filter",
+  nextChild: "Ukur anak berikutnya",
 };
 
 export type TKey = keyof Dict;
