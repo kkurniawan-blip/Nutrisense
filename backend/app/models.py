@@ -390,11 +390,63 @@ class Pregnancy(Base):
     delivered_at: Mapped[date | None] = mapped_column(Date, nullable=True)
     child_id: Mapped[int | None] = mapped_column(ForeignKey("children.id"), nullable=True)
     nifas_done: Mapped[list] = mapped_column(JSON, default=list)  # KF1..KF4 / KN1..KN3 codes
+    # Link to the health facility: with the mother's consent, the Puskesmas or hospital sends each check-up here.
+    # The mother shows the link code (or its QR) to the midwife; it identifies the pregnancy without her NIK.
+    facility_sync: Mapped[bool] = mapped_column(Boolean, default=False)
+    link_code: Mapped[str | None] = mapped_column(String(12), nullable=True)
+    linked_facility_id: Mapped[int | None] = mapped_column(ForeignKey("health_facilities.id"), nullable=True)
+    last_sync_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
 
     mother: Mapped[User] = relationship(foreign_keys=[mother_id])
     kader: Mapped[User | None] = relationship(foreign_keys=[kader_id])
     region: Mapped[Region | None] = relationship()
+
+
+class HealthFacility(Base):
+    """A Puskesmas, hospital or midwife practice whose system sends antenatal check-ups to NutriSense (HL7 FHIR R4).
+
+    The facility's system authenticates with an API key; only its SHA-256 hash is stored."""
+
+    __tablename__ = "health_facilities"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(160))
+    kind: Mapped[str] = mapped_column(String(20), default="puskesmas")  # puskesmas | rs | bidan
+    code: Mapped[str | None] = mapped_column(String(20), nullable=True)  # Kemenkes facility code, when known
+    region_id: Mapped[int | None] = mapped_column(ForeignKey("regions.id"), nullable=True)
+    api_key_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+
+
+class AncExam(Base):
+    """One antenatal check-up as recorded at the health facility and received from its system."""
+
+    __tablename__ = "anc_exams"
+    __table_args__ = (UniqueConstraint("facility_id", "external_id"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    pregnancy_id: Mapped[int] = mapped_column(ForeignKey("pregnancies.id"), index=True)
+    facility_id: Mapped[int] = mapped_column(ForeignKey("health_facilities.id"))
+    external_id: Mapped[str] = mapped_column(String(80))  # the facility's Encounter id: a resend updates, never duplicates
+    visit_number: Mapped[int | None] = mapped_column(Integer, nullable=True)  # K1..K6
+    exam_date: Mapped[date] = mapped_column(Date)
+    gestational_weeks: Mapped[float | None] = mapped_column(Float, nullable=True)
+    examiner: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    weight_kg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    bp_systolic: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    bp_diastolic: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    muac_cm: Mapped[float | None] = mapped_column(Float, nullable=True)
+    hb_g_dl: Mapped[float | None] = mapped_column(Float, nullable=True)
+    fundal_height_cm: Mapped[float | None] = mapped_column(Float, nullable=True)
+    fetal_heart_rate: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    fetal_presentation: Mapped[str | None] = mapped_column(String(20), nullable=True)  # head | breech | transverse
+    urine_protein: Mapped[str | None] = mapped_column(String(10), nullable=True)  # negative | +1 .. +4
+    td_immunization: Mapped[str | None] = mapped_column(String(10), nullable=True)  # TT1..TT5 / Td dose given
+    iron_tablets: Mapped[int | None] = mapped_column(Integer, nullable=True)  # TTD tablets handed out
+    notes: Mapped[str | None] = mapped_column(EncryptedText(), nullable=True)
+    received_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+
+    facility: Mapped[HealthFacility] = relationship()
 
 
 class MaternalMeasurement(Base):

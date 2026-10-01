@@ -482,9 +482,9 @@ export interface NifasVisit {
 }
 
 export interface MotherFlag {
-  code: 'kek' | 'anemia' | 'severe_anemia' | 'short_stature';
+  code: 'kek' | 'anemia' | 'severe_anemia' | 'short_stature' | 'hypertension' | 'fetal_hr';
   status: 'action' | 'urgent' | 'monitor';
-  value: number;
+  value: number | string;
 }
 
 export interface Pregnancy {
@@ -523,6 +523,41 @@ export interface Pregnancy {
   child_id: number | null;
   birth_info: { place?: string | null; attendant?: string | null; gestational_weeks?: number | null };
   nifas: NifasVisit[] | null;
+  latest_exam: AncExam | null;
+  facility_link: { enabled: boolean; facility: string | null; last_sync_at: string | null };
+}
+
+/** One antenatal check-up sent by the Puskesmas or hospital system. */
+export interface AncExam {
+  id: number;
+  visit_number: number | null;
+  exam_date: string;
+  gestational_weeks: number | null;
+  facility: string;
+  facility_kind: 'puskesmas' | 'rs' | 'bidan';
+  examiner: string | null;
+  weight_kg: number | null;
+  bp_systolic: number | null;
+  bp_diastolic: number | null;
+  muac_cm: number | null;
+  hb_g_dl: number | null;
+  fundal_height_cm: number | null;
+  fetal_heart_rate: number | null;
+  fetal_presentation: 'head' | 'breech' | 'transverse' | null;
+  urine_protein: string | null;
+  td_immunization: string | null;
+  iron_tablets: number | null;
+  notes: string | null;
+  received_at: string | null;
+}
+
+/** The mother's link to her health facility; `code` is only sent to the mother herself. */
+export interface FacilityLink {
+  enabled: boolean;
+  code: string | null;
+  facility: string | null;
+  last_sync_at: string | null;
+  exams: AncExam[];
 }
 
 /** One level for the mother: Belum dicek, Risiko rendah, Perlu dipantau, Risiko sedang, Risiko tinggi. */

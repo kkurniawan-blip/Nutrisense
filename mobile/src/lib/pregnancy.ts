@@ -92,6 +92,8 @@ export const FLAG_LABEL: Record<MotherFlag['code'], L> = {
   anemia: { id: 'Kurang darah (anemia)', en: 'Anaemia' },
   severe_anemia: { id: 'Sangat kurang darah', en: 'Severe anaemia' },
   short_stature: { id: 'Tinggi < 145 cm', en: 'Height < 145 cm' },
+  hypertension: { id: 'Tekanan darah tinggi', en: 'High blood pressure' },
+  fetal_hr: { id: 'Detak jantung janin perlu dicek', en: "Baby's heartbeat needs checking" },
 };
 
 export const FLAG_ADVICE: Record<MotherFlag['code'], L> = {
@@ -99,6 +101,8 @@ export const FLAG_ADVICE: Record<MotherFlag['code'], L> = {
   anemia: { id: 'Minum tablet tambah darah setiap hari', en: 'Take the iron tablet every day' },
   severe_anemia: { id: 'Segera ke Puskesmas', en: 'Go to the Puskesmas now' },
   short_stature: { id: 'Rencanakan bersalin di Puskesmas atau RS', en: 'Plan to give birth at a Puskesmas or hospital' },
+  hypertension: { id: 'Hubungi bidan hari ini', en: 'Call the midwife today' },
+  fetal_hr: { id: 'Hubungi bidan hari ini', en: 'Call the midwife today' },
 };
 
 export const VISIT_STATUS: Record<VisitStatus, { key: StatusKey; label: L }> = {

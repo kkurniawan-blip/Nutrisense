@@ -820,6 +820,8 @@ const en = {
   chartNeedsSignal: "The chart shows again when there is signal.",
   searchFilter: "Search & filter",
   nextChild: "Measure the next child",
+  flag_hypertension: "High blood pressure",
+  flag_fetal_hr: "Baby's heartbeat needs checking",
 };
 
 type Dict = typeof en;
@@ -1644,6 +1646,8 @@ const id: Dict = {
   chartNeedsSignal: "Grafik tampil lagi saat ada sinyal.",
   searchFilter: "Cari & filter",
   nextChild: "Ukur anak berikutnya",
+  flag_hypertension: "Tekanan darah tinggi",
+  flag_fetal_hr: "Detak jantung janin perlu dicek",
 };
 
 export type TKey = keyof Dict;

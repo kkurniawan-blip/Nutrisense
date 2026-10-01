@@ -33,7 +33,8 @@ _ADDED_COLUMNS = {
     "regions": {"puskesmas_name": "VARCHAR(160)", "puskesmas_phone": "VARCHAR(40)", "facility_km": "FLOAT", "posyandu_day": "INTEGER"},
     "children": {"birth_gestational_weeks": "FLOAT"},
     "growth_measurements": {"measured_by": "VARCHAR(10)", "oedema": "BOOLEAN"},
-    "pregnancies": {"birth_info": "JSON"},
+    "pregnancies": {"birth_info": "JSON", "facility_sync": "BOOLEAN DEFAULT FALSE", "link_code": "VARCHAR(12)",
+                    "linked_facility_id": "INTEGER", "last_sync_at": "TIMESTAMP"},
 }
 # Columns that became optional: phone-only accounts have no email.
 _RELAXED_NOT_NULL = {"users": ["email"]}

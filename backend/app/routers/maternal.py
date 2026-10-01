@@ -10,11 +10,12 @@ from .. import serializers as S
 from ..ai import growth, maternal as M
 from ..database import get_db
 from ..deps import OVERSIGHT, get_current_user, lang_of, require_roles
-from ..models import AncVisit, Child, Consent, MaternalMeasurement, Pregnancy, PregnancyDailyLog, PregnancyDangerReport, Region, User
+from ..models import AncExam, AncVisit, Child, Consent, HealthFacility, MaternalMeasurement, Pregnancy, PregnancyDailyLog, PregnancyDangerReport, Region, User
 from ..schemas import MeasurementIn, MotherRegisterIn
 from ..security import hash_password
 from ..services.assessment import run_assessment
 from ..services.common import audit, find_by_phone, has_consent, normalize_phone, notify, notify_roles
+from ..services.facility_sync import exam_view
 from ..services.local import facility
 from .family import ROLE_LABEL
 
@@ -119,7 +120,10 @@ def view(db: Session, p: Pregnancy, lang: str, today: date | None = None) -> dic
                     .order_by(MaternalMeasurement.measured_at, MaternalMeasurement.id)).all()
     last_muac = next((m.muac_cm for m in reversed(ms) if m.muac_cm is not None), None)
     last_hb = next((m.hb_g_dl for m in reversed(ms) if m.hb_g_dl is not None), None)
-    flags = M.mother_flags(last_muac, last_hb, p.mother_height_cm)
+    # The latest check-up from the Puskesmas/hospital adds blood pressure and the baby's heartbeat to the screening.
+    exam = db.scalar(select(AncExam).where(AncExam.pregnancy_id == p.id).order_by(AncExam.exam_date.desc(), AncExam.id.desc()))
+    flags = M.mother_flags(last_muac, last_hb, p.mother_height_cm, (exam.bp_systolic, exam.bp_diastolic) if exam else None,
+                           exam.fetal_heart_rate if exam else None)
     visits = {v.number: {"visit_date": v.visit_date.isoformat(), "place": v.place}
               for v in db.scalars(select(AncVisit).where(AncVisit.pregnancy_id == p.id)).all()}
     schedule = M.anc_schedule(p.hpht, visits, today)
@@ -178,6 +182,10 @@ def view(db: Session, p: Pregnancy, lang: str, today: date | None = None) -> dic
         "ttd_total": ttd_total, "pmt_needed": kek, "today": items, "care_team": team,
         "delivered_at": p.delivered_at.isoformat() if p.delivered_at else None, "child_id": p.child_id, "birth_info": p.birth_info or {},
         "nifas": M.nifas_schedule(p.delivered_at, p.nifas_done or [], today) if p.delivered_at else None,
+        "latest_exam": exam_view(exam) if exam else None,
+        "facility_link": {"enabled": bool(p.facility_sync),
+                          "facility": (db.get(HealthFacility, p.linked_facility_id).name if p.linked_facility_id else None),
+                          "last_sync_at": p.last_sync_at.isoformat() if p.last_sync_at else None},
     }
     return out
 

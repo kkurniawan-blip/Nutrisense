@@ -21,10 +21,10 @@ from sqlalchemy.orm import Session
 from .ai import nutrition, symptoms
 from .ai.growth import _lms, _value_at, age_in_months, compute_z_scores
 from .ai import kia
-from .models import (AncVisit, BreastfeedingLog, Child, Consent, GrowthMeasurement, InventoryItem, KiaRecord, Locker,
+from .models import (AncExam, AncVisit, BreastfeedingLog, HealthFacility, Child, Consent, GrowthMeasurement, InventoryItem, KiaRecord, Locker,
                      MaternalMeasurement, MealLog, Pregnancy, PregnancyDailyLog, Region, SupplyRequest, SymptomReport, User)
 from .security import hash_password
-from .services import logistics, model_registry
+from .services import facility_sync, logistics, model_registry
 from .services.assessment import run_assessment
 
 log = logging.getLogger(__name__)
@@ -304,7 +304,30 @@ def seed_if_empty(db: Session) -> bool:
             db.add(PregnancyDailyLog(pregnancy_id=p.id, day=today - timedelta(days=i), ttd=i <= ttd_days, pmt=i <= pmt_days))
         return p
 
-    pregnancy(maria, baumata, 24, 149.0, "sma", 3, [9, 18], [(9, 23.2, 11.2), (18, 22.8, 10.4)], 5, 3, {"place": "puskesmas"})
+    maria_p = pregnancy(maria, baumata, 24, 149.0, "sma", 3, [9, 18], [(9, 23.2, 11.2), (18, 22.8, 10.4)], 5, 3, {"place": "puskesmas"})
+
+    # Health facilities whose systems send check-ups (FHIR). Demo keys only: see docs/FACILITY_INTEGRATION.md.
+    facilities = {}
+    for slug, name, kind, region in (("puskesmas-baumata", "Puskesmas Baumata", "puskesmas", baumata),
+                                     ("puskesmas-oesapa", "Puskesmas Oesapa", "puskesmas", oesapa),
+                                     ("rsud-johannes", "RSUD Prof. Dr. W. Z. Johannes Kupang", "rs", oesapa),
+                                     ("puskesmas-soe", "Puskesmas Soe", "puskesmas", soe)):
+        facilities[slug] = HealthFacility(name=name, kind=kind, region_id=region.id, api_key_hash=facility_sync.hash_key(f"demo-{slug}-key"))
+        db.add(facilities[slug])
+    db.flush()
+    # Maria is connected to Puskesmas Baumata: her K1 and K2 came from its system.
+    pkm = facilities["puskesmas-baumata"]
+    maria_p.facility_sync, maria_p.link_code, maria_p.linked_facility_id = True, "NS-7KQ2MP", pkm.id
+    for n, w, bp, weight, muac, hb, tfu, fhr, td, iron in ((1, 9, (110, 70), 52.0, 23.2, 11.2, None, None, "TT1", 30),
+                                                           (2, 18, (118, 76), 54.5, 22.8, 10.4, 17.0, 142, "TT2", 30)):
+        on = maria_p.hpht + timedelta(weeks=w)
+        db.add(AncExam(pregnancy_id=maria_p.id, facility_id=pkm.id, external_id=f"SIMPUS-BMT-{2025 + n}{w:03d}", visit_number=n, exam_date=on,
+                       gestational_weeks=w, examiner="Bidan Yohana Seran", weight_kg=weight, bp_systolic=bp[0], bp_diastolic=bp[1],
+                       muac_cm=muac, hb_g_dl=hb, fundal_height_cm=tfu, fetal_heart_rate=fhr, urine_protein="negatif" if n == 2 else None,
+                       td_immunization=td, iron_tablets=iron, received_at=datetime.combine(on, datetime.min.time(), tzinfo=timezone.utc)))
+    for v in db.scalars(select(AncVisit).where(AncVisit.pregnancy_id == maria_p.id)).all():
+        v.place = pkm.name[:40]
+    maria_p.last_sync_at = datetime.combine(maria_p.hpht + timedelta(weeks=18), datetime.min.time(), tzinfo=timezone.utc)
     pregnancy(yuliana, soe, 33, 152.0, "smp", 2, [11, 16, 23, 29], [(16, 24.5, 11.8), (29, 25.0, 11.5)], 7, 0,
               {"place": "puskesmas", "transport": "ojek", "companion": "Suami"})
     oesapa_mother = _user(db, "ibu.agustina@nutrisense.id", "Ibu Agustina Lay", "caregiver", oesapa, "081300000004")
