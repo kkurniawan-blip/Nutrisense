@@ -5,6 +5,7 @@ import { api, errorText, NetworkError } from './api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { getJSON, setJSON } from './storage';
+import type { Lang, User } from './types';
 
 const CACHE_PREFIX = 'nutrisense.cache:';
 
@@ -53,4 +54,43 @@ export async function clearApiCache(): Promise<number> {
   const keys = (await AsyncStorage.getAllKeys()).filter((k) => k.startsWith(CACHE_PREFIX));
   if (keys.length) await AsyncStorage.multiRemove(keys);
   return keys.length;
+}
+
+let lastPrefetch = { key: '', at: 0 };
+
+/**
+ * Saves on the phone what each role needs most, so those screens work with no signal even if they were
+ * never opened: the food list, every child (and, for mothers, their history, KIA and meals), pregnancies,
+ * and the Kader's active cases. Runs in the background at most every 10 minutes; failures are ignored.
+ */
+export async function prefetchForOffline(user: User, lang: Lang): Promise<void> {
+  const key = `${user.id}:${lang}`;
+  if (lastPrefetch.key === key && Date.now() - lastPrefetch.at < 10 * 60 * 1000) return;
+  lastPrefetch = { key, at: Date.now() };
+  const save = async <T,>(path: string): Promise<T | null> => {
+    try {
+      const data = await api<T>(path);
+      await setJSON(CACHE_PREFIX + path, data);
+      return data;
+    } catch {
+      return null;
+    }
+  };
+  const mother = user.role === 'caregiver';
+  const [children, pregnancies] = await Promise.all([
+    save<{ id: number }[]>('/api/children'),
+    save<{ id: number }[]>('/api/pregnancies'),
+    save(`/api/foods?lang=${lang}`),
+    save('/api/local'),
+    mother ? null : save('/api/cases?status_filter=open,in_progress,referred'),
+  ]);
+  const paths: string[] = [];
+  // Officers and doctors see the whole province online; only mothers and Kader need every child offline.
+  for (const c of mother || user.role === 'kader' ? children ?? [] : []) {
+    paths.push(`/api/children/${c.id}`, `/api/children/${c.id}/measurements`);
+    if (mother) paths.push(`/api/children/${c.id}/growth-chart?indicator=hfa`, `/api/children/${c.id}/kia`, `/api/children/${c.id}/meals?limit=100`);
+  }
+  for (const p of pregnancies ?? []) paths.push(`/api/pregnancies/${p.id}`);
+  // A few at a time, so a weak connection is not flooded.
+  for (let i = 0; i < paths.length; i += 4) await Promise.all(paths.slice(i, i + 4).map((p) => save(p)));
 }

@@ -258,7 +258,7 @@ def run_assessment(db: Session, child: Child, actor: User, lang: str = "id", mea
                  "low": ("Perlu tinjauan", "Review needed")}[case.priority]
         notify_roles(db, ["kader", "officer", "doctor"] if case.priority in ("high", "emergency") else ["kader", "officer"],
                      child.region_id, "case_escalated", {"id": f"{title[0]}: {child.name}", "en": f"{title[1]}: {child.name}"},
-                     {code: "; ".join(r["text"] for r in reasons(ctx, code)[:3]) for code in ("id", "en")}, case_id=case.id, child_id=child.id)
+                     {code: "; ".join(r["text"] for r in reasons(ctx, code)[:3]) for code in ("id", "en")}, case_id=case.id, child_id=child.id, priority=case.priority)
 
     if tri["supplies"] and tri["urgency"] != "emergency":
         open_req = db.scalar(select(SupplyRequest).where(
@@ -272,7 +272,7 @@ def run_assessment(db: Session, child: Child, actor: User, lang: str = "id", mea
     first_step = {code: triage(pred.risk_level, ctx["danger_signs"], ctx["recent_symptoms"], z, ctx["trend"], ctx["age_now"],
                                ctx["intake"], code)["actions"][0]["text"] for code in ("id", "en")}
     notify(db, child.caregiver_id, "assessment", {"id": f"Hasil pemeriksaan {child.name}", "en": f"{child.name}'s assessment"},
-           first_step, assessment_id=assessment.id, child_id=child.id, risk_level=pred.risk_level)
+           first_step, assessment_id=assessment.id, child_id=child.id, risk_level=pred.risk_level, urgency=tri["urgency"])
     audit(db, actor, "risk_assessment", "child", child.id, assessment_id=assessment.id, risk=pred.risk_level,
           confidence=pred.confidence, guardrail=pred.guardrail, model_run_id=model.model_run_id)
     db.commit()

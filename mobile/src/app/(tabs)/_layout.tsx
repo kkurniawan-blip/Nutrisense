@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Redirect, router, Tabs } from 'expo-router';
-import React from 'react';
+import React, { useContext } from 'react';
 import { Pressable, View } from 'react-native';
 
+import { TextScaleContext } from '../../components/Text';
 import { Loading } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
 import type { Role } from '../../lib/types';
@@ -23,6 +24,8 @@ type IconName = keyof typeof Ionicons.glyphMap;
 
 export default function TabsLayout() {
   const { ready, user, t } = useAuth();
+  // Tab labels follow the chosen text size too (capped so five labels still fit).
+  const scale = Math.min(useContext(TextScaleContext), 1.25);
   if (!ready) return <Loading />;
   if (!user) return <Redirect href="/login" />;
 
@@ -53,8 +56,8 @@ export default function TabsLayout() {
         headerTitleStyle: { fontFamily: fonts.bold, fontSize: 19, color: colors.text },
         headerTitleAlign: 'left',
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: '#8C88A3',
-        tabBarLabelStyle: { fontFamily: fonts.semibold, fontSize: 11.5 },
+        tabBarInactiveTintColor: colors.muted,
+        tabBarLabelStyle: { fontFamily: fonts.semibold, fontSize: Math.round(12.5 * scale) },
         tabBarStyle: { height: 74, paddingTop: 6, paddingBottom: 10, borderTopWidth: 0, backgroundColor: 'rgba(255,255,255,0.94)', borderTopLeftRadius: 22, borderTopRightRadius: 22, ...shadow },
         sceneStyle: { backgroundColor: colors.bg },
         headerRight: () => (

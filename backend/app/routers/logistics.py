@@ -58,7 +58,7 @@ def pickup(locker_code: str, body: PickupIn, user: User = Depends(get_current_us
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Provide a pickup code or QR payload")
     logistics.tick(db)
     try:
-        req = logistics.verify_pickup(db, locker_code, body.pickup_code, body.qr_payload, user)
+        req = logistics.verify_pickup(db, locker_code, body.pickup_code, body.qr_payload, user, lang_of(user))
     except LookupError as e:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(e))
     except PermissionError as e:

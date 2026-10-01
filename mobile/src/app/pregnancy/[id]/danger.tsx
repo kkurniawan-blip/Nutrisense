@@ -40,7 +40,7 @@ export default function MotherDanger() {
   if (sent) {
     const tips = MOTHER_COMMON.filter((c) => sent.signs.includes(c.key));
     return (
-      <Screen>
+      <Screen key="result0">
         {sent.danger && <Escalation phone={sent.kader?.phone ?? kader?.phone} facility={sent.facility ?? q.data?.facility} />}
         <Card tint={sent.danger ? statusColor.info.bg : undefined}>
           <Text style={{ fontWeight: '800', color: sent.danger ? statusColor.info.fg : colors.ok }}>✓ {t('dangerSent')}</Text>
@@ -64,13 +64,6 @@ export default function MotherDanger() {
       <Bubble mood="caring" audio={`${t('howMom')} ${t('dangerAudio')}`}>{t('howMom')}</Bubble>
       {danger && <Escalation phone={kader?.phone} facility={q.data?.facility} />}
 
-      <H2 emoji="🤒">{t('commonSymptoms')}</H2>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
-        {MOTHER_COMMON.map((c) => (
-          <SymptomTile key={c.key} emoji={c.emoji} label={c.label[lang]} on={selected.includes(c.key)} onPress={() => toggle(c.key)} />
-        ))}
-      </View>
-
       <Card tint={statusColor.urgent.bg}>
         <H2 emoji="🚨">{t('urgentSigns')}</H2>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -79,6 +72,13 @@ export default function MotherDanger() {
           ))}
         </View>
       </Card>
+
+      <H2 emoji="🤒">{t('commonSymptoms')}</H2>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+        {MOTHER_COMMON.map((c) => (
+          <SymptomTile key={c.key} emoji={c.emoji} label={c.label[lang]} on={selected.includes(c.key)} onPress={() => toggle(c.key)} />
+        ))}
+      </View>
 
       {error && <ErrorBox message={error} />}
       <Button title={t('reportLbl')} icon="send" onPress={report} loading={busy} disabled={!selected.length} />

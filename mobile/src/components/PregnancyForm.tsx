@@ -35,9 +35,9 @@ export function HphtCard({ mode, setMode, hpht, setHpht, weeks, setWeeks }: { mo
       />
       <Card>
         {mode === 'date' ? (
-          <Field label={`🗓️ ${t('hphtDate')} (TTTT-BB-HH)`} value={hpht} onChangeText={setHpht} placeholder="2026-04-10" keyboardType="numbers-and-punctuation" />
+          <Field label={`🗓️ ${t('hphtDate')} (TTTT-BB-HH)`} value={hpht} onChangeText={setHpht} placeholder={`${t('eg')} 2026-04-10`} keyboardType="numbers-and-punctuation" />
         ) : (
-          <Field label={`🤰 ${t('weeksField')}`} value={weeks} onChangeText={setWeeks} placeholder="20" keyboardType="decimal-pad" />
+          <Field label={`🤰 ${t('weeksField')}`} value={weeks} onChangeText={setWeeks} placeholder={`${t('eg')} 20`} keyboardType="decimal-pad" />
         )}
         {valid && ga && (
           <Row style={{ gap: 12, marginTop: 4 }}>
@@ -60,7 +60,7 @@ export function AboutMomCard({ height, setHeight, education, setEducation, gravi
   const { t, lang } = useAuth();
   return (
     <Card>
-      <Field label={`📏 ${t('heightMomField')}`} value={height} onChangeText={setHeight} placeholder="152" keyboardType="decimal-pad" />
+      <Field label={`📏 ${t('heightMomField')}`} value={height} onChangeText={setHeight} placeholder={`${t('eg')} 152`} keyboardType="decimal-pad" />
       <Text style={{ fontSize: 14, fontWeight: '600', marginBottom: 8 }}>🎓 {t('educationLbl')}</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
         {EDUCATION.map((e) => (

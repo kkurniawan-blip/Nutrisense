@@ -354,6 +354,7 @@ export interface CaseItem {
   assessment: Assessment | null;
   created_at: string;
   notes: { id: number; author: string; author_role: string; text: string; visible_to_caregiver?: boolean; created_at: string }[];
+  family?: { name: string; phone: string | null } | null;
 }
 
 export interface Notification {

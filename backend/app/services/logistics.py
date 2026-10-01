@@ -216,28 +216,40 @@ def tick(db: Session, fast_forward_minutes: float = 0) -> dict:
     return {"couriers_delivered": delivered}
 
 
-def verify_pickup(db: Session, locker_code: str, pickup_code: str | None, qr_payload: str | None, actor: User | None) -> SupplyRequest:
+def verify_pickup(db: Session, locker_code: str, pickup_code: str | None, qr_payload: str | None, actor: User | None,
+                  lang: str = "id") -> SupplyRequest:
     locker = db.scalar(select(Locker).where(Locker.code == locker_code))
     if locker is None:
         raise LookupError("Unknown locker")
+    bad_qr = {"id": "QR tidak dikenali. Coba ketik 6 angka kodenya.", "en": "QR not recognised. Try typing the 6-digit code."}["id" if lang == "id" else "en"]
     if qr_payload:
         try:
             _, rid, code, sig = qr_payload.split(":")
         except ValueError:
-            raise PermissionError("Malformed QR code")
+            raise PermissionError(bad_qr)
         if sign_payload(f"{rid}:{code}") != sig:
-            raise PermissionError("QR signature invalid")
+            raise PermissionError(bad_qr)
         pickup_code = code
         req = db.get(SupplyRequest, int(rid))
     else:
         req = db.scalar(select(SupplyRequest).where(SupplyRequest.locker_id == locker.id, SupplyRequest.pickup_code == pickup_code,
                                                     SupplyRequest.status == "ready_for_pickup"))
+    L = "id" if lang == "id" else "en"
     if req is None or req.locker_id != locker.id or req.pickup_code != pickup_code:
-        raise PermissionError("Invalid pickup code for this locker")
+        # Tell the Kader where the package really is, rather than only "wrong code".
+        elsewhere = req if req is not None and req.pickup_code == pickup_code else db.scalar(
+            select(SupplyRequest).where(SupplyRequest.pickup_code == pickup_code, SupplyRequest.status == "ready_for_pickup"))
+        if elsewhere is not None and elsewhere.locker is not None and elsewhere.locker_id != locker.id:
+            name = elsewhere.locker.name
+            raise PermissionError({"id": f"Kode ini untuk {name}, bukan loker ini.", "en": f"This code is for {name}, not this locker."}[L])
+        raise PermissionError({"id": "Kode tidak cocok untuk loker ini. Periksa lagi 6 angkanya.",
+                               "en": "This code does not match this locker. Check the 6 digits again."}[L])
     if req.status != "ready_for_pickup":
-        raise PermissionError(f"Package is {req.status}")
+        done = req.status == "picked_up"
+        raise PermissionError({"id": "Paket ini sudah diambil." if done else "Paket ini belum siap diambil.",
+                               "en": "This package was already collected." if done else "This package is not ready yet."}[L])
     if _aware(req.expires_at) < _now():
-        raise PermissionError("Pickup code expired")
+        raise PermissionError({"id": "Kode sudah kedaluwarsa. Minta kode baru ke Kader.", "en": "This code has expired. Ask your Kader for a new one."}[L])
 
     inv = _inventory(locker)
     low = []

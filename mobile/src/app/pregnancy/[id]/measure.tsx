@@ -82,7 +82,7 @@ export default function MotherMeasure() {
   if (result) {
     const flags = result.flags;
     return (
-      <Screen>
+      <Screen key="result0">
         <Card tint={flags.length ? statusColor.action.bg : tones.green.bg}>
           <Text style={{ fontWeight: '900', color: flags.length ? statusColor.action.fg : colors.ok }}>✓ {t('motherSaved')}</Text>
           <Text style={{ fontSize: 22, fontWeight: '900', marginTop: 2 }}>
@@ -133,7 +133,7 @@ export default function MotherMeasure() {
                 <Text style={{ flex: 1, fontSize: 15, lineHeight: 22 }}>{s}</Text>
               </Row>
             ))}
-            <Field label={`📏 ${t('muacField')}`} value={muac} onChangeText={setMuac} keyboardType="decimal-pad" placeholder="24.0" />
+            <Field label={`📏 ${t('muacField')}`} value={muac} onChangeText={setMuac} keyboardType="decimal-pad" placeholder={`${t('eg')} 24.0`} />
           </Card>
           <Button title={t('next')} icon="arrow-forward" onPress={() => setStep(2)} />
         </>
@@ -143,8 +143,8 @@ export default function MotherMeasure() {
         <>
           <Card>
             <Text style={{ fontSize: 17, fontWeight: '900', marginBottom: 12 }}>{t('hbTitle')}</Text>
-            <Field label={`🩸 ${t('hbField')}`} value={hb} onChangeText={setHb} keyboardType="decimal-pad" placeholder="11.5" hint={t('hbHint')} />
-            <Field label={`⚖️ ${t('weightMomField')}`} value={weight} onChangeText={setWeight} keyboardType="decimal-pad" placeholder="55" />
+            <Field label={`🩸 ${t('hbField')}`} value={hb} onChangeText={setHb} keyboardType="decimal-pad" placeholder={`${t('eg')} 11.5`} hint={t('hbHint')} />
+            <Field label={`⚖️ ${t('weightMomField')}`} value={weight} onChangeText={setWeight} keyboardType="decimal-pad" placeholder={`${t('eg')} 55`} />
             <Field label={`🗓️ ${t('measuredAt')}`} value={date} onChangeText={setDate} keyboardType="numbers-and-punctuation" />
           </Card>
           <Row>

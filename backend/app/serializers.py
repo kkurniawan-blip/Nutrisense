@@ -79,6 +79,8 @@ def case(c: Case, a: RiskAssessment | None = None) -> dict:
     return {"id": c.id, "child_id": c.child_id, "child_name": c.child.name, "region": region(c.child.region),
             "status": c.status, "priority": c.priority, "urgency": c.urgency, "assigned_to_id": c.assigned_to_id,
             "doctor_id": c.doctor_id, "assessment": assessment(a), "created_at": c.created_at.isoformat(),
+            # The family's contact, so the Kader or doctor can call straight from the case.
+            "family": {"name": c.child.caregiver.full_name, "phone": c.child.caregiver.phone} if c.child.caregiver else None,
             "updated_at": c.updated_at.isoformat(), "resolved_at": c.resolved_at.isoformat() if c.resolved_at else None,
             "notes": [{"id": n.id, "author": n.author.full_name, "author_role": n.author.role, "text": n.text,
                        "visible_to_caregiver": bool(n.visible_to_caregiver), "created_at": n.created_at.isoformat()} for n in c.notes]}

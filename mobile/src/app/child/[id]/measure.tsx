@@ -9,7 +9,7 @@ import { Mascot } from '../../../components/Mascot';
 import { Escalation } from '../../../components/SymptomTiles';
 import { Text } from '../../../components/Text';
 import { AudioButton } from '../../../components/AudioButton';
-import { Bubble, Button, Card, ErrorBox, Field, IconChip, PressScale, Row, Screen, Segmented, StatusPill, StepDots } from '../../../components/ui';
+import { Bubble, Button, Card, Chip, ErrorBox, Field, IconChip, PressScale, Row, Screen, Segmented, StatusPill, StepDots } from '../../../components/ui';
 import { api, errorText, NetworkError } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 import { formatAge, formatDate } from '../../../lib/fun';
@@ -17,10 +17,16 @@ import { enqueue, uuid } from '../../../lib/offline';
 import { useSync } from '../../../lib/sync';
 import type { Assessment, Child, Measurement } from '../../../lib/types';
 import { useApi } from '../../../lib/useApi';
+import { measurementProblems } from '../../../lib/validate';
 import { colors, radius, statusColor, Tone, tones } from '../../../theme';
 
 type Pos = 'lying' | 'standing';
-const today = () => new Date().toISOString().slice(0, 10);
+/** Local date (YYYY-MM-DD), `days` from today: NTT is UTC+8, so the UTC date is wrong in the early morning. */
+const today = (days = 0) => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 /** Simple line illustration of the correct measuring position. */
 function Illustration({ pos }: { pos: Pos }) {
@@ -97,14 +103,23 @@ export default function Measure() {
   const [result, setResult] = useState<{ measurement: Measurement; assessment: Assessment | null } | null>(null);
 
   const c = child.data;
-  const name = c?.name.split(' ')[0] ?? '';
-  const recommended: Pos = (c?.age_months ?? 0) < 24 ? 'lying' : 'standing';
-  const pos = position ?? recommended;
+  const name = c?.name.split(' ')[0] ?? t('theChild');
+  // Without the child's age (not opened before, no signal) the app cannot recommend a position: the user picks.
+  const recommended: Pos | null = c ? (c.age_months < 24 ? 'lying' : 'standing') : null;
+  const pos: Pos = position ?? recommended ?? 'standing';
+  const posChosen = position !== null || recommended !== null;
+  const [otherDate, setOtherDate] = useState(false);
   const num = (s: string) => Number(s.replace(',', '.'));
   const last = c?.latest_measurement;
   const warnings: string[] = [];
   if (last && height && num(height) < last.height_cm - 1.5) warnings.push(`${t('warnShorter')} (${last.height_cm} cm)`);
   if (last && weight && Math.abs(num(weight) - last.weight_kg) > 3) warnings.push(`${t('warnWeightJump')} (${last.weight_kg} kg)`);
+  const bad = measurementProblems(num(weight), num(height));
+  const blocked = bad.weight || bad.height;
+  const swap = () => {
+    setWeight(height);
+    setHeight(weight);
+  };
 
   const save = async () => {
     const body = {
@@ -134,7 +149,7 @@ export default function Measure() {
 
   if (queuedInfo)
     return (
-      <Screen>
+      <Screen key="result0">
         <View style={{ alignItems: 'center', marginVertical: 8 }}>
           <Mascot size={96} mood="happy" />
         </View>
@@ -143,14 +158,14 @@ export default function Measure() {
           <Text style={{ fontWeight: '900', color: statusColor.info.fg }}>📶 {t('savedOnPhone')}</Text>
           <Text style={{ color: statusColor.info.fg }}>{t('offlineQueued')}</Text>
         </Card>
-        <Button title={t('open')} icon="arrow-forward" onPress={() => router.replace(`/child/${id}`)} />
+        <Button title={`${t('seeProfileOf')} ${name}`} icon="arrow-forward" onPress={() => router.replace(`/child/${id}`)} />
       </Screen>
     );
 
   if (result) {
     const m = result.measurement;
     return (
-      <Screen>
+      <Screen key="result1">
         <Card tint={tones.green.bg}>
           <Text style={{ fontWeight: '900', color: colors.ok }}>✓ {t('measurementSaved')}</Text>
           <Text style={{ fontSize: 22, fontWeight: '900' }}>
@@ -159,7 +174,7 @@ export default function Measure() {
           <Text style={{ color: colors.muted }}>{formatDate(m.measured_at, lang)}</Text>
         </Card>
         {result.assessment && <AssessmentView a={result.assessment} facility={c?.facility} kaderPhone={c?.care_team?.find((x) => x.role === 'kader')?.phone} />}
-        <Button title={t('open')} onPress={() => router.replace(`/child/${id}`)} icon="arrow-forward" />
+        <Button title={`${t('seeProfileOf')} ${name}`} onPress={() => router.replace(`/child/${id}`)} icon="arrow-forward" />
       </Screen>
     );
   }
@@ -174,9 +189,11 @@ export default function Measure() {
             <Text style={{ fontWeight: '900', fontSize: 17 }}>
               {t('howMeasured')} {name}?
             </Text>
-            <Text style={{ color: colors.muted }}>
-              {name} · {formatAge(c?.age_months ?? 0, lang)}
-            </Text>
+            {c && (
+              <Text style={{ color: colors.muted }}>
+                {name} · {formatAge(c.age_months, lang)}
+              </Text>
+            )}
           </Bubble>
           <Row style={{ gap: 12, alignItems: 'stretch', marginBottom: 8 }}>
             {(['lying', 'standing'] as Pos[]).map((p) => {
@@ -201,11 +218,14 @@ export default function Measure() {
                   <Text style={{ fontSize: 17, fontWeight: '900', textAlign: 'center' }}>{t(p)}</Text>
                   <Text style={{ color: colors.muted, fontSize: 13, textAlign: 'center', lineHeight: 18 }}>{p === 'lying' ? t('lyingHint') : t('standingHint')}</Text>
                   {p === recommended && <StatusPill status="ok" label={t('recommended')} />}
+                  {!recommended && <Text style={{ color: colors.muted, fontSize: 13, textAlign: 'center' }}>{p === 'lying' ? t('under2') : t('over2')}</Text>}
                 </PressScale>
               );
             })}
           </Row>
-          <Button title={t('next')} icon="arrow-forward" onPress={() => setStep(2)} />
+          <Button title={t('next')} icon="arrow-forward" disabled={!posChosen} onPress={() => setStep(2)} />
+          {/* Kader measure many children: the instructions can be skipped once known. */}
+          <Button title={t('skipInstructions')} variant="ghost" disabled={!posChosen} onPress={() => setStep(3)} />
         </>
       )}
 
@@ -240,9 +260,15 @@ export default function Measure() {
       {step === 3 && (
         <>
           <Card>
-            <Field label={`⚖️ ${t('weight')}`} value={weight} onChangeText={setWeight} keyboardType="decimal-pad" placeholder="10.4" />
-            <Field label={`📏 ${pos === 'lying' ? t('lengthLbl') : t('heightLbl')}`} value={height} onChangeText={setHeight} keyboardType="decimal-pad" placeholder="82.5" />
-            <Field label={`🗓️ ${t('measuredAt')}`} value={date} onChangeText={setDate} keyboardType="numbers-and-punctuation" />
+            <Field label={`⚖️ ${t('weight')}`} value={weight} onChangeText={setWeight} keyboardType="decimal-pad" placeholder={`${t('eg')} 10.4`} />
+            <Field label={`📏 ${pos === 'lying' ? t('lengthLbl') : t('heightLbl')}`} value={height} onChangeText={setHeight} keyboardType="decimal-pad" placeholder={`${t('eg')} 82.5`} />
+            <Text style={{ fontSize: 14, fontWeight: '600', marginBottom: 8, marginLeft: 2 }}>🗓️ {t('dateLbl')}</Text>
+            <Row style={{ flexWrap: 'wrap', marginBottom: 10 }}>
+              <Chip label={t('todayLbl')} selected={!otherDate && date === today()} onPress={() => { setOtherDate(false); setDate(today()); }} />
+              <Chip label={t('yesterdayLbl')} selected={!otherDate && date === today(-1)} onPress={() => { setOtherDate(false); setDate(today(-1)); }} />
+              <Chip label={t('otherDateLbl')} selected={otherDate} onPress={() => setOtherDate(true)} />
+            </Row>
+            {otherDate && <Field label={t('measuredAt')} value={date} onChangeText={setDate} keyboardType="numbers-and-punctuation" />}
             <Field label={`💪 ${t('muac')}`} value={muac} onChangeText={setMuac} keyboardType="decimal-pad" />
           </Card>
           <Card>
@@ -291,23 +317,31 @@ export default function Measure() {
           <Card>
             <ReviewRow icon="resize" tone="blue" value={`${height} cm`} label={`${pos === 'lying' ? t('lengthLbl') : t('heightLbl')} · ${t(pos)}`} />
             <ReviewRow icon="scale" tone="orange" value={`${weight} kg`} label={t('weight')} />
-            <ReviewRow icon="calendar" tone="lavender" value={formatDate(date, lang)} label={t('measuredAt')} />
+            <ReviewRow icon="calendar" tone="lavender" value={formatDate(date, lang)} label={t('dateLbl')} />
             {muac ? <ReviewRow icon="body" tone="green" value={`${muac} cm`} label={t('muac')} /> : null}
             <ReviewRow icon="person" tone="pink" value={by === 'kader' ? 'Kader' : t('byMother')} label={t('measuredBy')} />
             <ReviewRow icon="footsteps" tone={oedema === 'yes' ? 'orange' : 'green'} value={oedema === 'yes' ? t('yesSwollen') : t('noLbl')} label={t('oedemaShort')} />
           </Card>
+          {blocked && (
+            <Card tint={statusColor.urgent.bg}>
+              {bad.weight && <Text style={{ color: statusColor.urgent.fg, fontWeight: '800' }}>🔴 {t('impossibleWeight').replace('{x}', weight)}</Text>}
+              {bad.height && <Text style={{ color: statusColor.urgent.fg, fontWeight: '800' }}>🔴 {t('impossibleHeight').replace('{x}', height)}</Text>}
+              {bad.swapped && <Button small variant="secondary" icon="swap-vertical" title={t('swapValues')} onPress={swap} />}
+            </Card>
+          )}
           {warnings.map((w) => (
             <Card key={w} tint={statusColor.monitor.bg}>
               <Text style={{ color: statusColor.monitor.fg, fontWeight: '800' }}>🟡 {w}</Text>
             </Card>
           ))}
           {error && <ErrorBox message={error} />}
+          {/* When something looks wrong, fixing it is the main action; impossible values cannot be saved. */}
           <Row>
-            <View style={{ flex: 1 }}>
-              <Button title={t('edit')} variant="ghost" icon="create-outline" onPress={() => setStep(3)} />
+            <View style={{ flex: blocked || warnings.length ? 2 : 1 }}>
+              <Button title={t('edit')} variant={blocked || warnings.length ? 'primary' : 'ghost'} icon="create-outline" onPress={() => setStep(3)} />
             </View>
-            <View style={{ flex: 2 }}>
-              <Button title={t('save')} icon="checkmark-circle" loading={busy} onPress={save} />
+            <View style={{ flex: blocked || warnings.length ? 1 : 2 }}>
+              <Button title={t('save')} variant={blocked || warnings.length ? 'secondary' : 'primary'} icon="checkmark-circle" loading={busy} disabled={blocked} onPress={save} />
             </View>
           </Row>
           <Text style={{ fontSize: 13, textAlign: 'center', color: colors.muted, marginTop: 6 }}>{t('disclaimer')}</Text>

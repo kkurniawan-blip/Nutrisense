@@ -1,6 +1,6 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { Linking, View } from 'react-native';
 
 import { AssessmentView } from '../../components/AssessmentView';
 import { Badge, Button, Card, Chip, ErrorBox, Field, H2, Loading, P, Row, Screen, Segmented, StatusPill, Toggle } from '../../components/ui';
@@ -65,7 +65,7 @@ export default function CaseDetail() {
 
   return (
     <Screen refreshing={kase.loading} onRefresh={kase.reload}>
-      <Stack.Screen options={{ title: `#${c.id} ${c.child_name}` }} />
+      <Stack.Screen options={{ title: c.child_name }} />
       <Card>
         <Row style={{ justifyContent: 'space-between' }}>
           <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text, flex: 1 }}>{c.child_name}</Text>
@@ -74,7 +74,23 @@ export default function CaseDetail() {
         <P muted>
           {c.region?.name} · {formatDate(c.created_at, lang)}
         </P>
-        <Button small variant="ghost" title={t('open')} icon="person-outline" onPress={() => router.push(`/child/${c.child_id}`)} />
+        {/* The two things done most from a case: call the family, open the child; then set the status. */}
+        <Row style={{ gap: 8 }}>
+          {c.family?.phone ? (
+            <View style={{ flex: 1 }}>
+              <Button small icon="call" title={t('callFamily')} onPress={() => Linking.openURL(`tel:${c.family!.phone}`)} />
+            </View>
+          ) : null}
+          <View style={{ flex: 1 }}>
+            <Button small variant="secondary" title={t('childProfile')} icon="person-outline" onPress={() => router.push(`/child/${c.child_id}`)} />
+          </View>
+        </Row>
+        <Text style={{ fontWeight: '700', marginTop: 10, marginBottom: 6 }}>{t('caseStatus')}</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          {STATUSES.map((s) => (
+            <Chip key={s} label={t(`cstatus_${s}`)} selected={c.status === s} onPress={() => update({ status: s })} />
+          ))}
+        </View>
       </Card>
 
       {a && <AssessmentView a={a} />}
@@ -99,12 +115,7 @@ export default function CaseDetail() {
       )}
 
       <Card>
-        <H2>{t('caseStatus')}</H2>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-          {STATUSES.map((s) => (
-            <Chip key={s} label={t(`cstatus_${s}`)} selected={c.status === s} onPress={() => update({ status: s })} />
-          ))}
-        </View>
+        <H2>{t('caseNotes')}</H2>
         {c.notes.map((n) => (
           <View key={n.id} style={{ borderTopWidth: 1, borderColor: colors.border, paddingVertical: 6 }}>
             <Text style={{ fontWeight: '600', color: colors.text }}>

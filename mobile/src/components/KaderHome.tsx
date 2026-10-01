@@ -15,7 +15,7 @@ import { SyncBanner } from './SyncBanner';
 import { Text, TextInput } from './Text';
 import { Mascot } from './Mascot';
 import { MotherRow, RISK_ORDER } from './MotherRow';
-import { Button, Card, Chip, ErrorBox, H2, Loading, MoreLink, Row, Section, Segmented, Source, StatusMark, StatusPill, Toggle, Wash } from './ui';
+import { Button, Card, Chip, ErrorBox, H2, Loading, MoreLink, QuickAction, Row, Section, Segmented, Source, StatusMark, StatusPill, Toggle, Wash } from './ui';
 
 type Filter = 'all' | 'priority' | 'new' | 'followup';
 const PAGE = 30;
@@ -36,9 +36,9 @@ function ChildRow({ r, n }: { r: AreaChildRow; n: number }) {
             {childEmoji(r.sex, r.age_months)} {r.name}
           </Text>
           {r.region ? <Text style={{ color: colors.muted, fontSize: 12.5 }}>📍 {r.region}</Text> : null}
-          <StatusPill status={urgent ? 'urgent' : g.key} label={urgent ? t('urgentReferral') : txt(g.label, lang)} />
+          <StatusPill status={urgent ? 'urgent' : g.key} label={urgent ? t('prio_emergency') : txt(g.label, lang)} />
         </View>
-        <Text style={{ color: colors.primary, fontWeight: '700' }}>{t('seeArrow')} →</Text>
+        <Ionicons name="chevron-forward" size={22} color={colors.primary} accessibilityLabel={t('seeArrow')} />
       </Row>
     </Card>
   );
@@ -54,6 +54,7 @@ export function KaderHome() {
   const [visitOnly, setVisitOnly] = useState(false);
   const [q, setQ] = useState('');
   const [showMore, setShowMore] = useState(false);
+  const [allRows, setAllRows] = useState(false);
   // Extra pages, remembered per filter combination so a new filter starts from page one.
   const [extra, setExtra] = useState<{ key: string; rows: AreaChildRow[] }>({ key: '', rows: [] });
   const [loadingMore, setLoadingMore] = useState(false);
@@ -158,43 +159,14 @@ export function KaderHome() {
           <Source label={{ id: 'Data NutriSense (demo)', en: 'NutriSense data (demo)' }} year={new Date().getFullYear()} />
         </Card>
 
-        {/* 🤰 Ibu hamil in my area */}
+        {/* The three jobs a Kader starts most often, one tap each */}
         <Card>
-          <H2 emoji="🤰" right={mothers.data ? <Text style={{ fontSize: 15, fontWeight: '800' }}>{active.length} {t('mothersCount')}</Text> : null}>
-            {t('pregnantMothers')}
-          </H2>
-          <Row style={{ gap: 8, marginBottom: 12 }}>
-            {([
-              ['urgent', active.filter((p) => p.risk.key === 'urgent').length, t('riskHighShort')],
-              ['action', active.filter((p) => p.risk.key === 'action').length, t('riskMidShort')],
-              ['unknown', active.filter((p) => p.risk.key === 'unknown').length, t('filterUnchecked')],
-            ] as const).map(([k, n, lbl]) => (
-              <View key={k} style={{ flex: 1, backgroundColor: statusColor[k].bg, borderRadius: 18, paddingVertical: 10, paddingHorizontal: 10 }}>
-                <Row style={{ gap: 6 }}>
-                  <StatusMark status={k} size={9} />
-                  <Text style={{ fontSize: 22, fontWeight: '900', color: statusColor[k].fg }}>{mothers.data ? n : '–'}</Text>
-                </Row>
-                <Text style={{ fontSize: 12.5, color: statusColor[k].fg, lineHeight: 16 }}>{lbl}</Text>
-              </View>
-            ))}
-          </Row>
-          {topMothers.map((p) => (
-            <MotherRow key={p.id} p={p} />
-          ))}
-          <Row style={{ justifyContent: 'space-between' }}>
-            <MoreLink label={t('seeAll')} onPress={() => router.push('/mothers')} />
-            <Button small variant="secondary" title={t('addMother')} icon="person-add" onPress={() => router.push('/mother/new')} />
+          <Row style={{ alignItems: 'flex-start', gap: 4 }}>
+            <QuickAction emoji="👶" tone="blue" label={t('addChild')} onPress={() => router.push('/child/new')} />
+            <QuickAction emoji="🤰" tone="pink" label={t('addMother')} onPress={() => router.push('/mother/new')} />
+            <QuickAction emoji="📦" tone="orange" label={t('scanPickup')} onPress={() => router.push('/scan')} />
           </Row>
         </Card>
-
-        <Row style={{ gap: 8, marginBottom: 12 }}>
-          <View style={{ flex: 1 }}>
-            <Button small variant="secondary" title={t('addChild')} icon="person-add" onPress={() => router.push('/child/new')} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Button small variant="secondary" title={t('scanPickup')} icon="qr-code" onPress={() => router.push('/scan')} />
-          </View>
-        </Row>
 
         {/* Priority list with filters */}
         <Section title={t('visitList')} />
@@ -281,13 +253,40 @@ export function KaderHome() {
             <Text style={{ color: statusColor.ok.fg, fontWeight: '800' }}>🎉 {t('noChildrenMatch')}</Text>
           </Card>
         )}
-        {rows.map((r, i) => (
+        {(allRows ? rows : rows.slice(0, 5)).map((r, i) => (
           <ChildRow key={r.child_id} r={r} n={i + 1} />
         ))}
+        {!allRows && d && d.matched > 5 && <MoreLink label={`${t('seeAll')} (${d.matched})`} onPress={() => setAllRows(true)} />}
         {moreError && <ErrorBox message={moreError} />}
-        {d && rows.length < d.matched && (
+        {allRows && d && rows.length < d.matched && (
           <Button variant="secondary" title={`${t('loadMore')} (${d.matched - rows.length})`} icon="chevron-down" loading={loadingMore} onPress={loadMore} />
         )}
+
+        {/* 🤰 Ibu hamil in my area */}
+        <Card>
+          <H2 emoji="🤰" right={mothers.data ? <Text style={{ fontSize: 15, fontWeight: '800' }}>{active.length} {t('mothersCount')}</Text> : null}>
+            {t('pregnantMothers')}
+          </H2>
+          <Row style={{ gap: 8, marginBottom: 12 }}>
+            {([
+              ['urgent', active.filter((p) => p.risk.key === 'urgent').length, t('riskHighShort')],
+              ['action', active.filter((p) => p.risk.key === 'action').length, t('riskMidShort')],
+              ['unknown', active.filter((p) => p.risk.key === 'unknown').length, t('filterUnchecked')],
+            ] as const).map(([k, n, lbl]) => (
+              <View key={k} style={{ flex: 1, backgroundColor: statusColor[k].bg, borderRadius: 18, paddingVertical: 10, paddingHorizontal: 10 }}>
+                <Row style={{ gap: 6 }}>
+                  <StatusMark status={k} size={9} />
+                  <Text style={{ fontSize: 22, fontWeight: '900', color: statusColor[k].fg }}>{mothers.data ? n : '–'}</Text>
+                </Row>
+                <Text style={{ fontSize: 12.5, color: statusColor[k].fg, lineHeight: 16 }}>{lbl}</Text>
+              </View>
+            ))}
+          </Row>
+          {topMothers.map((p) => (
+            <MotherRow key={p.id} p={p} />
+          ))}
+          <MoreLink label={t('seeAll')} onPress={() => router.push('/mothers')} />
+        </Card>
       </View>
     </ScrollView>
   );

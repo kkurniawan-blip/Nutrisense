@@ -155,13 +155,7 @@ export function TechnicalDetails({ a }: { a: Assessment }) {
       </Text>
       <Text style={{ color: colors.muted, fontSize: 13, marginBottom: 6 }}>
         P(low/med/high) = {Math.round(a.probabilities.low * 100)} / {Math.round(a.probabilities.medium * 100)} / {Math.round(a.probabilities.high * 100)}%
-        {a.guardrail ? ` · ${a.guardrail}` : ''}
       </Text>
-      {a.reasons.map((r) => (
-        <Text key={r.code + r.text} style={{ fontSize: 14, marginBottom: 2 }}>
-          • {r.text}
-        </Text>
-      ))}
       {a.explanation.map((e) => (
         <View key={e.feature} style={{ marginTop: 8 }}>
           <Row style={{ justifyContent: 'space-between' }}>
@@ -179,8 +173,13 @@ export function TechnicalDetails({ a }: { a: Assessment }) {
 
 /** Staff keep the clinical view (level, urgency, confidence, factors), still labelled as AI output. */
 function StaffResult({ a, compact, hideEmergency }: Props) {
-  const { t, lang } = useAuth();
+  const { t, lang, user } = useAuth();
+  const [tech, setTech] = useState(false);
   const emergency = a.triage.urgency === 'emergency';
+  // A clinical rule (e.g. swollen feet, very low z-score) decides the level, not the model's guess: say so,
+  // instead of showing a low model percentage next to "Darurat".
+  const byRule = !!a.guardrail || emergency;
+  const kader = user?.role === 'kader';
   return (
     <>
       {emergency && !hideEmergency && (
@@ -197,7 +196,8 @@ function StaffResult({ a, compact, hideEmergency }: Props) {
         </Row>
         <Text style={{ fontWeight: '800', marginTop: 6 }}>{t(`urgency_${a.triage.urgency}`)}</Text>
         <Text style={{ color: colors.muted, fontSize: 13 }}>
-          {t('confidence')} {Math.round(a.confidence * 100)}%{a.needs_review && !a.reviewed_at ? ` · ⏳ ${t('needsReview')}` : ''}
+          {byRule ? t('setByRule') : kader ? '' : `${t('confidence')} ${Math.round(a.confidence * 100)}%`}
+          {a.needs_review && !a.reviewed_at ? `${byRule || !kader ? ' · ' : ''}⏳ ${t('needsReview')}` : ''}
         </Text>
       </Card>
       <Card>
@@ -218,11 +218,17 @@ function StaffResult({ a, compact, hideEmergency }: Props) {
         )}
         <P muted style={{ fontSize: 13, marginTop: 6 }}>{a.triage.disclaimer}</P>
       </Card>
-      {!compact && (
-        <Card>
-          <H2 emoji="🤖">{t('aiFactors')}</H2>
-          <TechnicalDetails a={a} />
-        </Card>
+      {/* Model internals are for officers and doctors who ask for them; Kader act on the reasons above. */}
+      {!compact && !kader && (
+        <>
+          <MoreLink label={t('technicalDetails')} open={tech} onPress={() => setTech(!tech)} />
+          {tech && (
+            <Card>
+              <H2 emoji="🤖">{t('aiFactors')}</H2>
+              <TechnicalDetails a={a} />
+            </Card>
+          )}
+        </>
       )}
       <ProReviewCard a={a} />
     </>

@@ -69,7 +69,7 @@ export default function RecordBirth() {
   if (result) {
     const c = result.child;
     return (
-      <Screen>
+      <Screen key="result0">
         <View style={{ alignItems: 'center', marginVertical: 8 }}>
           <Mascot size={100} mood="cheer" bounce />
           <Text style={{ fontSize: 23, fontWeight: '900', textAlign: 'center', marginTop: 8 }}>{t('congrats')}</Text>
@@ -137,8 +137,8 @@ export default function RecordBirth() {
         <>
           <Card>
             <Text style={{ fontSize: 17, fontWeight: '900', marginBottom: 12 }}>{t('birthSizeTitle')}</Text>
-            <Field label={`⚖️ ${t('birthWeightKg')}`} value={weight} onChangeText={setWeight} keyboardType="decimal-pad" placeholder="3.0" />
-            <Field label={`📏 ${t('birthLengthCm')}`} value={length} onChangeText={setLength} keyboardType="decimal-pad" placeholder="49" />
+            <Field label={`⚖️ ${t('birthWeightKg')}`} value={weight} onChangeText={setWeight} keyboardType="decimal-pad" placeholder={`${t('eg')} 3.0`} />
+            <Field label={`📏 ${t('birthLengthCm')}`} value={length} onChangeText={setLength} keyboardType="decimal-pad" placeholder={`${t('eg')} 49`} />
             <Field
               label={`🤰 ${t('weeksAtBirth')}`}
               value={weeks}

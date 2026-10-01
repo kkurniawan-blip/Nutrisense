@@ -79,13 +79,13 @@ export function GrowthChart({ data, labels }: { data: ChartData; labels?: ChartL
         {yTicks.map((y) => (
           <G key={`y${y}`}>
             <Line x1={pad.l} x2={width - pad.r} y1={sy(y)} y2={sy(y)} stroke="#EEEBF8" />
-            <SvgText fontFamily={fonts.semibold} x={pad.l - 6} y={sy(y) + 4} fontSize={10} fill={colors.muted} textAnchor="end">
+            <SvgText fontFamily={fonts.semibold} x={pad.l - 6} y={sy(y) + 4} fontSize={11.5} fill={colors.muted} textAnchor="end">
               {y}
             </SvgText>
           </G>
         ))}
         {xTicks.map((x) => (
-          <SvgText fontFamily={fonts.semibold} key={`x${x}`} x={sx(x)} y={height - 8} fontSize={10} fill={colors.muted} textAnchor="middle">
+          <SvgText fontFamily={fonts.semibold} key={`x${x}`} x={sx(x)} y={height - 8} fontSize={11.5} fill={colors.muted} textAnchor="middle">
             {x}
           </SvgText>
         ))}
@@ -96,7 +96,7 @@ export function GrowthChart({ data, labels }: { data: ChartData; labels?: ChartL
           return (
             <G key={z}>
               <Path d={path(pts)} stroke={s.color} strokeWidth={1.5} strokeDasharray={s.dash} fill="none" />
-              <SvgText fontFamily={fonts.semibold} x={sx(end[0]) + 3} y={sy(end[1]) + 3} fontSize={9} fill={s.color}>
+              <SvgText fontFamily={fonts.semibold} x={sx(end[0]) + 3} y={sy(end[1]) + 3} fontSize={11} fill={s.color}>
                 {s.label}
               </SvgText>
             </G>

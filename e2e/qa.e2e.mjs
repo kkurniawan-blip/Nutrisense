@@ -104,7 +104,7 @@ const main = async () => {
     await M.go(`/pregnancy/${mariaP.id}/measure`); await M.field('📏 LiLA (cm)').fill('25'); await M.text('Lanjut').click();
     await M.field('🩸 Hb (g/dL)').fill('12'); await M.text('Lanjut').click(); await M.text('Simpan').click();
     await M.text('Hasil cek ibu tersimpan', false).waitFor({ timeout: 12000 });
-    expect(!(await M.has('KEK', true)) && !(await M.has('Anemia', true)), 'flags on normal values');
+    expect(!(await M.has('Lengan kecil (KEK)', true)) && !(await M.has('Kurang darah (anemia)', true)), 'flags on normal values');
     await M.go(`/pregnancy/${mariaP.id}/measure`); await M.text('Lanjut').click(); await M.field('🩸 Hb (g/dL)').fill('6.5'); await M.text('Lanjut').click(); await M.text('Simpan').click();
     await M.text('Hasil cek ibu tersimpan', false).waitFor({ timeout: 12000 });
     expect(await M.has('Anemia berat', true), 'no severe flag');
@@ -119,7 +119,7 @@ const main = async () => {
     p = (await call('GET', `/api/pregnancies/${mariaP.id}`, null, maria)).json; expect(p.anc_done === 2, `after undo ${p.anc_done}`);
   });
   await tc('B5', 'Mother', 'TTD tick is saved', async () => {
-    await M.go(`/pregnancy/${mariaP.id}/supplements`); await M.page.getByLabel('TTD hari ini').last().click(); await M.page.waitForTimeout(1500);
+    await M.go(`/pregnancy/${mariaP.id}/supplements`); await M.page.getByLabel('Tablet tambah darah hari ini').last().click(); await M.page.waitForTimeout(1500);
     const p = (await call('GET', `/api/pregnancies/${mariaP.id}`, null, maria)).json; expect(p.today_log.ttd === true, 'not saved');
   });
   await tc('B6', 'Mother', 'Danger sign: Puskesmas first, then its number, 119 and Kader', async () => {
@@ -133,7 +133,7 @@ const main = async () => {
     await M.text('Simpan').click(); await M.text('Rencana tersimpan', false).waitFor({ timeout: 10000 });
     const bp = (await call('GET', `/api/pregnancies/${mariaP.id}`, null, maria)).json.birth_plan; expect(bp.transport && bp.helper === 'bidan' && bp.blood_donor && bp.funding === 'jkn' && bp.companion, JSON.stringify(bp));
   });
-  await tc('C4', 'Child', 'Budi shows the 2T badge', async () => { await M.go(`/child/${mk.Budi.id}`); expect(await M.has('2T · berat tidak naik'), 'no badge'); });
+  await tc('C4', 'Child', 'Budi shows the 2T badge', async () => { await M.go(`/child/${mk.Budi.id}`); expect(await M.has('Berat tidak naik 2× (2T)'), 'no badge'); });
   await tc('C3', 'Child', 'Next posyandu shows on home', async () => { await M.go('/home'); await M.text('Adel').click(); await M.page.waitForTimeout(800); expect(await M.has('Posyandu berikutnya'), 'no card'); });
   await tc('C5', 'Child', 'Measure: Lanjut disabled until oedema answered; "Ya" warns and ends in an urgent referral', async () => {
     await M.go(`/child/${mk.Adel.id}/measure`); await M.text('Lanjut').click(); await M.text('Saya siap memasukkan angka').click();
@@ -188,7 +188,7 @@ const main = async () => {
   await tc('C2', 'Child', 'Jadwal KIA: Tandai sudah, then Batal', async () => {
     await S.go(`/child/${sk.Kristo.id}/kia`); await S.text('Tandai sudah').click(); await S.page.waitForTimeout(1500);
     let s = (await call('GET', `/api/children/${sk.Kristo.id}/kia`, null, sarah)).json; const done = s.immunization.filter((r) => r.status === 'done').length;
-    await S.text('Batal').click(); await S.page.waitForTimeout(1500);
+    S.page.once('dialog', (d) => d.accept()); await S.text('Batal').click(); await S.page.waitForTimeout(1500);
     s = (await call('GET', `/api/children/${sk.Kristo.id}/kia`, null, sarah)).json; expect(s.immunization.filter((r) => r.status === 'done').length === done - 1, 'undo');
   });
   await S.ctx.close();
@@ -216,6 +216,7 @@ const main = async () => {
   const O = await open('officer@nutrisense.id', 'Demo1234!', 'officer');
   await tc('E1', 'Officer', 'Dashboard: model says Data demo; every figure card has a source line', async () => {
     await O.go('/dashboard'); await O.page.waitForTimeout(2500);
+    await O.text('Detail teknis', false).click(); await O.page.waitForTimeout(800);
     expect(await O.has('Data demo', true), 'no Data demo'); const n = await O.page.getByText(/^Sumber:/).count(); expect(n >= 8, `only ${n} source lines`);
     return `${n} source lines`;
   });

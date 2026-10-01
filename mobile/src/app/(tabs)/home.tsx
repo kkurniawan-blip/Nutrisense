@@ -17,6 +17,8 @@ import type { Child, Facility, Posyandu, Pregnancy, TodayChecklist } from '../..
 import { useApi } from '../../lib/useApi';
 import { colors, glass, radius, statusColor, Tone } from '../../theme';
 
+const STATUS_RANK: Record<string, number> = { urgent: 0, action: 1, monitor: 2, info: 3, ai: 3, unknown: 4, ok: 5 };
+
 /** A big pastel feature card that folds open to show its shortcuts. */
 function FeatureGroup({ emoji, tone, title, children }: { emoji: string; tone: Tone; title: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -211,11 +213,23 @@ function MotherHome() {
               ) : null}
             </Card>
 
-            {/* What should I do today? */}
+            {/* Quick actions: ASI instead of meals before 6 months */}
+            <Row style={{ alignItems: 'flex-start', gap: 4, marginTop: 4, marginBottom: 8 }}>
+              {child.age_months < 6 ? (
+                <QuickAction emoji="🤱" tone="pink" label={t('asiTitle')} onPress={() => router.push(`/child/${child.id}/asi`)} />
+              ) : (
+                <QuickAction emoji="📸" tone="orange" label={t('actLogMeal')} onPress={() => router.push(`/child/${child.id}/meal?action=manual`)} />
+              )}
+              <QuickAction emoji="📏" tone="blue" label={t('tileMeasure')} onPress={() => router.push(`/child/${child.id}/measure`)} />
+              <QuickAction emoji="🤒" tone="pink" label={t('actCheckSymptoms')} onPress={() => router.push(`/child/${child.id}/symptoms`)} />
+              <QuickAction emoji="💬" tone="lavender" label={t('tileConsult')} onPress={() => router.push('/assistant')} />
+            </Row>
+
+            {/* What should I do today? Urgent first. */}
             <Section title={t('forToday')} />
             <Card>
               {!today.data && today.loading && <Loading />}
-              {today.data?.items.map((item) => {
+              {[...(today.data?.items ?? [])].sort((x, y) => STATUS_RANK[x.status] - STATUS_RANK[y.status]).map((item) => {
                 const c = statusColor[item.status];
                 const done = item.status === 'ok';
                 return (
@@ -232,17 +246,6 @@ function MotherHome() {
 
             {local.data?.posyandu && <PosyanduCard p={local.data.posyandu} />}
 
-            {/* Quick actions: ASI instead of meals before 6 months */}
-            <Row style={{ alignItems: 'flex-start', gap: 4, marginTop: 4, marginBottom: 20 }}>
-              {child.age_months < 6 ? (
-                <QuickAction emoji="🤱" tone="pink" label={t('asiTitle')} onPress={() => router.push(`/child/${child.id}/asi`)} />
-              ) : (
-                <QuickAction emoji="📸" tone="orange" label={t('actLogMeal')} onPress={() => router.push(`/child/${child.id}/meal?action=manual`)} />
-              )}
-              <QuickAction emoji="📏" tone="blue" label={t('tileMeasure')} onPress={() => router.push(`/child/${child.id}/measure`)} />
-              <QuickAction emoji="🤒" tone="pink" label={t('actCheckSymptoms')} onPress={() => router.push(`/child/${child.id}/symptoms`)} />
-              <QuickAction emoji="💬" tone="lavender" label={t('tileConsult')} onPress={() => router.push('/assistant')} />
-            </Row>
 
             {/* Explore features */}
             <Section title={t('exploreFeatures')} />

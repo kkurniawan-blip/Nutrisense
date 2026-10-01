@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { LayoutChangeEvent, View } from 'react-native';
 import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 
-import { Card, ErrorBox, H1, H2, Loading, P, RiskBadge, Row, Screen, Segmented, Source, Stat, StatusPill } from '../../components/ui';
+import { Card, ErrorBox, H2, Loading, MoreLink, P, RiskBadge, Row, Screen, Segmented, Source, Stat, StatusPill } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
 import { FEATURE_LABELS, label } from '../../lib/i18n';
 import type { SourceRef } from '../../lib/types';
@@ -181,13 +181,13 @@ export default function Dashboard() {
     '/api/dashboard/priority?limit=8',
   );
 
+  const [tech, setTech] = useState(false);
   const reload = () => [summary, heat, proj, model, priority, mothers, flagged].forEach((x) => void x.reload());
   const m = mothers.data;
   const s = summary.data;
 
   return (
     <Screen refreshing={summary.loading} onRefresh={reload}>
-      <H1>{t('dashboard')}</H1>
       <P muted style={{ marginBottom: 8 }}>
         {user?.full_name}
       </P>
@@ -199,11 +199,11 @@ export default function Dashboard() {
           <Row style={{ flexWrap: 'wrap', marginBottom: 8 }}>
             <Stat label={t('kpiChildren')} value={s.children} />
             <Stat label={t('kpiStunting')} value={s.stunting_prevalence_pct !== null ? `${s.stunting_prevalence_pct}%` : '–'} tone="warn" />
-            <Stat label={t('kpiOpenCases')} value={s.open_cases} />
+            <Stat label={t('kpiOpenCases')} value={s.open_cases} onPress={() => router.push('/cases')} />
           </Row>
           <Row style={{ flexWrap: 'wrap', marginBottom: 12 }}>
-            <Stat label={t('kpiEmergency')} value={s.emergency_cases} tone={s.emergency_cases ? 'danger' : 'ok'} />
-            <Stat label={t('kpiReview')} value={s.needs_review} tone={s.needs_review ? 'warn' : 'ok'} />
+            <Stat label={t('kpiEmergency')} value={s.emergency_cases} tone={s.emergency_cases ? 'danger' : 'ok'} onPress={() => router.push('/cases')} />
+            <Stat label={t('kpiReview')} value={s.needs_review} tone={s.needs_review ? 'warn' : 'ok'} onPress={() => router.push('/cases')} />
             <Stat label={t('kpiDeclining')} value={s.declining_trend} tone="warn" />
           </Row>
           <Row style={{ flexWrap: 'wrap', marginBottom: 4 }}>
@@ -212,6 +212,22 @@ export default function Dashboard() {
           </Row>
           <Source label={s.source.label} year={s.source.year} />
           <Source label={s.reference.stunting_ntt.label} year={s.reference.stunting_ntt.year} style={{ marginTop: 0, marginBottom: 12 }} />
+          {/* Who needs help first, right under the numbers */}
+          <Card>
+            <H2>{t('priorityList')}</H2>
+            {[...(priority.data ?? [])].sort((x, y) => Number(y.urgency === 'emergency') - Number(x.urgency === 'emergency')).map((p) => (
+              <Card key={p.child_id} onPress={() => router.push(`/child/${p.child_id}`)} style={{ marginBottom: 8, padding: 12, ...(p.urgency === 'emergency' ? { borderColor: colors.danger, borderWidth: 2 } : {}) }}>
+                <Row style={{ justifyContent: 'space-between' }}>
+                  <Text style={{ fontWeight: '700', color: colors.text, flex: 1 }}>
+                    {p.name} · {p.region}
+                  </Text>
+                  <RiskBadge level={p.risk_level} />
+                </Row>
+                <Text style={{ color: p.urgency === 'emergency' ? colors.danger : colors.muted, fontSize: 13 }}>{t(`urgency_${p.urgency}`)}</Text>
+              </Card>
+            ))}
+            <Source label={s.source.label} year={s.source.year} />
+          </Card>
           <Card>
             <H2>{t('risk')}</H2>
             <View style={{ flexDirection: 'row', height: 18, borderRadius: 9, overflow: 'hidden' }}>
@@ -286,30 +302,17 @@ export default function Dashboard() {
       )}
 
       <Card>
-        <H2>{t('priorityList')}</H2>
-        {(priority.data ?? []).map((p) => (
-          <Card key={p.child_id} onPress={() => router.push(`/child/${p.child_id}`)} style={{ marginBottom: 8, padding: 12 }}>
-            <Row style={{ justifyContent: 'space-between' }}>
-              <Text style={{ fontWeight: '700', color: colors.text, flex: 1 }}>
-                {p.name} · {p.region}
-              </Text>
-              <RiskBadge level={p.risk_level} />
-            </Row>
-            <Text style={{ color: p.urgency === 'emergency' ? colors.danger : colors.muted, fontSize: 13 }}>{t(`urgency_${p.urgency}`)}</Text>
-          </Card>
-        ))}
-        {s && <Source label={s.source.label} year={s.source.year} />}
-      </Card>
-
-      <Card>
         <H2>{t('heatmap')}</H2>
+        <Text style={{ color: colors.muted, fontSize: 13, marginBottom: 6 }}>
+          👶 {t('childrenCount')} · 🔴 {t('risk_high')} · 🟠 {t('risk_medium')} · % {t('kpiStunting').toLowerCase()}
+        </Text>
         {heat.data ? <HeatMap rows={heat.data} /> : <Loading />}
         {heat.data?.map((r) => (
           <Row key={r.region.id} style={{ justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderColor: colors.border }}>
             <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: heatColor(r.risk_index) }} />
             <Text style={{ flex: 1, color: colors.text }}>{r.region.name}</Text>
             <Text style={{ color: colors.muted, fontSize: 12 }}>
-              {r.children} · H{r.risk.high}/M{r.risk.medium} · {r.measured_stunting_pct ?? '–'}% ({t('benchmark')} {r.benchmark_pct ?? '–'}%)
+              {r.children} · 🔴{r.risk.high} 🟠{r.risk.medium} · {r.measured_stunting_pct ?? '–'}% ({t('benchmark')} {r.benchmark_pct ?? '–'}%)
             </Text>
           </Row>
         ))}
@@ -334,9 +337,11 @@ export default function Dashboard() {
         {proj.data ? (
           <>
             <ProjectionChart d={proj.data} />
-            <P muted style={{ fontSize: 12 }}>
-              Poly degree {proj.data.selected_degree} · LOOCV RMSE {Object.entries(proj.data.cv_rmse).map(([k, v]) => `${k.replace('degree_', 'd')}=${v}`).join(', ')}
-            </P>
+            {tech && (
+              <P muted style={{ fontSize: 12 }}>
+                Poly degree {proj.data.selected_degree} · LOOCV RMSE {Object.entries(proj.data.cv_rmse).map(([k, v]) => `${k.replace('degree_', 'd')}=${v}`).join(', ')}
+              </P>
+            )}
             <Source label={proj.data.source} year={`${proj.data.years[0]}–${proj.data.years[1]}`} />
             <Source label={`Target ${proj.data.target.value}% (${proj.data.target.year}): ${proj.data.target_source}`} style={{ marginTop: 0 }} />
           </>
@@ -345,7 +350,9 @@ export default function Dashboard() {
         )}
       </Card>
 
-      {model.data && (
+      {/* Model internals: for those who ask */}
+      <MoreLink label={t('technicalDetails')} open={tech} onPress={() => setTech(!tech)} />
+      {tech && model.data && (
         <Card>
           <H2 right={model.data.demo ? <StatusPill status="monitor" label={t('demoData')} /> : null}>{t('modelCard')}</H2>
           <P muted style={{ fontSize: 12 }}>{model.data.algorithm}</P>

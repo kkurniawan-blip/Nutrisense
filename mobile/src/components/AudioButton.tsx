@@ -43,7 +43,7 @@ export function AudioButton({ text, compact }: { text: string; compact?: boolean
         alignItems: 'center',
         alignSelf: 'flex-start',
         gap: 6,
-        minHeight: 36,
+        minHeight: 44,
         paddingHorizontal: compact ? 9 : 12,
         borderRadius: radius.pill,
         backgroundColor: on ? colors.primary : colors.primarySoft,

@@ -57,5 +57,5 @@ export function zWords(z: number | null | undefined, lang: Lang, kind: 'height' 
   return { key: 'ok', text: L ? 'Sesuai usia' : 'On track for age' };
 }
 
-/** Case priority as a semantic status. */
-export const PRIORITY_STATUS: Record<CaseItem['priority'], StatusKey> = { emergency: 'urgent', high: 'action', medium: 'monitor', low: 'ok' };
+/** Case priority as a semantic status: the same colours as risk levels (high red, medium orange, low green). */
+export const PRIORITY_STATUS: Record<CaseItem['priority'], StatusKey> = { emergency: 'urgent', high: 'urgent', medium: 'action', low: 'ok' };

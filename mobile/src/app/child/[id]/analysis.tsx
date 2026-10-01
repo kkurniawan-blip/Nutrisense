@@ -21,6 +21,9 @@ export default function Analysis() {
         <Card>
           <SourceTag kind="ai" />
           <P muted>{formatDate(a.created_at, lang, true)}</P>
+          {a.reasons.map((r) => (
+            <P key={r.code + r.text}>• {r.text}</P>
+          ))}
           <TechnicalDetails a={a} />
         </Card>
       ) : (

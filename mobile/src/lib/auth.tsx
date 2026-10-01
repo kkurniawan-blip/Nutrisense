@@ -1,10 +1,10 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import { api, initApi, NetworkError, setToken, setUnauthorizedHandler } from './api';
+import { api, initApi, NetworkError, setToken, setUiLang, setUnauthorizedHandler } from './api';
 import { translate, TKey } from './i18n';
 import { clearQueue } from './offline';
 import { getJSON, setJSON } from './storage';
-import { clearApiCache } from './useApi';
+import { clearApiCache, prefetchForOffline } from './useApi';
 import type { Lang, User } from './types';
 
 const LANG_KEY = 'nutrisense.lang';
@@ -35,6 +35,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [lang, setLangState] = useState<Lang>('id');
+  useEffect(() => setUiLang(lang), [lang]);
+  useEffect(() => {
+    if (user) void prefetchForOffline(user, lang);
+  }, [user, lang]);
 
   // Session expired: sign out but keep queued data, the same person usually logs straight back in.
   const expire = useCallback(async () => {

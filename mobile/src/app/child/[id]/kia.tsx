@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Alert, Linking, Platform, Pressable, View } from 'react-native';
 
 import { Text } from '../../../components/Text';
 import { Bubble, Button, Card, ErrorBox, Loading, MoreLink, Row, Screen, Section, Source, StatusPill } from '../../../components/ui';
@@ -52,6 +52,22 @@ export default function KiaScreen() {
       setBusy(null);
     }
   };
+  // Undo removes a record, so ask first: one stray tap must not delete a vaccine.
+  const confirmUndo = (r: KiaItem) => {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm(`${t('undoConfirm')} ${title(r)}?`)) void undo(r);
+      return;
+    }
+    Alert.alert(t('undoLbl'), `${t('undoConfirm')} ${title(r)}?`, [
+      { text: t('cancel'), style: 'cancel' },
+      { text: t('undoLbl'), style: 'destructive', onPress: () => void undo(r) },
+    ]);
+  };
+  const kader = child.data.care_team?.find((m) => m.role === 'kader');
+  const posyandu = child.data.posyandu;
+  // Missed first (with what to do next), then due now, then later, then done.
+  const ORDER = { overdue: 0, due: 1, upcoming: 2, done: 3 } as const;
+  const byStatus = (items: KiaItem[]) => [...items].sort((a, b) => ORDER[a.status] - ORDER[b.status] || a.age - b.age);
   const undo = async (r: KiaItem) => {
     try {
       q.setData(await api<KiaSchedule>(`/api/children/${id}/kia/${r.key}`, { method: 'DELETE' }));
@@ -79,10 +95,18 @@ export default function KiaScreen() {
             </View>
             <StatusPill status={st.key} label={st.label[lang]} />
           </Row>
-          {!done && r.status !== 'upcoming' && <Button small title={t('markDone')} icon="checkmark" loading={busy === r.key} onPress={() => void mark(r)} />}
+          {r.status === 'overdue' && (
+            <View style={{ marginTop: 8, gap: 4 }}>
+              <Text style={{ fontSize: 14, color: statusColor.urgent.fg, fontWeight: '700' }}>
+                {posyandu ? `${t('bringToPosyandu')} ${formatDate(posyandu.date, lang)}` : t('catchUpVaccine')}
+              </Text>
+              {kader?.phone ? <Button small variant="secondary" icon="call" title={t('actDiscuss')} onPress={() => Linking.openURL(`tel:${kader.phone}`)} /> : null}
+            </View>
+          )}
+          {!done && r.status !== 'upcoming' && <Button small variant="ghost" title={t('markDone')} icon="checkmark" loading={busy === r.key} onPress={() => void mark(r)} />}
           {done && (
-            <Pressable onPress={() => void undo(r)} accessibilityRole="button" style={{ alignSelf: 'flex-end', minHeight: 36, justifyContent: 'center' }}>
-              <Text style={{ color: colors.muted, fontSize: 13 }}>{t('undoLbl')}</Text>
+            <Pressable onPress={() => confirmUndo(r)} accessibilityRole="button" style={{ alignSelf: 'flex-end', minHeight: 44, minWidth: 64, alignItems: 'flex-end', justifyContent: 'center' }}>
+              <Text style={{ color: colors.muted, fontSize: 14 }}>{t('undoLbl')}</Text>
             </Pressable>
           )}
         </View>
@@ -113,7 +137,7 @@ export default function KiaScreen() {
       {error && <ErrorBox message={error} />}
 
       <Section title={`💉 ${t('immunization')}`} right={<Text style={{ color: colors.muted, fontSize: 13 }}>{doneCount(s.immunization)}</Text>} />
-      <Card>{rows(s.immunization)}</Card>
+      <Card>{rows(byStatus(s.immunization))}</Card>
 
       <Section title={`🅰️ ${t('vitA')}`} right={<Text style={{ color: colors.muted, fontSize: 13 }}>{doneCount(s.vitamin_a)}</Text>} />
       <Card tint={tones.yellow.bg}>

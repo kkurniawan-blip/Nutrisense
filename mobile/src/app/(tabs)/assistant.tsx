@@ -103,6 +103,8 @@ const QUESTIONS: Record<'id' | 'en', Record<Topic, string[]>> = {
   },
 };
 
+const HEALTHY_FIRST = { id: 'Apakah {n} tumbuh dengan baik?', en: 'Is {n} growing well?' };
+
 export default function Assistant() {
   const { t, lang } = useAuth();
   const { child: childParam } = useLocalSearchParams<{ child?: string }>();
@@ -140,7 +142,14 @@ export default function Assistant() {
     }
   };
 
-  const suggestions = QUESTIONS[lang][topic].map((q) => q.split('{n}').join(childName ?? (lang === 'id' ? 'anak saya' : 'my child')));
+  // Don't suggest "why isn't she gaining weight?" for a child who is growing well.
+  const kid = children.data?.find((c) => c.id === childId);
+  const worried = !!kid && (!!kid.weight_gain?.two_t || (kid.latest_assessment?.risk_level ?? 'low') !== 'low');
+  const qs = QUESTIONS[lang][topic].map((q, i) => (topic === 'growth' && i === 0 && kid && !worried ? HEALTHY_FIRST[lang] : q));
+  const suggestions = qs.map((q) => q.split('{n}').join(childName ?? (lang === 'id' ? 'anak saya' : 'my child')));
+  // After the first question the ideas fold away, so they never cover Nuri's answer.
+  const [ideasOpen, setIdeasOpen] = useState<boolean | null>(null);
+  const showIdeas = ideasOpen ?? messages.length === 0;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['left', 'right']}>
@@ -195,31 +204,40 @@ export default function Assistant() {
             ) : null
           }
         />
-        <View style={{ backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, borderWidth: 1, borderBottomWidth: 0, borderColor: colors.border }}>
-          <ScrollView horizontal style={{ flexGrow: 0 }} showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, gap: 6, paddingBottom: 8 }}>
-            {TOPICS.map((tp) => {
-              const on = topic === tp.key;
-              return (
-                <Pressable
-                  key={tp.key}
-                  onPress={() => setTopic(tp.key)}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: on }}
-                  style={{ minHeight: 40, paddingHorizontal: 14, borderRadius: radius.pill, justifyContent: 'center', backgroundColor: on ? colors.primary : tones[tp.tone].bg }}
-                >
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: on ? '#fff' : tones[tp.tone].fg }}>{t(`topic_${tp.key}`)}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-          <ScrollView horizontal style={{ flexGrow: 0 }} showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, gap: 8, paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
-            {suggestions.map((s) => (
-              <Pressable key={s} onPress={() => send(s)} accessibilityRole="button" style={{ backgroundColor: tones.lavender.bg, borderRadius: radius.pill, paddingLeft: 14, paddingRight: 10, minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Text style={{ color: colors.primaryDark, fontWeight: '700' }}>{s}</Text>
-                <Ionicons name="chevron-forward" size={16} color={colors.primary} />
-              </Pressable>
-            ))}
-          </ScrollView>
+        <View style={{ backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 4, borderWidth: 1, borderBottomWidth: 0, borderColor: colors.border }}>
+          <Pressable onPress={() => setIdeasOpen(!showIdeas)} accessibilityRole="button" accessibilityState={{ expanded: showIdeas }} style={{ minHeight: 40, justifyContent: 'center', paddingHorizontal: 16 }}>
+            <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 14 }}>
+              💡 {t('questionIdeas')} {showIdeas ? '▾' : '▸'}
+            </Text>
+          </Pressable>
+          {showIdeas && (
+            <>
+              <ScrollView horizontal style={{ flexGrow: 0 }} showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, gap: 6, paddingBottom: 8 }}>
+                {TOPICS.map((tp) => {
+                  const on = topic === tp.key;
+                  return (
+                    <Pressable
+                      key={tp.key}
+                      onPress={() => setTopic(tp.key)}
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected: on }}
+                      style={{ minHeight: 40, paddingHorizontal: 14, borderRadius: radius.pill, justifyContent: 'center', backgroundColor: on ? colors.primary : tones[tp.tone].bg }}
+                    >
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: on ? '#fff' : tones[tp.tone].fg }}>{t(`topic_${tp.key}`)}</Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+              <ScrollView horizontal style={{ flexGrow: 0 }} showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, gap: 8, paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
+                {suggestions.map((s) => (
+                  <Pressable key={s} onPress={() => send(s)} accessibilityRole="button" style={{ backgroundColor: tones.lavender.bg, borderRadius: radius.pill, paddingLeft: 14, paddingRight: 10, minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Text style={{ color: colors.primaryDark, fontWeight: '700' }}>{s}</Text>
+                    <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </>
+          )}
         </View>
         <View style={{ flexDirection: 'row', padding: 10, paddingTop: 4, gap: 8, backgroundColor: '#fff' }}>
           <TextInput

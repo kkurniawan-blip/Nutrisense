@@ -27,7 +27,7 @@ export const colors = {
   bg: '#F7F6FC',
   card: '#FFFFFF',
   text: '#2D2A4A',
-  muted: '#6E6A86', // 5.2:1 on white
+  muted: '#646080', // 5.9:1 on white, 5.5:1 on the lavender page
   border: '#ECE9F6',
   line: '#F1EFF8',
   danger: '#D23A4B',
@@ -46,13 +46,13 @@ export const colors = {
  * blue information, lavender AI.
  */
 export const statusColor = {
-  ok: { fg: '#15803D', bg: '#E6F6EE', dot: '🟢', mark: '#22C55E' },
+  ok: { fg: '#13733A', bg: '#E6F6EE', dot: '🟢', mark: '#22C55E' },
   monitor: { fg: '#8A5A00', bg: '#FEF6D8', dot: '🟡', mark: '#EAB308' },
   action: { fg: '#C2410C', bg: '#FFF1E6', dot: '🟠', mark: '#F97316' },
   urgent: { fg: '#C81E3A', bg: '#FFE9EC', dot: '🔴', mark: '#EF4444' },
   info: { fg: '#1D4ED8', bg: '#EAF2FF', dot: 'ℹ️', mark: '#3B82F6' },
   ai: { fg: '#5443C9', bg: '#EFECFF', dot: '🤖', mark: '#6C5CE7' },
-  unknown: { fg: '#6E6A86', bg: '#F1EFF8', dot: '⚪', mark: '#A09CB5' },
+  unknown: { fg: '#646080', bg: '#F1EFF8', dot: '⚪', mark: '#A09CB5' },
 } as const;
 export type StatusKey = keyof typeof statusColor;
 
@@ -68,7 +68,7 @@ export const riskColor = {
  */
 export const tones = {
   lavender: { from: '#A99FFF', to: '#6C5CE7', fg: '#5443C9', bg: '#F1EEFF' },
-  blue: { from: '#7DB4FF', to: '#3B7BF6', fg: '#2F6FE0', bg: '#EDF4FF' },
+  blue: { from: '#7DB4FF', to: '#3B7BF6', fg: '#2563C9', bg: '#EDF4FF' },
   green: { from: '#6FDB9E', to: '#1FA06A', fg: '#15803D', bg: '#EAF8F0' },
   orange: { from: '#FFC078', to: '#F97316', fg: '#C2410C', bg: '#FFF3E8' },
   pink: { from: '#FF9CBC', to: '#E0578B', fg: '#C73E73', bg: '#FFF0F5' },

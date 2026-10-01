@@ -62,20 +62,20 @@ export default function Symptoms() {
 
   if (offlineSaved)
     return (
-      <Screen>
+      <Screen key="result0">
         {urgentSelected && <Escalation phone={kader?.phone} facility={child.data?.facility} />}
         <Card tint={statusColor.info.bg}>
           <Text style={{ fontWeight: '900', color: statusColor.info.fg }}>📶 {t('savedOnPhone')}</Text>
           <Text style={{ color: statusColor.info.fg }}>{t('symptomOfflineNote')}</Text>
         </Card>
-        <Button title={t('open')} icon="arrow-forward" onPress={() => router.replace(`/child/${id}`)} />
+        <Button title={`${t('seeProfileOf')} ${name}`} icon="arrow-forward" onPress={() => router.replace(`/child/${id}`)} />
       </Screen>
     );
 
   if (result) {
     const r = result.report;
     return (
-      <Screen>
+      <Screen key="result1">
         {r.danger_signs.length > 0 && <Escalation phone={kader?.phone} facility={child.data?.facility} />}
         <Card>
           <SourceTag kind="ai" />
@@ -105,13 +105,6 @@ export default function Symptoms() {
       </Bubble>
       {urgentSelected && <Escalation phone={kader?.phone} facility={child.data?.facility} />}
 
-      <H2 emoji="🤒">{t('commonSymptoms')}</H2>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
-        {COMMON.map((k) => (
-          <Tile key={k} k={k} on={selected.includes(k)} onPress={() => toggle(k)} />
-        ))}
-      </View>
-
       <Card tint={statusColor.urgent.bg}>
         <H2 emoji="🚨">{t('urgentSigns')}</H2>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -120,6 +113,13 @@ export default function Symptoms() {
           ))}
         </View>
       </Card>
+
+      <H2 emoji="🤒">{t('commonSymptoms')}</H2>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+        {COMMON.map((k) => (
+          <Tile key={k} k={k} on={selected.includes(k)} onPress={() => toggle(k)} />
+        ))}
+      </View>
 
       <Pressable onPress={() => setShowOther(!showOther)} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center' }}>
         <Text style={{ fontWeight: '800', color: colors.primary }}>

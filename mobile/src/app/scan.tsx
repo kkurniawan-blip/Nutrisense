@@ -2,11 +2,12 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import React, { useEffect, useRef, useState } from 'react';
 import { Platform, View } from 'react-native';
 
-import { Button, Card, Chip, ErrorBox, Field, H2, P, Screen } from '../components/ui';
+import { Text } from '../components/Text';
+import { Button, Card, Chip, ErrorBox, Field, H2, MoreLink, Screen } from '../components/ui';
 import { api, errorText } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import type { Locker } from '../lib/types';
-import { colors } from '../theme';
+import { colors, statusColor } from '../theme';
 
 /** Kader-side locker pickup: scan the caregiver's QR (or type the 6-digit code) to release the package. */
 export default function Scan() {
@@ -19,6 +20,7 @@ export default function Scan() {
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const handled = useRef(false);
+  const [pickLocker, setPickLocker] = useState(false);
 
   useEffect(() => {
     api<Locker[]>('/api/lockers?kind=locker')
@@ -39,7 +41,7 @@ export default function Scan() {
         `/api/lockers/by-code/${locker}/pickup`,
         { body },
       );
-      setResult(`${t('pickupOk')}: ${r.supply_request.child_name} – ${r.supply_request.items.map((i) => `${i.quantity}× ${i.name}`).join(', ')}`);
+      setResult(`${r.supply_request.child_name} – ${r.supply_request.items.map((i) => `${i.quantity}× ${i.name}`).join(', ')}`);
       setCode('');
     } catch (e) {
       setError(errorText(e));
@@ -55,15 +57,43 @@ export default function Scan() {
     setScanning(true);
   };
 
+  const current = lockers.find((l) => l.code === lockerCode);
+
   return (
-    <Screen>
+    // A new result re-opens the screen at the top, where the outcome is shown.
+    <Screen key={result ?? error ?? 'scan'}>
+      {/* The outcome first: did the locker open? */}
+      {error && <ErrorBox message={error} />}
+      {result && (
+        <Card tint={statusColor.ok.bg} style={{ borderColor: colors.ok, borderWidth: 2 }}>
+          <Text style={{ color: statusColor.ok.fg, fontWeight: '900', fontSize: 17 }}>🔓 {t('pickupOk')}</Text>
+          <Text style={{ color: statusColor.ok.fg, marginTop: 4 }}>{result}</Text>
+        </Card>
+      )}
+      {/* The Kader's own locker by default; the others only when asked. */}
       <Card>
         <H2>{t('lockerCode')}</H2>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-          {lockers.map((l) => (
-            <Chip key={l.code} label={`${l.code} · ${l.name.replace('Loker Posyandu ', '')}`} selected={lockerCode === l.code} onPress={() => setLockerCode(l.code)} />
-          ))}
-        </View>
+        {current && (
+          <Text style={{ fontWeight: '700', fontSize: 16 }}>
+            📍 {current.name} · {current.code}
+          </Text>
+        )}
+        <MoreLink label={t('changeLocker')} open={pickLocker} onPress={() => setPickLocker(!pickLocker)} />
+        {pickLocker && (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+            {lockers.map((l) => (
+              <Chip
+                key={l.code}
+                label={`${l.code} · ${l.name.replace('Loker Posyandu ', '')}`}
+                selected={lockerCode === l.code}
+                onPress={() => {
+                  setLockerCode(l.code);
+                  setPickLocker(false);
+                }}
+              />
+            ))}
+          </View>
+        )}
       </Card>
       <Card>
         {scanning ? (
@@ -89,12 +119,6 @@ export default function Scan() {
         <Field label={t('enterCode')} value={code} onChangeText={setCode} keyboardType="number-pad" maxLength={6} />
         <Button title={t('confirmPickup')} icon="lock-open-outline" onPress={() => submit({ pickup_code: code })} disabled={code.length !== 6 || !lockerCode} />
       </Card>
-      {error && <ErrorBox message={error} />}
-      {result && (
-        <Card style={{ backgroundColor: colors.okSoft }}>
-          <P>✓ {result}</P>
-        </Card>
-      )}
     </Screen>
   );
 }

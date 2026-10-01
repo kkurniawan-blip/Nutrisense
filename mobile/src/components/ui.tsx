@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useId, useState } from 'react';
+import React, { useContext, useId, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -23,7 +23,7 @@ import type { RiskLevel } from '../lib/types';
 import { colors, fonts, glass, radius, shadow, StatusKey, statusColor, Tone, tones, TOUCH } from '../theme';
 import { AudioButton } from './AudioButton';
 import { Mascot, Mood } from './Mascot';
-import { Text, TextInput } from './Text';
+import { Text, TextInput, TextScaleContext } from './Text';
 
 export { Text, TextInput };
 
@@ -235,12 +235,15 @@ export function Screen({
   onRefresh,
   scroll = true,
   padded = true,
+  footer,
 }: {
   children: React.ReactNode;
   refreshing?: boolean;
   onRefresh?: () => void;
   scroll?: boolean;
   padded?: boolean;
+  /** Stays at the bottom while the content scrolls: for the one action a long screen is for. */
+  footer?: React.ReactNode;
 }) {
   const inner = padded ? styles.padded : undefined;
   return (
@@ -257,6 +260,7 @@ export function Screen({
       ) : (
         <View style={[{ flex: 1 }, inner]}>{children}</View>
       )}
+      {footer ? <View style={styles.footer}>{footer}</View> : null}
     </SafeAreaView>
   );
 }
@@ -410,6 +414,7 @@ export function Chip({ label, selected, onPress, tone, emoji }: { label: string;
   return (
     <PressScale onPress={onPress} style={[styles.chip, { backgroundColor: selected ? on.bg : '#fff', borderColor: selected ? on.border : '#E4E0F3' }]}>
       <Text style={{ color: selected ? on.fg : colors.text, fontSize: 14, fontWeight: selected ? '700' : '500' }}>
+        {selected ? '✓ ' : ''}
         {emoji ? `${emoji} ` : ''}
         {label}
       </Text>
@@ -418,15 +423,17 @@ export function Chip({ label, selected, onPress, tone, emoji }: { label: string;
 }
 
 export function Segmented<T extends string>({ options, value, onChange }: { options: { value: T; label: string }[]; value: T; onChange: (v: T) => void }) {
+  // With large text, four options no longer fit on one line: wrap into two rows instead of squeezing the labels.
+  const wrap = useContext(TextScaleContext) > 1.1 && options.length > 3;
   return (
-    <View style={styles.segment}>
+    <View style={[styles.segment, wrap && { flexWrap: 'wrap', borderRadius: radius.lg }]}>
       {options.map((o) => (
         <Pressable
           key={o.value}
           onPress={() => onChange(o.value)}
           accessibilityRole="tab"
           accessibilityState={{ selected: value === o.value }}
-          style={[styles.segmentItem, value === o.value && styles.segmentActive]}
+          style={[styles.segmentItem, wrap && { flexBasis: '48%' }, value === o.value && styles.segmentActive]}
         >
           <Text style={{ color: value === o.value ? colors.primaryDark : colors.muted, fontWeight: value === o.value ? '800' : '600', textAlign: 'center' }}>{o.label}</Text>
         </Pressable>
@@ -454,10 +461,10 @@ export function StatusMark({ status, size = 8 }: { status: StatusKey; size?: num
 }
 
 /** "Lihat detail →" style link: the way into detail on demand. */
-export function MoreLink({ label, onPress, open, center }: { label: string; onPress: () => void; open?: boolean; center?: boolean }) {
+export function MoreLink({ label, onPress, open, center, color = colors.primary }: { label: string; onPress: () => void; open?: boolean; center?: boolean; color?: string }) {
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={open === undefined ? undefined : { expanded: open }} style={{ minHeight: 44, justifyContent: 'center', alignSelf: center ? 'center' : 'flex-start' }}>
-      <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 14 }}>
+      <Text style={{ color, fontWeight: '700', fontSize: 14 }}>
         {label} {open === undefined ? '→' : open ? '↑' : '→'}
       </Text>
     </Pressable>
@@ -480,10 +487,11 @@ export function StatusPill({ status, label, large }: { status: StatusKey; label:
   return (
     <View
       accessibilityLabel={label}
-      style={[styles.badge, { backgroundColor: c.bg, flexDirection: 'row', alignItems: 'center', gap: 6 }, large && { paddingHorizontal: 14, paddingVertical: 7 }]}
+      style={[styles.badge, { backgroundColor: c.bg, flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '100%' }, large && { paddingHorizontal: 14, paddingVertical: 7 }]}
     >
       <StatusMark status={status} size={large ? 9 : 8} />
-      <Text style={{ color: c.fg, fontWeight: '700', fontSize: large ? 15 : 13 }}>{label}</Text>
+      {/* Long labels wrap inside the pill instead of running over what sits next to it. */}
+      <Text style={{ color: c.fg, fontWeight: '700', fontSize: large ? 15 : 14, flexShrink: 1 }}>{label}</Text>
     </View>
   );
 }
@@ -539,8 +547,19 @@ export function Row({ children, style }: { children: React.ReactNode; style?: Vi
   return <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 8 }, style]}>{children}</View>;
 }
 
-export function Stat({ label, value, tone }: { label: string; value: string | number; tone?: 'danger' | 'warn' | 'ok' }) {
+export function Stat({ label, value, tone, onPress }: { label: string; value: string | number; tone?: 'danger' | 'warn' | 'ok'; onPress?: () => void }) {
   const color = tone === 'danger' ? colors.danger : tone === 'warn' ? colors.warn : tone === 'ok' ? colors.ok : colors.text;
+  // A tappable number opens the list behind it (marked with a chevron).
+  if (onPress)
+    return (
+      <PressScale onPress={onPress} accessibilityRole="button" accessibilityLabel={`${value} ${label}`} style={styles.stat}>
+        <Row style={{ justifyContent: 'space-between' }}>
+          <Text style={[styles.statValue, { color }]}>{value}</Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+        </Row>
+        <Text style={styles.statLabel}>{label}</Text>
+      </PressScale>
+    );
   return (
     <View style={styles.stat}>
       <Text style={[styles.statValue, { color }]}>{value}</Text>
@@ -695,6 +714,7 @@ export const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   padded: { paddingHorizontal: 18, paddingTop: 18 },
   card: { borderRadius: radius.lg, padding: 20, marginBottom: 16, ...glass },
+  footer: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10, backgroundColor: 'rgba(247,246,252,0.96)', borderTopWidth: 1, borderColor: colors.border },
   h1: { fontSize: 21, fontWeight: '900', color: colors.text, marginBottom: 8, letterSpacing: -0.3 },
   h2Row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, marginTop: 2, gap: 8 },
   h2: { fontSize: 16, fontWeight: '800', color: colors.text, flexShrink: 1, lineHeight: 22 },

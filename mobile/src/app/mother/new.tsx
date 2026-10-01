@@ -66,7 +66,7 @@ export default function NewMother() {
 
   if (done)
     return (
-      <Screen>
+      <Screen key="result0">
         <View style={{ alignItems: 'center', marginVertical: 8 }}>
           <Mascot size={96} mood="cheer" bounce />
           <Text style={{ fontSize: 21, fontWeight: '900', textAlign: 'center', marginTop: 6 }}>{t('motherAdded')}</Text>
@@ -112,8 +112,8 @@ export default function NewMother() {
             <Text style={{ fontWeight: '900', fontSize: 17 }}>{t('whoIsMother')}</Text>
           </Bubble>
           <Card>
-            <Field label={`🙂 ${t('fullName')}`} value={name} onChangeText={setName} placeholder="Ibu Rosa Ndun" />
-            <Field label={`📱 ${t('phoneLbl')}`} value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="0812 3456 7890" hint={t('phoneLoginHint')} />
+            <Field label={`🙂 ${t('fullName')}`} value={name} onChangeText={setName} placeholder={`${t('eg')} Ibu Rosa Ndun`} />
+            <Field label={`📱 ${t('phoneLbl')}`} value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder={`${t('eg')} 0812 3456 7890`} hint={t('phoneLoginHint')} />
             <Text style={{ fontSize: 14, fontWeight: '600', marginBottom: 8 }}>📍 {t('village')}</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
               {mine.map((r) => (

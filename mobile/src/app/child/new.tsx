@@ -71,8 +71,8 @@ export default function NewChild() {
             { value: 'male', label: `👦 ${t('male')}` },
           ]}
         />
-        <Field label={t('birthDate')} value={birthDate} onChangeText={setBirthDate} placeholder="2024-05-17" keyboardType="numbers-and-punctuation" />
-        <Field label={t('birthWeight')} value={birthWeight} onChangeText={setBirthWeight} keyboardType="decimal-pad" placeholder="3.1" />
+        <Field label={t('birthDate')} value={birthDate} onChangeText={setBirthDate} placeholder={`${t('eg')} 2024-05-17`} keyboardType="numbers-and-punctuation" />
+        <Field label={t('birthWeight')} value={birthWeight} onChangeText={setBirthWeight} keyboardType="decimal-pad" placeholder={`${t('eg')} 3.1`} />
         <P muted style={{ marginBottom: 6 }}>{t('region')}</P>
         <Card style={{ flexDirection: 'row', flexWrap: 'wrap', padding: 8 }}>
           {visibleRegions.map((r) => (

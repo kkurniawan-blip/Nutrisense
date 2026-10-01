@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 
+import { onConnectivity } from './api';
 import { flush, queued } from './offline';
 
 interface SyncState {
@@ -54,6 +55,11 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     pendingRef.current = pending;
   }, [pending]);
+
+  useEffect(() => {
+    onConnectivity(setOffline);
+    return () => onConnectivity(null);
+  }, []);
 
   useEffect(() => {
     const first = setTimeout(() => void syncNow(), 0);

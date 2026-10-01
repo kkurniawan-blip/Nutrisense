@@ -1,26 +1,28 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React from 'react';
+import React, { useContext } from 'react';
 import { Linking, View } from 'react-native';
 
 import { useAuth } from '../lib/auth';
 import type { Facility } from '../lib/types';
 import { colors, radius, statusColor, tones } from '../theme';
 import { AudioButton } from './AudioButton';
-import { Text } from './Text';
+import { Text, TextScaleContext } from './Text';
 import { Button, Card, MoreLink, PressScale, Row } from './ui';
 
 /** One symptom as a tappable tile: emoji in a soft circle, a short label, a tick when chosen. Danger signs are red. */
 export function SymptomTile({ emoji, label, on, danger, onPress }: { emoji: string; label: string; on: boolean; danger?: boolean; onPress: () => void }) {
   const tint = danger ? colors.danger : colors.primary;
   const soft = danger ? colors.dangerSoft : colors.primarySoft;
+  // With large text, two tiles per row so labels like "Tidak bisa minum / menyusu" are never cut.
+  const wide = useContext(TextScaleContext) > 1.1;
   return (
     <PressScale
       onPress={onPress}
       accessibilityRole="checkbox"
       accessibilityState={{ checked: on }}
       accessibilityLabel={label}
-      style={{ width: '31%', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 4, minHeight: 100, borderRadius: radius.lg, backgroundColor: on ? soft : '#fff', borderWidth: 1.5, borderColor: on ? tint : danger ? '#F8D0D6' : colors.border }}
+      style={{ width: wide ? '48%' : '31%', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 4, minHeight: 100, borderRadius: radius.lg, backgroundColor: on ? soft : '#fff', borderWidth: 1.5, borderColor: on ? tint : danger ? '#F8D0D6' : colors.border }}
     >
       {on && (
         <View style={{ position: 'absolute', top: 6, right: 6 }}>
@@ -74,7 +76,7 @@ export function Escalation({ phone, facility }: { phone?: string | null; facilit
         </View>
       </Row>
       {phone ? <Button small variant="secondary" title={t('actDiscuss')} icon="chatbubbles" onPress={() => Linking.openURL(`tel:${phone}`)} /> : null}
-      <MoreLink label={t('seeGuide')} onPress={() => router.push('/guide')} />
+      <MoreLink label={t('seeGuide')} color={statusColor.urgent.fg} onPress={() => router.push('/guide')} />
     </Card>
   );
 }

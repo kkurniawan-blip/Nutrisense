@@ -101,7 +101,7 @@ export default function Login() {
                 keyboardType="phone-pad"
                 autoComplete="tel"
                 textContentType="telephoneNumber"
-                placeholder="0812 3456 7890"
+                placeholder={`${t('eg')} 0812 3456 7890`}
                 returnKeyType="next"
               />
             ) : (

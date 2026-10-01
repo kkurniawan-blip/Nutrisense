@@ -110,11 +110,11 @@ export default function Register() {
 
   if (step === 1)
     return (
-      <Screen>
+      <Screen key="result0">
         <Progress step={1} />
         <Bubble mood="cheer">{t('signUpHello')}</Bubble>
         <Card>
-          <Field label={`🙂 ${t('fullName')}`} value={form.full_name} onChangeText={set('full_name')} error={show('full_name')} autoComplete="name" textContentType="name" placeholder="Ibu Maria" />
+          <Field label={`🙂 ${t('fullName')}`} value={form.full_name} onChangeText={set('full_name')} error={show('full_name')} autoComplete="name" textContentType="name" placeholder={`${t('eg')} Ibu Maria`} />
           <Field
             label={`📱 ${t('phoneLbl')}`}
             value={form.phone}
@@ -123,7 +123,7 @@ export default function Register() {
             keyboardType="phone-pad"
             autoComplete="tel"
             hint={t('phoneLoginHint')}
-            placeholder="0812 3456 7890"
+            placeholder={`${t('eg')} 0812 3456 7890`}
           />
           <Field
             label={`✉️ ${t('emailOptional')}`}

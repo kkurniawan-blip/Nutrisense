@@ -66,7 +66,7 @@ export default function AsiScreen() {
 
   if (!a.in_window)
     return (
-      <Screen>
+      <Screen key="result0">
         <Bubble mood="cheer" audio>
           {t('asiDone')}
         </Bubble>

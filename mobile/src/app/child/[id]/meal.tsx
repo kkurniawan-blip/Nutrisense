@@ -186,12 +186,12 @@ export default function MealScreen() {
       setShowIdeas(false);
     };
     return (
-      <Screen>
+      <Screen key="result0">
         <Row style={{ marginBottom: 8 }}>
           <Mascot size={64} mood="cheer" bounce />
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 20, fontWeight: '900', color: colors.primaryDark }}>
-              🍽️ {t(mealType)} {childName}
+              🍽️ {lang === 'id' ? `Makan ${t(mealType).toLowerCase()} ${childName}` : `${childName}'s ${t(mealType).toLowerCase()}`}
             </Text>
             <Text style={{ color: colors.muted }}>{saved === 'offline' ? t('savedOnPhone') : t('greatJob')}</Text>
             {streak > 1 && <Text style={{ fontWeight: '800', color: colors.warn }}>🔥 {streak} {t('streak')}</Text>}
@@ -239,7 +239,8 @@ export default function MealScreen() {
         {showIdeas && menus && <MenuSuggestionsView data={menus} />}
 
         <Card>
-          <DiversityCard groups={groupsToday(todayMeals)} compact />
+          {/* Saved on the phone: count this meal's groups here too, so the score matches what she just logged. */}
+          <DiversityCard groups={saved === 'offline' ? [...new Set([...groupsToday(todayMeals), ...savedGroups])] : groupsToday(todayMeals)} compact />
         </Card>
         <Button title={t('scanAgain')} icon="camera" onPress={reset} />
         <Button title={t('nutritionPlan')} variant="secondary" icon="nutrition" onPress={() => router.replace(`/child/${id}/nutrition`)} />
@@ -248,7 +249,19 @@ export default function MealScreen() {
   }
 
   return (
-    <Screen>
+    <Screen
+      footer={
+        <>
+          {error && <ErrorBox message={error} />}
+          {items.length > 0 && (
+            <Text style={{ color: colors.muted, fontSize: 14, textAlign: 'center' }}>
+              🍽️ {items.length} {t('foodsChosen')}
+            </Text>
+          )}
+          <Button title={t('saveMeal')} onPress={save} loading={busy} disabled={!items.length} icon="checkmark-circle" />
+        </>
+      }
+    >
       <Card style={{ padding: 0, overflow: 'hidden' }}>
         {photo ? (
           <Image source={{ uri: photo }} style={{ width: '100%', height: 210 }} resizeMode="cover" />
@@ -312,8 +325,6 @@ export default function MealScreen() {
         />
       </Card>
 
-      {error && <ErrorBox message={error} />}
-      <Button title={t('saveMeal')} onPress={save} loading={busy} disabled={!items.length} icon="checkmark-circle" />
       {items.length > 0 && (
         <Button title={`💡 ${t('nextMealIdeas')}`} variant="ghost" onPress={() => loadMenus(items)} loading={menusLoading} />
       )}
@@ -328,11 +339,32 @@ export default function MealScreen() {
           placeholderTextColor="#A09CB5"
           style={{ borderWidth: 1.5, borderColor: colors.border, borderRadius: radius.pill, paddingHorizontal: 16, paddingVertical: 10, marginBottom: 10, fontSize: 16 }}
         />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-          {shown.map((f) => (
-            <Chip key={f.key} emoji={FOOD_EMOJI[f.key]} label={f.name} selected={items.some((i) => i.food_key === f.key)} onPress={() => add(f)} />
-          ))}
-        </View>
+        {/* Grouped like the 8 food groups, so a mother can see which group is still missing. */}
+        {FOOD_GROUPS.map((g) => {
+          const inGroup = shown.filter((f) => f.group === g.key);
+          if (!inGroup.length) return null;
+          return (
+            <View key={g.key} style={{ marginBottom: 8 }}>
+              <Text style={{ fontWeight: '800', fontSize: 14, marginBottom: 6 }}>
+                {g.emoji} {GROUP_PLAIN[g.key]?.[lang] ?? g[lang]}
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                {inGroup.map((f) => (
+                  <Chip key={f.key} emoji={FOOD_EMOJI[f.key]} label={f.name} selected={items.some((i) => i.food_key === f.key)} onPress={() => add(f)} />
+                ))}
+              </View>
+            </View>
+          );
+        })}
+        {shown.some((f) => !FOOD_GROUPS.some((g) => g.key === f.group)) && (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+            {shown
+              .filter((f) => !FOOD_GROUPS.some((g) => g.key === f.group))
+              .map((f) => (
+                <Chip key={f.key} emoji={FOOD_EMOJI[f.key]} label={f.name} selected={items.some((i) => i.food_key === f.key)} onPress={() => add(f)} />
+              ))}
+          </View>
+        )}
       </Card>
     </Screen>
   );

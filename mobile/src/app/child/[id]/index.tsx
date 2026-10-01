@@ -5,6 +5,7 @@ import { Alert, Linking, Platform, Pressable, View } from 'react-native';
 
 import { AssessmentView, fmtZ } from '../../../components/AssessmentView';
 import { ChartData, GrowthChart } from '../../../components/GrowthChart';
+import { Escalation } from '../../../components/SymptomTiles';
 import { SyncBanner } from '../../../components/SyncBanner';
 import { Text } from '../../../components/Text';
 import {
@@ -43,29 +44,40 @@ const METRIC = {
   balance: { tone: tones.green, icon: 'body' },
 } as const;
 
-/** One growth indicator as a small pastel tile: the number (SD), and underneath it in words. */
-function MetricTile({ label, full, z, kind }: { label: string; full: string; z: number | null; kind: 'height' | 'weight' | 'balance' }) {
+/**
+ * One growth indicator as a small pastel tile. Staff see the number (SD) with words underneath; mothers see
+ * the words as the main line and the measured value, since an SD means nothing to most caregivers.
+ */
+function MetricTile({ label, full, z, kind, plain, value }: { label: string; full: string; z: number | null; kind: 'height' | 'weight' | 'balance'; plain?: boolean; value?: string }) {
   const { lang } = useAuth();
   const w = zWords(z, lang, kind);
   const c = statusColor[w.key];
   const m = METRIC[kind];
   return (
-    <View accessible accessibilityLabel={`${full}: ${fmtZ(z)} SD, ${w.text}`} style={{ flex: 1, backgroundColor: m.tone.bg, borderRadius: 18, padding: 12, gap: 4 }}>
+    <View accessible accessibilityLabel={`${full}: ${fmtZ(z)} SD, ${w.text}`} style={{ flex: plain ? undefined : 1, backgroundColor: m.tone.bg, borderRadius: 18, padding: 12, gap: 4 }}>
       <Row style={{ gap: 5 }}>
         <Ionicons name={m.icon} size={14} color={m.tone.fg} />
         <Text style={{ fontSize: 12.5, fontWeight: '600', color: m.tone.fg }}>{label}</Text>
       </Row>
-      <Text style={{ fontSize: 20, fontWeight: '900', color: c.fg }}>
-        {fmtZ(z)} <Text style={{ fontSize: 12, fontWeight: '600' }}>SD</Text>
-      </Text>
-      <Row style={{ gap: 5, alignItems: 'flex-start' }}>
-        <View style={{ marginTop: 5 }}>
-          <StatusMark status={w.key} size={7} />
-        </View>
-        <Text numberOfLines={2} style={{ flex: 1, fontSize: 11.5, lineHeight: 15, color: c.fg }}>
-          {w.text}
-        </Text>
-      </Row>
+      {plain ? (
+        <Row style={{ gap: 6, flexWrap: 'wrap' }}>
+          <StatusMark status={w.key} size={8} />
+          <Text style={{ flex: 1, fontSize: 15, lineHeight: 20, fontWeight: '800', color: c.fg }}>{w.text}</Text>
+          {value ? <Text style={{ fontSize: 14, color: colors.muted }}>{value}</Text> : null}
+        </Row>
+      ) : (
+        <>
+          <Text style={{ fontSize: 20, fontWeight: '900', color: c.fg }}>
+            {fmtZ(z)} <Text style={{ fontSize: 12, fontWeight: '600' }}>SD</Text>
+          </Text>
+          <Row style={{ gap: 5, alignItems: 'flex-start' }}>
+            <View style={{ marginTop: 5 }}>
+              <StatusMark status={w.key} size={7} />
+            </View>
+            <Text style={{ flex: 1, fontSize: 13, lineHeight: 17, color: c.fg }}>{w.text}</Text>
+          </Row>
+        </>
+      )}
     </View>
   );
 }
@@ -88,7 +100,7 @@ function GrowthTrend({ childId, name }: { childId: string; name: string }) {
           { value: 'wfh', label: t('bbtb_short') },
         ]}
       />
-      {!d && <Loading />}
+      {!d && (chart.error ? <Text style={{ color: colors.muted, fontSize: 14, marginVertical: 12 }}>📶 {t('chartNeedsSignal')}</Text> : <Loading />)}
       {d && d.points.length > 0 && (
         <GrowthChart
           data={d}
@@ -242,6 +254,7 @@ export default function ChildDetail() {
   const st = motherStatus(a);
   const girl = c.sex === 'female';
   const kader = c.care_team?.find((x) => x.role === 'kader');
+  const emergency = a?.triage.urgency === 'emergency';
 
   return (
     <Screen refreshing={child.loading} onRefresh={reload}>
@@ -266,24 +279,27 @@ export default function ChildDetail() {
         </View>
       </Row>
 
+      {/* When the child needs help now, getting help comes before anything else. */}
+      {emergency && <Escalation phone={kader?.phone} facility={c.facility} />}
+
       {/* The three growth numbers */}
       {m ? (
-        <Row style={{ gap: 8, alignItems: 'stretch' }}>
-          <MetricTile label={t('height_short')} full={t('fHeightAge')} z={m.haz} kind="height" />
-          <MetricTile label={t('weight_short')} full={t('fWeightAge')} z={m.waz} kind="weight" />
-          <MetricTile label={t('bbtb_short')} full={t('fWeightHeight')} z={m.whz} kind="balance" />
-        </Row>
+        <View style={{ flexDirection: mom ? 'column' : 'row', gap: 8, alignItems: 'stretch' }}>
+          <MetricTile label={t('height_short')} full={t('fHeightAge')} z={m.haz} kind="height" plain={mom} value={`${m.height_cm} cm`} />
+          <MetricTile label={t('weight_short')} full={t('fWeightAge')} z={m.waz} kind="weight" plain={mom} value={`${m.weight_kg} kg`} />
+          <MetricTile label={mom ? t('balancePlain') : t('bbtb_short')} full={t('fWeightHeight')} z={m.whz} kind="balance" plain={mom} />
+        </View>
       ) : (
         <P muted>{t('noMeasurementYet')}</P>
       )}
       <View style={{ marginTop: 10, marginBottom: 10 }}>
-        <Button title={t('tileMeasure')} icon="add-circle" onPress={() => router.push(`/child/${id}/measure`)} />
+        <Button title={t('tileMeasure')} icon="add-circle" variant={emergency ? 'secondary' : undefined} onPress={() => router.push(`/child/${id}/measure`)} />
       </View>
 
       {m && <GrowthTrend childId={id} name={name} />}
 
       {/* Nuri's short guidance and what to do */}
-      {a && <AssessmentView a={a} facility={c.facility} kaderPhone={kader?.phone} />}
+      {a && <AssessmentView a={a} facility={c.facility} kaderPhone={kader?.phone} hideEmergency={emergency} />}
 
       <KiaSummary childId={id} />
       {c.posyandu && (

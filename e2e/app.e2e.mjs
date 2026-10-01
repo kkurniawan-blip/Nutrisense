@@ -285,10 +285,12 @@ await session('kader', 'kader.oesapa@nutrisense.id', async (h) => {
   await step('filters and paging', async () => {
     await text('Semua').click();
     await text('Filter lainnya', false).click();
-    await text('Risiko tinggi', false).click();
+    await text('🔴 Risiko tinggi').click();
     await page.waitForTimeout(1000);
     await text('Hapus filter').click();
     await scroll(20000);
+    const all = page.getByText(/^Lihat semua \(\d+\)/);
+    if (await all.count()) await all.first().click();
     const more = page.getByText('Tampilkan lagi', { exact: false });
     if (await more.count()) await more.last().click();
   });
@@ -298,7 +300,7 @@ await session('kader', 'kader.oesapa@nutrisense.id', async (h) => {
     await page.waitForTimeout(1500);
     const code = page.getByText(/[a-z]+_[a-z]+/);
     if (await code.count()) throw new Error(`raw code visible: ${await code.first().innerText()}`);
-    await text('Lihat →').click();
+    await page.getByText(new RegExp(first(kid2))).last().click();
   });
   await step('cases', () => go('/cases'));
   await step('share a note with the family', async () => {

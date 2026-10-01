@@ -52,9 +52,10 @@ export function Mascot({ size = 96, mood = 'happy', bounce = false }: { size?: n
           </G>
         )}
         {mood === 'caring' && (
-          <G stroke="#3B2F3A" strokeWidth={2} strokeLinecap="round">
-            <Path d="M33 49 L43 51" />
-            <Path d="M67 49 L57 51" />
+          // Inner ends raised: a concerned, kind look (lowered inner ends read as angry).
+          <G stroke="#3B2F3A" strokeWidth={2} strokeLinecap="round" fill="none">
+            <Path d="M33 51 Q38 49.5 43 47" />
+            <Path d="M67 51 Q62 49.5 57 47" />
           </G>
         )}
         {/* mouth */}
