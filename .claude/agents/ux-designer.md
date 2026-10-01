@@ -61,7 +61,7 @@ prevent child stunting and care for pregnant mothers.
 
 ## What to deliver
 
-Write `REPORT.md` in the output folder, then reply with a short summary. In the report:
+Return the full report as your final reply, in Markdown. Screenshots and scripts go in the output folder; the report itself is not written to a file. In the report:
 
 - **Top 5:** the five changes with the biggest effect for mothers and Kader, one line each.
 - **Findings table:** ID, severity, role, screen, problem, evidence, why it matters (who is hurt and how), fix, and effort.
