@@ -690,7 +690,7 @@ export function ErrorBox({ message, onRetry }: { message: string; onRetry?: () =
   const { t } = useAuth();
   return (
     <View style={styles.errorBox}>
-      <Text style={{ color: colors.danger, fontWeight: '600', marginBottom: onRetry ? 8 : 0 }}>{message}</Text>
+      <Text style={{ color: statusColor.urgent.fg, fontWeight: '600', marginBottom: onRetry ? 8 : 0 }}>{message}</Text>
       {onRetry && <Button small variant="ghost" title={t('retry')} onPress={onRetry} />}
     </View>
   );

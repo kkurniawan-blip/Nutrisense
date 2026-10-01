@@ -6,7 +6,7 @@ import { useAuth } from '../lib/auth';
 import { formatDate } from '../lib/fun';
 import { NIFAS_LABEL, VISIT_STATUS } from '../lib/pregnancy';
 import type { AncVisit, NifasVisit, Pregnancy } from '../lib/types';
-import { colors, statusColor } from '../theme';
+import { colors, statusColor, tones } from '../theme';
 import { AudioButton } from './AudioButton';
 import { Text } from './Text';
 import { Button, Card, Row, StatusPill } from './ui';
@@ -46,33 +46,52 @@ export function RiskCard({ p }: { p: Pregnancy }) {
 }
 
 /** K1..K6 as six circles: tick when done, coloured ring when due or missed. */
-export function AncDots({ anc }: { anc: AncVisit[] }) {
+/** K1..K6 as six circles; a small 🏥 badge marks a visit whose results came from the Puskesmas. */
+export function AncDots({ anc, fromFacility = [] }: { anc: AncVisit[]; fromFacility?: number[] }) {
+  const { t } = useAuth();
+  const marked = anc.some((v) => v.status === 'done' && fromFacility.includes(v.number));
   return (
-    <Row style={{ justifyContent: 'space-between' }}>
-      {anc.map((v) => {
-        const c = statusColor[VISIT_STATUS[v.status].key];
-        const done = v.status === 'done';
-        return (
-          <View key={v.number} style={{ alignItems: 'center', gap: 4 }}>
-            <View
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 20,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: done ? colors.mint : v.status === 'upcoming' ? colors.line : c.bg,
-                borderWidth: done || v.status === 'upcoming' ? 0 : 2,
-                borderColor: c.mark,
-              }}
-            >
-              {done ? <Ionicons name="checkmark" size={20} color="#fff" /> : <Text style={{ fontWeight: '800', fontSize: 13, color: v.status === 'upcoming' ? colors.muted : c.fg }}>K{v.number}</Text>}
+    <>
+      <Row style={{ justifyContent: 'space-between' }}>
+        {anc.map((v) => {
+          const c = statusColor[VISIT_STATUS[v.status].key];
+          const done = v.status === 'done';
+          const fac = done && fromFacility.includes(v.number);
+          return (
+            <View key={v.number} style={{ alignItems: 'center', gap: 4 }} accessible accessibilityLabel={`K${v.number} ${VISIT_STATUS[v.status].label.id}${fac ? ', dari Puskesmas' : ''}`}>
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: done ? colors.mint : v.status === 'upcoming' ? colors.line : c.bg,
+                  borderWidth: done || v.status === 'upcoming' ? 0 : 2,
+                  borderColor: c.mark,
+                }}
+              >
+                {done ? <Ionicons name="checkmark" size={20} color="#fff" /> : <Text style={{ fontWeight: '800', fontSize: 13, color: v.status === 'upcoming' ? colors.muted : c.fg }}>K{v.number}</Text>}
+                {fac && (
+                  <View style={{ position: 'absolute', right: -5, bottom: -5, width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', borderWidth: 1.5, borderColor: colors.sky, alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name="business" size={11} color={tones.blue.fg} />
+                  </View>
+                )}
+              </View>
+              <Text style={{ fontSize: 12, color: colors.muted }}>Tri {v.trimester}</Text>
             </View>
-            <Text style={{ fontSize: 12, color: colors.muted }}>Tri {v.trimester}</Text>
+          );
+        })}
+      </Row>
+      {marked && (
+        <Row style={{ gap: 6, marginTop: 8 }}>
+          <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: colors.sky, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="business" size={11} color={tones.blue.fg} />
           </View>
-        );
-      })}
-    </Row>
+          <Text style={{ fontSize: 13, color: colors.muted }}>{t('flLegend')}</Text>
+        </Row>
+      )}
+    </>
   );
 }
 

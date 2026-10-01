@@ -3,13 +3,14 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import { Linking, Pressable, View } from 'react-native';
 
+import { FacilityLinkCard, useExamSeen } from '../../../components/FacilityLink';
 import { AncDots, NifasList, RiskCard } from '../../../components/PregnancyParts';
 import { Text } from '../../../components/Text';
 import { Bar, Button, Card, ErrorBox, H2, Loading, QuickAction, Row, Screen, Section, StatusMark, StatusPill } from '../../../components/ui';
 import { useAuth } from '../../../lib/auth';
 import { formatDate } from '../../../lib/fun';
 import { BIRTH_HELPERS, BIRTH_PLACES, BIRTH_ATTENDANTS, BIRTH_PLACES_DONE, FUNDING, label, motherState, TRANSPORT, VISIT_STATUS, weeksText, FLAG_LABEL } from '../../../lib/pregnancy';
-import type { Pregnancy } from '../../../lib/types';
+import type { FacilityLink, Pregnancy } from '../../../lib/types';
 import { useApi } from '../../../lib/useApi';
 import { colors, statusColor, StatusKey, tones } from '../../../theme';
 
@@ -42,6 +43,8 @@ export default function PregnancyDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t, lang } = useAuth();
   const q = useApi<Pregnancy>(`/api/pregnancies/${id}`);
+  const link = useApi<FacilityLink>(`/api/pregnancies/${id}/link`);
+  const { unseen } = useExamSeen(id, link.data?.exams[0]);
   const p = q.data;
   if (!p) return <Screen>{q.error ? <ErrorBox message={q.error} onRetry={q.reload} /> : <Loading />}</Screen>;
 
@@ -55,7 +58,7 @@ export default function PregnancyDetail() {
   const plan = p.birth_plan ?? {};
 
   return (
-    <Screen refreshing={q.loading} onRefresh={q.reload}>
+    <Screen refreshing={q.loading} onRefresh={() => [q.reload(), link.reload()]}>
       <Stack.Screen options={{ title: t('pregnancy') }} />
 
       {/* Who and how she is */}
@@ -74,6 +77,11 @@ export default function PregnancyDetail() {
         </View>
       </Row>
       <RiskCard p={p} />
+      {/* New results from the Puskesmas come right after the risk; otherwise the link sits next to the K visits. */}
+      {unseen && !delivered && <FacilityLinkCard p={p} link={link.data} stale={link.stale} unseen={unseen} onChanged={(l) => {
+            link.setData(l);
+            void q.reload();
+          }} />}
 
       {delivered ? (
         <Card>
@@ -139,7 +147,7 @@ export default function PregnancyDetail() {
       {!delivered && (
         <Card onPress={() => router.push(`/pregnancy/${id}/anc`)}>
           <H2 right={<Text style={{ fontSize: 15, fontWeight: '800' }}>{`${p.anc_done} ${t('ofSix')}`}</Text>}>{t('ancTitle')}</H2>
-          <AncDots anc={p.anc} />
+          <AncDots anc={p.anc} fromFacility={(link.data?.exams ?? []).map((e) => e.visit_number ?? 0)} />
           {nxt && (
             <Text style={{ marginTop: 12, fontSize: 14 }}>
               <Text style={{ fontWeight: '700' }}>
@@ -153,6 +161,11 @@ export default function PregnancyDetail() {
           )}
         </Card>
       )}
+
+      {!unseen && !delivered && <FacilityLinkCard p={p} link={link.data} stale={link.stale} unseen={unseen} onChanged={(l) => {
+            link.setData(l);
+            void q.reload();
+          }} />}
 
       {/* TTD & PMT */}
       {!delivered && (

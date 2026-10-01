@@ -121,9 +121,11 @@ def view(db: Session, p: Pregnancy, lang: str, today: date | None = None) -> dic
     last_muac = next((m.muac_cm for m in reversed(ms) if m.muac_cm is not None), None)
     last_hb = next((m.hb_g_dl for m in reversed(ms) if m.hb_g_dl is not None), None)
     # The latest check-up from the Puskesmas/hospital adds blood pressure and the baby's heartbeat to the screening.
+    # After the birth they no longer describe her or the baby, so they only count while the pregnancy is ongoing.
     exam = db.scalar(select(AncExam).where(AncExam.pregnancy_id == p.id).order_by(AncExam.exam_date.desc(), AncExam.id.desc()))
-    flags = M.mother_flags(last_muac, last_hb, p.mother_height_cm, (exam.bp_systolic, exam.bp_diastolic) if exam else None,
-                           exam.fetal_heart_rate if exam else None)
+    current = exam if exam and p.status == "active" else None
+    flags = M.mother_flags(last_muac, last_hb, p.mother_height_cm, (current.bp_systolic, current.bp_diastolic) if current else None,
+                           current.fetal_heart_rate if current else None)
     visits = {v.number: {"visit_date": v.visit_date.isoformat(), "place": v.place}
               for v in db.scalars(select(AncVisit).where(AncVisit.pregnancy_id == p.id)).all()}
     schedule = M.anc_schedule(p.hpht, visits, today)
@@ -303,6 +305,8 @@ def add_mother_measurement(pid: int, body: MotherMeasurementIn, user: User = Dep
     if body.muac_cm is None and body.hb_g_dl is None and body.weight_kg is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Enter LiLA, Hb or weight")
     if body.client_uuid and (m := db.scalar(select(MaternalMeasurement).where(MaternalMeasurement.client_uuid == body.client_uuid))):
+        if m.pregnancy_id != p.id:  # never hand back another pregnancy's values
+            raise HTTPException(status.HTTP_409_CONFLICT, "This client_uuid is already used")
         return {"measurement": _measurement(m), "flags": M.mother_flags(m.muac_cm, m.hb_g_dl, p.mother_height_cm), "created": False}
     on = body.measured_at or date.today()
     if on > date.today() or on < p.hpht:

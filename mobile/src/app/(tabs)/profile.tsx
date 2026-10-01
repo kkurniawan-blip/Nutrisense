@@ -36,6 +36,9 @@ export default function Profile() {
         {user?.role === 'caregiver' && (
           <ListRow emoji="🔐" title={t('dataPrivacy')} subtitle={consents.data ? `${on}/4 ${t('consentsOn')}` : undefined} onPress={() => router.push('/privacy')} />
         )}
+        {user && ['doctor', 'officer', 'admin'].includes(user.role) && (
+          <ListRow emoji="🏥" title={t('portalTitle')} subtitle={t('portalSub')} onPress={() => router.push('/facility-portal')} />
+        )}
         <ListRow emoji="🔔" title={t('notifications')} onPress={() => router.push('/notifications')} />
         <ListRow emoji="🔄" title={t('syncStatus')} onPress={() => router.push('/sync')} />
         <ListRow emoji="📖" title={t('healthGuide')} onPress={() => router.push('/guide')} />

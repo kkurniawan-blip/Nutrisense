@@ -34,7 +34,7 @@ _ADDED_COLUMNS = {
     "children": {"birth_gestational_weeks": "FLOAT"},
     "growth_measurements": {"measured_by": "VARCHAR(10)", "oedema": "BOOLEAN"},
     "pregnancies": {"birth_info": "JSON", "facility_sync": "BOOLEAN DEFAULT FALSE", "link_code": "VARCHAR(12)",
-                    "linked_facility_id": "INTEGER", "last_sync_at": "TIMESTAMP"},
+                    "linked_facility_id": "INTEGER", "last_sync_at": "TIMESTAMP WITH TIME ZONE"},
 }
 # Columns that became optional: phone-only accounts have no email.
 _RELAXED_NOT_NULL = {"users": ["email"]}

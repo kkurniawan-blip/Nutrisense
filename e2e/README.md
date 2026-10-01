@@ -42,7 +42,7 @@ Settings:
 
 # Quality-assurance pass
 
-`qa.e2e.mjs` is a second, broader check (36 cases) for release: `npm run qa`. Like the end-to-end test it needs the backend on a **fresh** demo database and the web app on port 8081, and it changes data.
+`qa.e2e.mjs` is a second, broader check (37 cases) for release: `npm run qa`. Like the end-to-end test it needs the backend on a **fresh** demo database and the web app on port 8081, and it changes data.
 
 | Area | What it checks |
 |---|---|

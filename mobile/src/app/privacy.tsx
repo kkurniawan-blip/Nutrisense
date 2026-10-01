@@ -1,11 +1,12 @@
+import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { View } from 'react-native';
 
 import { Text } from '../components/Text';
-import { Button, Card, ErrorBox, Loading, MoreLink, Row, Screen, Toggle } from '../components/ui';
+import { Button, Card, ErrorBox, ListRow, Loading, MoreLink, Row, Screen, Toggle } from '../components/ui';
 import { api, errorText } from '../lib/api';
 import { useAuth } from '../lib/auth';
-import type { Lang } from '../lib/types';
+import type { FacilityLink, Lang, Pregnancy } from '../lib/types';
 import { useApi } from '../lib/useApi';
 import { colors } from '../theme';
 
@@ -132,6 +133,10 @@ function DataUse() {
 export default function Privacy() {
   const { t } = useAuth();
   const consents = useApi<Consents>('/api/consents');
+  // The Puskesmas link is a consent too: shown here so every permission lives in one place.
+  const preg = useApi<Pregnancy[]>('/api/pregnancies');
+  const p = preg.data?.find((x) => x.status === 'active');
+  const link = useApi<FacilityLink>(p ? `/api/pregnancies/${p.id}/link` : null);
   const [draft, setDraft] = useState<Partial<Consents>>({});
   const [learn, setLearn] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -160,6 +165,16 @@ export default function Privacy() {
     <Screen>
       {error && <ErrorBox message={error} />}
       {consents.error && <ErrorBox message={consents.error} onRetry={consents.reload} />}
+      {p && link.data && (
+        <Card>
+          <ListRow
+            emoji="🏥"
+            title={t('flResultsTitle')}
+            subtitle={link.data.enabled ? `${t('flOn')}${link.data.code ? ` · ${link.data.code}` : ''}` : t('flOff')}
+            onPress={() => router.push(link.data!.enabled ? `/pregnancy/${p.id}/puskesmas` : `/pregnancy/${p.id}`)}
+          />
+        </Card>
+      )}
       {!current ? (
         <Loading />
       ) : (

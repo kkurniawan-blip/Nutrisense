@@ -219,6 +219,17 @@ Calls use structured JSON outputs and server-side refusal fallbacks. Any error o
 
 `GET /api/health` shows which mode is active.
 
+### Check-ups from the Puskesmas or hospital (HL7 FHIR R4)
+
+A pregnant mother's check-ups at the Puskesmas or hospital can reach her app automatically:
+- **Consent and link code.** She turns on *Hubungkan ke Puskesmas* in the app and gets a link code (for example `NS-7KQ2MP`), which she shows to the midwife. Turning it off stops the code at once.
+- **Sending.** After each visit, the facility's system (SIMPUS or a hospital EMR) sends a FHIR R4 Bundle (Patient with the code, Encounter, Observations) to `POST /api/integrations/fhir` with its own API key. Only a hash of each key is stored.
+- **What NutriSense does.** It stores the check-up once (a resend with the same Encounter id updates it), marks the K visit done, adds LiLA, Hb and weight to her checks, and adds high blood pressure and an abnormal fetal heart rate to her risk. It notifies her, and alerts the Kader when something is wrong.
+- **Facility keys:** `python -m app.cli facility-add "Puskesmas X"`. The demo data has test keys such as `demo-puskesmas-baumata-key`.
+- **Simulator:** `python scripts/send_checkup.py --bp 150/95 --hb 10.2` pretends to be a Puskesmas system.
+
+The guide for facility IT staff and SIMPUS vendors covers the message format, codes, errors and security: **[docs/FACILITY_INTEGRATION.md](docs/FACILITY_INTEGRATION.md)**.
+
 ### Supporting Chapter IV (Results)
 
 | Evaluation measure (Ch. III) | Where to get it |
@@ -241,9 +252,9 @@ This is the overfitting risk Appendix B already flags as future work.
 ## Tests and checks
 
 ```bash
-cd backend && pytest -q            # 144 tests: WHO z-scores vs published tables, model quality, triage,
+cd backend && pytest -q            # 181 tests: WHO z-scores vs published tables, model quality, triage,
                                    # symptom lexicon, the full caregiver→Kader→officer→locker workflow,
-                                   # RBAC, consent, encryption at rest, FHIR, offline sync
+                                   # RBAC, consent, encryption at rest, FHIR (out and in), offline sync
 cd mobile && npx tsc --noEmit && npx eslint src
 cd e2e && npm test                 # 48-step browser walkthrough for every role (see e2e/README.md)
 ```
@@ -264,3 +275,4 @@ Useful commands: `python -m app.cli train` (retrain and activate a new model run
 
 - Set `NUTRISENSE_ENVIRONMENT=production`, a long random `NUTRISENSE_JWT_SECRET` and a long random `NUTRISENSE_ENCRYPTION_KEY` (a Fernet key, or any random secret that a key is derived from). The server refuses to start in production without them.
 - Use PostgreSQL over TLS, restrict `NUTRISENSE_CORS_ORIGINS`, and set `NUTRISENSE_SEED_DEMO_DATA=false`.
+- Create a real API key for each health facility (`python -m app.cli facility-add`). The demo facility keys are public. See [docs/FACILITY_INTEGRATION.md](docs/FACILITY_INTEGRATION.md#9-security).

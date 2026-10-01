@@ -90,7 +90,7 @@ export async function prefetchForOffline(user: User, lang: Lang): Promise<void> 
     paths.push(`/api/children/${c.id}`, `/api/children/${c.id}/measurements`);
     if (mother) paths.push(`/api/children/${c.id}/growth-chart?indicator=hfa`, `/api/children/${c.id}/kia`, `/api/children/${c.id}/meals?limit=100`);
   }
-  for (const p of pregnancies ?? []) paths.push(`/api/pregnancies/${p.id}`);
+  for (const p of pregnancies ?? []) paths.push(`/api/pregnancies/${p.id}`, `/api/pregnancies/${p.id}/link`);
   for (const k of cases ?? []) paths.push(`/api/cases/${k.id}`);
   // A few at a time, so a weak connection is not flooded.
   for (let i = 0; i < paths.length; i += 4) await Promise.all(paths.slice(i, i + 4).map((p) => save(p)));

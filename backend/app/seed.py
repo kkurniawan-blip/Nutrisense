@@ -21,8 +21,9 @@ from sqlalchemy.orm import Session
 from .ai import nutrition, symptoms
 from .ai.growth import _lms, _value_at, age_in_months, compute_z_scores
 from .ai import kia
-from .models import (AncExam, AncVisit, BreastfeedingLog, HealthFacility, Child, Consent, GrowthMeasurement, InventoryItem, KiaRecord, Locker,
-                     MaternalMeasurement, MealLog, Pregnancy, PregnancyDailyLog, Region, SupplyRequest, SymptomReport, User)
+from .models import (AncExam, AncVisit, BreastfeedingLog, Child, Consent, FacilityLinkCode, GrowthMeasurement, HealthFacility,
+                     InventoryItem, KiaRecord, Locker, MaternalMeasurement, MealLog, Pregnancy, PregnancyDailyLog, Region, SupplyRequest,
+                     SymptomReport, User)
 from .security import hash_password
 from .services import facility_sync, logistics, model_registry
 from .services.assessment import run_assessment
@@ -318,6 +319,7 @@ def seed_if_empty(db: Session) -> bool:
     # Maria is connected to Puskesmas Baumata: her K1 and K2 came from its system.
     pkm = facilities["puskesmas-baumata"]
     maria_p.facility_sync, maria_p.link_code, maria_p.linked_facility_id = True, "NS-7KQ2MP", pkm.id
+    db.add(FacilityLinkCode(code="NS-7KQ2MP", pregnancy_id=maria_p.id))
     for n, w, bp, weight, muac, hb, tfu, fhr, td, iron in ((1, 9, (110, 70), 52.0, 23.2, 11.2, None, None, "TT1", 30),
                                                            (2, 18, (118, 76), 54.5, 22.8, 10.4, 17.0, 142, "TT2", 30)):
         on = maria_p.hpht + timedelta(weeks=w)

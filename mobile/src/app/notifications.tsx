@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import React from 'react';
-import { Button, Card, Empty, ErrorBox, Loading, P, Row, Screen, StatusPill } from '../components/ui';
+import { Button, Card, Empty, ErrorBox, IconChip, Loading, P, Row, Screen, StatusPill } from '../components/ui';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { formatDate } from '../lib/fun';
@@ -32,6 +32,7 @@ export default function Notifications() {
     if (d.case_id && user?.role !== 'caregiver') router.push(`/case/${d.case_id}`);
     else if (d.child_id) router.push(`/child/${d.child_id}`);
     else if (d.supply_request_id) router.push(user?.role === 'caregiver' ? '/pickups' : `/supply/${d.supply_request_id}`);
+    else if (d.pregnancy_id) router.push(n.kind === 'anc_result' && user?.role === 'caregiver' ? `/pregnancy/${d.pregnancy_id}/puskesmas` : `/pregnancy/${d.pregnancy_id}`);
     else void list.reload();
   };
 
@@ -55,6 +56,7 @@ export default function Notifications() {
           <Card key={n.id} onPress={() => open(n)} style={urgent ? { borderColor: colors.danger, borderWidth: 2 } : !n.read ? { borderColor: colors.primary } : undefined}>
             {urgent && <StatusPill status="urgent" label={t('urgentLbl')} />}
             <Row style={{ justifyContent: 'space-between', marginTop: urgent ? 6 : 0 }}>
+              {n.kind === 'anc_result' && <IconChip emoji="🏥" tone="blue" size={44} />}
               <Text style={{ fontWeight: n.read ? '500' : '800', color: colors.text, flex: 1 }}>{n.title}</Text>
               <Text style={{ fontSize: 13, color: colors.muted }}>{formatDate(n.created_at, lang, true)}</Text>
             </Row>

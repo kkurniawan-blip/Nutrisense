@@ -1,14 +1,17 @@
 """Connection to the Puskesmas or hospital: the mother's link and consent, the FHIR endpoint that facility systems
 call after each antenatal check-up, and a demo portal that sends the same FHIR message from inside the app."""
+import json
 from datetime import date
 from secrets import token_hex
 
-from fastapi import APIRouter, Body, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from ..config import get_settings
 from ..database import get_db
 from ..deps import get_current_user, lang_of, require_roles
 from ..models import AncExam, Consent, HealthFacility, Pregnancy, User
@@ -62,13 +65,17 @@ def get_link(pid: int, user: User = Depends(get_current_user), db: Session = Dep
 
 @router.post("/pregnancies/{pid}/link")
 def set_link(pid: int, body: LinkIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """The mother's consent: allow the Puskesmas/hospital to send her check-up results. Turning it on again gives a
-    new code, so an old code that was shared can no longer be used."""
+    """The mother's consent: allow the Puskesmas/hospital to send her check-up results. Turning it off stops the code
+    at once; turning it on again gives a new code, so an old code that was shared can no longer be used."""
     p = get_pregnancy(pid, db, user)
     if user.id != p.mother_id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Only the mother can connect her pregnancy to a health facility")
     if body.enabled and not p.facility_sync:
-        p.link_code = FS.new_link_code(db)
+        if p.status != "active":
+            raise HTTPException(status.HTTP_409_CONFLICT, "Only an ongoing pregnancy can be connected")
+        FS.issue_link_code(db, p)
+    elif not body.enabled:
+        FS.revoke_link_code(db, p)
     p.facility_sync = body.enabled
     db.add(Consent(user_id=user.id, scope="facility_sync", granted=body.enabled))
     audit(db, user, "facility_link", "pregnancy", p.id, enabled=body.enabled)
@@ -76,30 +83,79 @@ def set_link(pid: int, body: LinkIn, user: User = Depends(get_current_user), db:
     return _link(db, p)
 
 
-@router.post("/integrations/fhir")
-def receive_fhir(bundle: dict = Body(...), authorization: str | None = Header(default=None),
+MAX_BUNDLE_BYTES = 1_000_000  # a check-up Bundle is a few kB
+
+
+async def _read_bundle(request: Request):
+    """The body as JSON, read only up to a limit so an oversized upload cannot exhaust memory. Errors are returned, not
+    raised, so the endpoint can answer them as an OperationOutcome after checking the key."""
+    try:
+        if int(request.headers.get("content-length") or 0) > MAX_BUNDLE_BYTES:
+            return FS.SyncError(413, f"The body is larger than {MAX_BUNDLE_BYTES} bytes")
+    except ValueError:
+        return FS.SyncError(400, "Bad Content-Length")
+    buf = bytearray()
+    async for chunk in request.stream():
+        buf += chunk
+        if len(buf) > MAX_BUNDLE_BYTES:
+            return FS.SyncError(413, f"The body is larger than {MAX_BUNDLE_BYTES} bytes")
+    try:
+        return json.loads(buf)
+    except (ValueError, RecursionError):
+        return FS.SyncError(400, "The body is not valid JSON")
+
+
+_BUNDLE_BODY = {"requestBody": {"required": True, "content": {t: {"schema": {"type": "object", "description": "FHIR R4 Bundle"}}
+                                                              for t in ("application/fhir+json", "application/json")}}}
+
+
+@router.post("/integrations/fhir", openapi_extra=_BUNDLE_BODY)
+def receive_fhir(bundle=Depends(_read_bundle), authorization: str | None = Header(default=None),
                  x_facility_key: str | None = Header(default=None), db: Session = Depends(get_db)):
     """Called by the facility's system after an antenatal check-up. Auth: `Authorization: Bearer <facility key>`
-    (or `X-Facility-Key`). Body: a FHIR R4 Bundle; see docs/FACILITY_INTEGRATION.md. Answers with an OperationOutcome."""
+    (or `X-Facility-Key`). Body: a FHIR R4 Bundle; see docs/FACILITY_INTEGRATION.md. Answers with an OperationOutcome:
+    201 stored, 200 updated (a resend of the same Encounter id)."""
     key = x_facility_key or (authorization[7:] if authorization and authorization.lower().startswith("bearer ") else None)
     facility = FS.facility_for_key(db, key)
     if facility is None:
-        return _outcome(401, "error", "security", "Unknown or inactive facility key")
+        return _outcome(401, "Unknown or inactive facility key")
+    if isinstance(bundle, FS.SyncError):
+        return _outcome(bundle.status, str(bundle))
     try:
         code, exam = FS.parse_bundle(bundle)
-        row, created = FS.ingest(db, facility, code, exam)
     except FS.SyncError as e:
-        db.rollback()
-        return _outcome(e.status, "error", "processing" if e.status == 422 else "not-found" if e.status == 404 else "forbidden", str(e))
-    db.commit()
-    return _outcome(201 if created else 200, "information", "informational",
-                    f"Check-up {'stored' if created else 'updated'} (K{row.visit_number or '?'}, {row.exam_date.isoformat()})",
-                    exam_id=row.id, created=created)
+        return _outcome(e.status, str(e))
+    for attempt in range(2):
+        try:
+            row, created = FS.ingest(db, facility, code, dict(exam))
+            db.commit()
+            break
+        except FS.SyncError as e:
+            db.rollback()
+            return _outcome(e.status, str(e))
+        except IntegrityError:
+            # The same check-up arrived twice at the same moment: the other request stored it, so this one updates it.
+            db.rollback()
+    else:
+        return _outcome(503, "The check-up is being stored by another request; send it again")
+    result = "created" if created else "updated"
+    return _outcome(201 if created else 200, f"Check-up {'stored' if created else 'updated'} (K{row.visit_number or '?'}, "
+                                             f"{row.exam_date.isoformat()})", result=result)
 
 
-def _outcome(code: int, severity: str, issue: str, text: str, **extra) -> JSONResponse:
-    return JSONResponse(status_code=code, content={"resourceType": "OperationOutcome",
-                                                   "issue": [{"severity": severity, "code": issue, "diagnostics": text}], **extra})
+# HTTP status -> OperationOutcome issue code (FHIR R4 IssueType).
+_ISSUE = {400: "structure", 401: "security", 403: "forbidden", 404: "not-found", 409: "conflict", 413: "too-long", 422: "invalid",
+          503: "transient"}
+RESULT_SYSTEM = f"{FS.LOCAL}/CodeSystem/sync-result"
+
+
+def _outcome(code: int, text: str, result: str | None = None) -> JSONResponse:
+    issue = {"severity": "information", "code": "informational", "diagnostics": text} if code < 300 else \
+        {"severity": "error", "code": _ISSUE.get(code, "processing"), "diagnostics": text}
+    if result:
+        issue["details"] = {"coding": [{"system": RESULT_SYSTEM, "code": result}], "text": text}
+    return JSONResponse(status_code=code, content={"resourceType": "OperationOutcome", "issue": [issue]},
+                        media_type="application/fhir+json", headers={"WWW-Authenticate": "Bearer"} if code == 401 else None)
 
 
 @router.get("/facilities")
@@ -111,7 +167,9 @@ def list_facilities(user: User = Depends(require_roles("doctor", "officer", "adm
 @router.post("/facility-portal/checkup", status_code=201)
 def portal_checkup(body: PortalExamIn, user: User = Depends(require_roles("doctor", "officer", "admin")), db: Session = Depends(get_db)):
     """Demo of the facility side: builds the FHIR Bundle a Puskesmas system would send and runs it through the same
-    parser and checks as /api/integrations/fhir."""
+    parser and checks as /api/integrations/fhir. Off in production: there, results come only from facility systems."""
+    if get_settings().environment == "production":
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
     facility = db.get(HealthFacility, body.facility_id)
     if facility is None or not facility.active:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Facility not found")

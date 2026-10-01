@@ -5,9 +5,11 @@ import { Pressable, View } from 'react-native';
 
 import { useAuth } from '../lib/auth';
 import { formatDate } from '../lib/fun';
-import { motherState, weeksText } from '../lib/pregnancy';
-import type { Pregnancy } from '../lib/types';
+import { examStatus, motherState, weeksText } from '../lib/pregnancy';
+import type { FacilityLink, Pregnancy } from '../lib/types';
+import { useApi } from '../lib/useApi';
 import { colors, statusColor } from '../theme';
+import { useExamSeen } from './FacilityLink';
 import { RiskCard } from './PregnancyParts';
 import { Text } from './Text';
 import { Bar, Card, QuickAction, Row, Section, StatusPill } from './ui';
@@ -20,6 +22,15 @@ export function PregnancyHome({ p }: { p: Pregnancy }) {
   const go = (action: string) =>
     router.push((({ supplements: `/pregnancy/${p.id}/supplements`, anc: `/pregnancy/${p.id}/anc`, measure: `/pregnancy/${p.id}/measure`, danger: `/pregnancy/${p.id}/danger` }) as Record<string, string>)[action] as never);
   const nextNifas = p.nifas?.find((v) => v.status === 'due' || v.status === 'overdue');
+  const link = useApi<FacilityLink>(`/api/pregnancies/${p.id}/link`);
+  const latest = link.data?.exams[0];
+  const { unseen } = useExamSeen(p.id, latest);
+  const worst = latest ? examStatus(latest).filter((s) => s.key !== 'ok') : [];
+  const fieldWord: Record<string, { id: string; en: string }> = {
+    bp: { id: 'tekanan darah tinggi', en: 'high blood pressure' }, hb: { id: 'kurang darah', en: 'low blood level' },
+    muac: { id: 'lengan kecil (KEK)', en: 'thin arm (CED)' }, fhr: { id: 'detak jantung janin perlu dicek', en: "baby's heartbeat needs checking" },
+    presentation: { id: 'letak janin', en: "baby's position" }, urine: { id: 'protein air seni', en: 'urine protein' },
+  };
 
   return (
     <>
@@ -52,14 +63,38 @@ export function PregnancyHome({ p }: { p: Pregnancy }) {
       {/* What to do today */}
       <Section title={t('forToday')} />
       <Card>
+        {/* New results from the Puskesmas come first, with what they mean. */}
+        {unseen && latest && (
+          <Pressable onPress={() => router.push(`/pregnancy/${p.id}/puskesmas`)} accessibilityRole="button" style={{ minHeight: 52, justifyContent: 'center' }}>
+            <Row style={{ gap: 10 }}>
+              <Text style={{ fontSize: 19 }}>🏥</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: worst.length ? statusColor[worst[0].key].fg : statusColor.info.fg }}>
+                  {worst.length ? `${t('flTodayFlag')} ${worst.map((w) => fieldWord[w.field][lang]).join(', ')}` : t('flTodayNew')}
+                </Text>
+                <Text style={{ fontSize: 13, color: colors.muted }}>{worst.length ? t('flTodaySeeCall') : t('flAllNormal')}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={worst.length ? statusColor[worst[0].key].fg : statusColor.info.fg} />
+            </Row>
+          </Pressable>
+        )}
         {p.today.map((item) => {
           const c = statusColor[item.status];
           const done = item.status === 'ok';
+          // At the moment she needs it: the code to show the midwife, under the check-up reminder.
+          const code = item.key === 'anc' && !done && link.data?.enabled ? link.data.code : null;
           return (
             <Pressable key={item.key} onPress={() => go(item.action)} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center' }}>
               <Row style={{ gap: 10 }}>
                 <Ionicons name={done ? 'checkmark-circle' : 'alert-circle'} size={21} color={c.mark} />
-                <Text style={{ flex: 1, fontSize: 15, fontWeight: done ? '400' : '700', color: done ? colors.text : c.fg }}>{item.text}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15, fontWeight: done ? '400' : '700', color: done ? colors.text : c.fg }}>{item.text}</Text>
+                  {code ? (
+                    <Text style={{ fontSize: 13, color: colors.muted }}>
+                      {t('flTodayCode')} <Text style={{ fontSize: 13, fontWeight: '800', color: colors.primaryDark }}>{code}</Text>
+                    </Text>
+                  ) : null}
+                </View>
                 {!done && <Ionicons name="chevron-forward" size={18} color={c.fg} />}
               </Row>
             </Pressable>

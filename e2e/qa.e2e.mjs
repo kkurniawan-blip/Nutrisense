@@ -1,4 +1,4 @@
-// Quality-assurance pass: 36 checks across every role, offline use, English and access control.
+// Quality-assurance pass: 37 checks across every role, offline use, English and access control.
 //
 // Needs the backend on a FRESH demo database and the web app served (see README.md); it changes data.
 // Prints PASS/FAIL per case, writes qa-results.json, saves screenshots to ./qa-screenshots and exits
@@ -303,6 +303,17 @@ const main = async () => {
     const reqs = (await call('GET', '/api/supply-requests', null, officer)).json; expect(reqs.every((r) => r.pickup_code === null), 'code leaked');
   });
 
+  await tc('J1', 'Puskesmas link', 'A check-up sent by the Puskesmas (FHIR) reaches the mother: new-results card, high blood pressure, call the midwife', async () => {
+    const D = await open('doctor@nutrisense.id', 'Demo1234!', 'portal');
+    await D.go('/facility-portal');
+    await D.field('Kode ibu').fill('NS-7KQ2MP'); await D.field('Sistolik').fill('150'); await D.field('Diastolik').fill('95'); await D.field('DJJ (/menit)').fill('140');
+    await D.text('Kirim ke HP ibu').click(); await D.text('Terkirim ke HP ibu', false).waitFor({ timeout: 15000 }); await D.ctx.close();
+    const h = await open('ibu.maria@nutrisense.id', 'Demo1234!', 'mother-sync');
+    await h.go(`/pregnancy/${mariaP.id}`); expect(await h.has('Hasil periksa baru masuk'), 'no new-results card');
+    await h.go(`/pregnancy/${mariaP.id}/puskesmas`); expect(await h.has('Tekanan darah tinggi'), 'no BP flag'); expect(await h.has('Hubungi bidan'), 'no call button');
+    await h.shot('J1-puskesmas-results'); await h.ctx.close();
+    const p = (await call('GET', `/api/pregnancies/${mariaP.id}`, null, maria)).json; expect(p.risk.reasons.includes('Tekanan darah tinggi'), JSON.stringify(p.risk));
+  });
   await tc('H1', 'Robustness', 'No page errors or 5xx responses on any screen visited', async () => { expect(!consoleErrors.length, consoleErrors.slice(0, 5).join(' | ')); });
   await browser.close();
   fs.writeFileSync(new URL('./qa-results.json', import.meta.url).pathname, JSON.stringify({ results, consoleErrors }, null, 1));

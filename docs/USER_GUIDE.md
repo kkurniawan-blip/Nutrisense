@@ -122,6 +122,15 @@ Tap your child's card on Beranda. From top to bottom:
 ### Ask a question: Tanya Nuri
 Choose a topic (**Pertumbuhan** growth, **Makan** eating, **Gejala** symptoms, **Perkembangan** development). Tap a suggested question or type your own. Nuri answers in a few short numbered points, with **Lihat panduan lengkap** (see the full guide) underneath. The answers are general guidance, not a medical diagnosis.
 
+### Pregnancy check-ups from the Puskesmas: Hubungkan ke Puskesmas
+If you are pregnant, your check-up results can come into the app by themselves.
+1. Open your pregnancy page (Beranda → **Bunda** → the pregnancy card). On the **Hubungkan ke Puskesmas** card, read the consent and tap **Ya, saya setuju**.
+2. You get a code such as **NS-7KQ2MP**. At every check-up, show it to the midwife: tap **Tunjukkan QR ke bidan**. The code also shows under "Periksa hamil" on Beranda, and it works without signal.
+3. After the check-up, the Puskesmas system sends your results. You get a notification, the K visit is ticked "masuk otomatis", and **Hasil dari Puskesmas** shows each value in plain words (tekanan darah, kadar darah, lingkar lengan, detak jantung janin…). If something needs attention, for example high blood pressure, the page says what to do and has a **Hubungi bidan** button.
+4. To stop, open **Hasil dari Puskesmas** → **Matikan hubungan ke Puskesmas**. Earlier results stay; if you switch it on again you get a new code.
+
+Your Kader and health workers can see the results, but never your code. Doctors and officers can try the Puskesmas side in **Profil → Portal Puskesmas (demo)**.
+
 ### Packages: Paket
 - **Paket gizi** shows the packages for each child (**Untuk …**): what is in it, what it is for, that it is free, the locker, and where it is on its way.
 - To collect a package, show the **QR code** or tell the **6-digit code** at the locker.

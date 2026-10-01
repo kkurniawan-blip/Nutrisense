@@ -1,6 +1,6 @@
 /** Ibu hamil: labels, symptom lists and small helpers shared by the pregnancy screens. */
 import type { StatusKey } from '../theme';
-import type { Lang, MotherFlag, Pregnancy, VisitStatus } from './types';
+import type { AncExam, Lang, MotherFlag, Pregnancy, VisitStatus } from './types';
 
 type L = { id: string; en: string };
 
@@ -143,3 +143,63 @@ export function fromHpht(hpht: string) {
 }
 
 export const hphtFromWeeks = (weeks: number) => new Date(Date.now() - Math.round(weeks * 7) * 86400000).toISOString().slice(0, 10);
+
+/**
+ * Status of each check-up value from the Puskesmas, for the status colours. Thresholds mirror the backend
+ * (backend/app/ai/maternal.py): BP >= 140/90 and a fetal heart rate outside 120-160 urgent; Hb < 7 urgent,
+ * < 11 action; LiLA < 23.5 action. Fetal position and urine protein are advice only (not risk flags).
+ */
+export type ExamField = 'bp' | 'hb' | 'muac' | 'fhr' | 'presentation' | 'urine';
+export type ExamFlag = 'hypertension' | 'fetal_hr' | 'severe_anemia' | 'anemia' | 'kek';
+
+const RANK: Record<StatusKey, number> = { urgent: 0, action: 1, monitor: 2, info: 3, ai: 3, unknown: 4, ok: 5 };
+
+export function examStatus(e: AncExam): { field: ExamField; key: StatusKey; word: { id: string; en: string } }[] {
+  const out: { field: ExamField; key: StatusKey; word: { id: string; en: string } }[] = [];
+  const normal = { id: 'Normal', en: 'Normal' };
+  if (e.bp_systolic != null || e.bp_diastolic != null) {
+    const high = (e.bp_systolic ?? 0) >= 140 || (e.bp_diastolic ?? 0) >= 90;
+    out.push({ field: 'bp', key: high ? 'urgent' : 'ok', word: high ? { id: 'Tinggi', en: 'High' } : normal });
+  }
+  if (e.hb_g_dl != null)
+    out.push(
+      e.hb_g_dl < 7
+        ? { field: 'hb', key: 'urgent', word: { id: 'Sangat kurang darah', en: 'Very low' } }
+        : e.hb_g_dl < 11
+          ? { field: 'hb', key: 'action', word: { id: 'Kurang darah', en: 'Low' } }
+          : { field: 'hb', key: 'ok', word: normal },
+    );
+  if (e.muac_cm != null)
+    out.push(e.muac_cm < 23.5 ? { field: 'muac', key: 'action', word: { id: 'Lengan kecil (KEK)', en: 'Thin arm (CED)' } } : { field: 'muac', key: 'ok', word: normal });
+  if (e.fetal_heart_rate != null) {
+    const off = e.fetal_heart_rate < 120 || e.fetal_heart_rate > 160;
+    out.push({ field: 'fhr', key: off ? 'urgent' : 'ok', word: off ? { id: 'Perlu dicek', en: 'Needs checking' } : normal });
+  }
+  if (e.fetal_presentation && e.fetal_presentation !== 'head')
+    out.push(
+      (e.gestational_weeks ?? 0) >= 36
+        ? { field: 'presentation', key: 'action', word: { id: 'Tanyakan ke bidan', en: 'Ask the midwife' } }
+        : { field: 'presentation', key: 'info', word: { id: 'Masih bisa berubah', en: 'Can still change' } },
+    );
+  if (e.urine_protein) {
+    const neg = /^neg/i.test(e.urine_protein);
+    out.push({ field: 'urine', key: neg ? 'ok' : 'action', word: neg ? { id: 'Tidak ada', en: 'None' } : { id: 'Ada protein', en: 'Protein found' } });
+  }
+  return out.sort((a, b) => RANK[a.key] - RANK[b.key]);
+}
+
+/** The most serious flag of a check-up, for the action box (same order as the backend's risk reasons). */
+export function examWorstFlag(e: AncExam): ExamFlag | null {
+  if ((e.bp_systolic ?? 0) >= 140 || (e.bp_diastolic ?? 0) >= 90) return 'hypertension';
+  if (e.fetal_heart_rate != null && (e.fetal_heart_rate < 120 || e.fetal_heart_rate > 160)) return 'fetal_hr';
+  if (e.hb_g_dl != null && e.hb_g_dl < 7) return 'severe_anemia';
+  if (e.hb_g_dl != null && e.hb_g_dl < 11) return 'anemia';
+  if (e.muac_cm != null && e.muac_cm < 23.5) return 'kek';
+  return null;
+}
+
+/** "N perlu perhatian" style counts. */
+export function examCounts(e: AncExam) {
+  const s = examStatus(e);
+  return { urgent: s.filter((x) => x.key === 'urgent').length, action: s.filter((x) => x.key === 'action').length };
+}

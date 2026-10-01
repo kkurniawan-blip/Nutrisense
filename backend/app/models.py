@@ -419,6 +419,18 @@ class HealthFacility(Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
 
 
+class FacilityLinkCode(Base):
+    """Every link code ever given out. A code is never given out twice, so a code a facility still holds after the mother
+    withdrew consent (or made a new code) can never send results to another mother."""
+
+    __tablename__ = "facility_link_codes"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    code: Mapped[str] = mapped_column(String(12), unique=True)
+    pregnancy_id: Mapped[int] = mapped_column(ForeignKey("pregnancies.id"), index=True)
+    issued_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+    revoked_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+
+
 class AncExam(Base):
     """One antenatal check-up as recorded at the health facility and received from its system."""
 
