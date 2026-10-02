@@ -28,7 +28,7 @@ from sqlalchemy.orm import Session
 
 from ..ai import maternal as M
 from ..models import AncExam, AncVisit, FacilityLinkCode, HealthFacility, MaternalMeasurement, Pregnancy
-from .common import audit, notify, notify_roles
+from .common import audit, human_date, notify, notify_roles
 
 LOCAL = "https://nutrisense.id/fhir"
 LINK_SYSTEM = f"{LOCAL}/link-code"
@@ -430,8 +430,8 @@ def _sync_measurement(db: Session, p: Pregnancy, facility: HealthFacility, row: 
 def _tell(db: Session, p: Pregnancy, facility: HealthFacility, row: AncExam, flags: list[dict], created: bool, before) -> None:
     if created:
         notify(db, p.mother_id, "anc_result", {"id": "Hasil periksa hamil sudah masuk", "en": "Your check-up results are in"},
-               {"id": f"{facility.name} mengirim hasil periksa {row.exam_date.isoformat()}. Lihat di halaman Kehamilan.",
-                "en": f"{facility.name} sent your check-up of {row.exam_date.isoformat()}. See it on the Pregnancy page."},
+               {"id": f"{facility.name} mengirim hasil periksa {human_date(row.exam_date)}. Lihat di halaman Kehamilan.",
+                "en": f"{facility.name} sent your check-up of {human_date(row.exam_date, 'en')}. See it on the Pregnancy page."},
                pregnancy_id=p.id)
     # The Kader hears about a new problem: on the first send, or when a correction changes the flags. Not after the birth.
     changed = created or sorted(f["code"] for f in flags) != before[0]

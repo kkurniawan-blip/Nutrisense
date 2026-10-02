@@ -1,3 +1,5 @@
+from datetime import date
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -57,3 +59,14 @@ def find_by_phone(db: Session, phone: str | None) -> User | None:
         return None
     return next((u for u in db.scalars(select(User).where(User.phone.is_not(None)).order_by(User.id)).all()
                  if normalize_phone(u.phone) == want), None)
+
+
+_MONTHS = {"id": ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"],
+           "en": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]}
+
+
+def human_date(d, lang: str = "id") -> str:
+    """'1 Okt 2026': dates in text people read (notifications, today items), never ISO."""
+    if isinstance(d, str):
+        d = date.fromisoformat(d[:10])
+    return f"{d.day} {_MONTHS['en' if lang == 'en' else 'id'][d.month - 1]} {d.year}"

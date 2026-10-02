@@ -14,7 +14,7 @@ from ..models import AncExam, AncVisit, Child, Consent, HealthFacility, Maternal
 from ..schemas import MeasurementIn, MotherRegisterIn
 from ..security import hash_password
 from ..services.assessment import run_assessment
-from ..services.common import audit, find_by_phone, has_consent, normalize_phone, notify, notify_roles
+from ..services.common import audit, find_by_phone, human_date, has_consent, normalize_phone, notify, notify_roles
 from ..services.facility_sync import exam_view
 from ..services.local import facility
 from .family import ROLE_LABEL
@@ -163,7 +163,7 @@ def view(db: Session, p: Pregnancy, lang: str, today: date | None = None) -> dic
         if nxt:
             st = "action" if nxt["status"] in ("due", "overdue") else "ok"
             when = {"overdue": {"id": "terlewat", "en": "overdue"}, "due": {"id": "sekarang", "en": "now"},
-                    "upcoming": {"id": f"mulai {nxt['window_start']}", "en": f"from {nxt['window_start']}"}}[nxt["status"]][L]
+                    "upcoming": {"id": f"mulai {human_date(nxt['window_start'])}", "en": f"from {human_date(nxt['window_start'], 'en')}"}}[nxt["status"]][L]
             items.append({"key": "anc", "status": st, "action": "anc", "text": f"{'Periksa hamil ke-' if L == 'id' else 'Antenatal visit '}{nxt['number']}: {when}"})
         if not ms or (today - ms[-1].measured_at).days > 30:
             items.append({"key": "measure", "status": "action", "action": "measure",
