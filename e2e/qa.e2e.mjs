@@ -243,23 +243,25 @@ const main = async () => {
   let stage = '';
   await tc('F1', 'Offline', 'Five entries saved with no signal, app stays logged in after reload, all sent once online, no duplicates', async () => {
     const h = await open('ibu.maria@nutrisense.id', 'Demo1234!', 'offline');
-    const block = () => h.page.route('http://localhost:8000/**', (r) => r.abort('internetdisconnected'));
+    // Only the API goes offline: on a phone the app itself is installed, and when the web app is served from the
+    // same address as the API (CI, Docker) blocking everything would also block reloading the app.
+    const block = () => h.page.route(`${API}/api/**`, (r) => r.abort('internetdisconnected'));
     const before = { m: (await call('GET', `/api/children/${mk.Adel.id}/measurements`, null, maria)).json.length, mm: (await call('GET', `/api/pregnancies/${mariaP.id}`, null, maria)).json.measurements.length };
     stage = 'pmt'; await h.go(`/pregnancy/${mariaP.id}/supplements`); await block();
     await h.page.getByLabel('PMT ibu hamil').last().click(); await h.page.waitForTimeout(1200);
-    await h.page.unroute('http://localhost:8000/**'); stage = 'anc'; await h.go(`/pregnancy/${mariaP.id}/anc`); await block();
+    await h.page.unroute(`${API}/api/**`); stage = 'anc'; await h.go(`/pregnancy/${mariaP.id}/anc`); await block();
     await h.text('Tandai sudah').click(); await h.page.waitForTimeout(1200);
-    await h.page.unroute('http://localhost:8000/**'); stage = 'catat-ibu'; await h.go(`/pregnancy/${mariaP.id}/measure`); await block();
+    await h.page.unroute(`${API}/api/**`); stage = 'catat-ibu'; await h.go(`/pregnancy/${mariaP.id}/measure`); await block();
     await h.field('📏 LiLA (cm)').fill('23.0'); await h.text('Lanjut').click(); await h.text('Lanjut').click(); await h.text('Simpan').click(); await h.page.waitForTimeout(1500);
     expect(await h.has('Tersimpan di HP'), 'Catat ibu not queued');
-    await h.page.unroute('http://localhost:8000/**'); stage = 'child-measure'; await h.go(`/child/${mk.Adel.id}/measure`); await block();
+    await h.page.unroute(`${API}/api/**`); stage = 'child-measure'; await h.go(`/child/${mk.Adel.id}/measure`); await block();
     await h.text('Lanjut').click(); await h.text('Saya siap memasukkan angka').click(); await h.field('⚖️ Berat badan (kg)').fill('11.7'); await h.field(/Panjang badan|Tinggi badan/).fill('85.0');
     await h.text('Tidak').click(); await h.text('Lanjut').click(); await h.text('Simpan').click(); await h.page.waitForTimeout(1500);
     expect(await h.has('Tersimpan di HP'), 'measurement not queued');
     stage = 'reload'; await h.page.reload(); await h.page.waitForTimeout(3000); expect(!/\/login$/.test(h.page.url()), 'logged out when offline');
     stage = 'sync'; await h.go('/sync'); await h.page.waitForTimeout(1200); await h.shot('F1-sync-waiting');
     const waiting = await h.page.getByText('Menunggu', { exact: true }).count();
-    stage = 'send'; await h.page.unroute('http://localhost:8000/**'); await h.text('Kirim sekarang').click(); await h.page.waitForTimeout(4000); await h.go('/sync'); await h.shot('F1-sync-sent');
+    stage = 'send'; await h.page.unroute(`${API}/api/**`); await h.text('Kirim sekarang').click(); await h.page.waitForTimeout(4000); await h.go('/sync'); await h.shot('F1-sync-sent');
     const after = { m: (await call('GET', `/api/children/${mk.Adel.id}/measurements`, null, maria)).json.length, p: (await call('GET', `/api/pregnancies/${mariaP.id}`, null, maria)).json };
     expect(after.m === before.m + 1, `measurements ${before.m} -> ${after.m}`); expect(after.p.measurements.length === before.mm + 1, `mother checks ${before.mm} -> ${after.p.measurements.length}`);
     expect(after.p.today_log.pmt === true, 'PMT not synced'); expect(after.p.anc_done === 3, `anc ${after.p.anc_done}`);
