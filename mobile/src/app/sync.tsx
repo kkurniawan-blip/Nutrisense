@@ -1,5 +1,5 @@
 import { useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import { Text } from '../components/Text';
@@ -36,6 +36,11 @@ export default function SyncStatus() {
     void refresh(); // entries saved on other screens (e.g. a danger report) count at once, so the header matches the list
   }, [refresh]);
   useFocusEffect(load);
+  // The provider syncs in the background (on open, every 30 s): reload the lists when the count changes.
+  useEffect(() => {
+    void queued().then(setWaiting);
+    void history().then(setDone);
+  }, [pending]);
   const run = async () => {
     // With no signal syncNow can reject; the lists must still refresh and the error must not crash the screen.
     try {
