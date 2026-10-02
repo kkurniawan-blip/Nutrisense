@@ -1,5 +1,5 @@
 """Governance layer: consent, audit trail, SATUSEHAT/FHIR export, notifications and model registry."""
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
@@ -35,7 +35,7 @@ def set_consent(body: ConsentIn, user: User = Depends(get_current_user), db: Ses
 
 
 @router.get("/audit-logs")
-def audit_logs(limit: int = 100, entity: str | None = None, _: User = Depends(require_roles("admin", "officer")),
+def audit_logs(limit: int = Query(100, ge=1, le=500), entity: str | None = None, _: User = Depends(require_roles("admin", "officer")),
                db: Session = Depends(get_db)):
     q = select(AuditLog).order_by(AuditLog.id.desc()).limit(min(limit, 500))
     if entity:

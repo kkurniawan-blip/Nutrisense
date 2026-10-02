@@ -10,8 +10,12 @@ from ..models import Locker, SupplyRequest, User
 from ..schemas import ApproveIn, PickupIn, RejectIn, RestockIn, SupplyRequestIn
 from ..services import logistics
 from ..services.common import audit, notify
+from ..services.throttle import FailureLimiter
 
 router = APIRouter(prefix="/api", tags=["N.E.X.U.S. logistics"])
+
+# Wrong pickup codes per person and locker: 10 in 15 minutes, so the 6-digit codes cannot be guessed by trying them all.
+PICKUP_LIMIT = FailureLimiter(max_failures=10, window_seconds=15 * 60)
 
 
 @router.get("/logistics/catalog")
@@ -56,11 +60,21 @@ def pickup(locker_code: str, body: PickupIn, user: User = Depends(get_current_us
     """Called by the locker kiosk (or the Kader's phone at the locker) after scanning the caregiver's QR or code."""
     if not body.pickup_code and not body.qr_payload:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Provide a pickup code or QR payload")
+    key = f"{user.id}:{locker_code}"
+    if PICKUP_LIMIT.blocked(key):
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS,
+                            {"id": "Terlalu banyak kode salah. Coba lagi dalam 15 menit.",
+                             "en": "Too many wrong codes. Try again in 15 minutes."}[lang_of(user)], headers={"Retry-After": "900"})
     logistics.tick(db)
     try:
         req = logistics.verify_pickup(db, locker_code, body.pickup_code, body.qr_payload, user, lang_of(user))
     except LookupError as e:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(e))
+    except logistics.CodeMismatch as e:
+        PICKUP_LIMIT.fail(key)
+        audit(db, user, "locker_pickup_failed", "locker", None, locker=locker_code)
+        db.commit()
+        raise HTTPException(status.HTTP_403_FORBIDDEN, str(e))
     except PermissionError as e:
         raise HTTPException(status.HTTP_403_FORBIDDEN, str(e))
     notify(db, req.child.caregiver_id, "picked_up", {"id": "Paket diambil", "en": "Package collected"},

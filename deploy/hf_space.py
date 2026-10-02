@@ -21,7 +21,14 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-INCLUDE = ("backend/", "mobile/", "Dockerfile", ".dockerignore")
+INCLUDE = ("backend/", "mobile/", "Dockerfile", ".dockerignore", "deploy/docker-entrypoint.sh")
+# Space variables (public, not secrets) that make the Space a throwaway demo: demo accounts are seeded,
+# production mode allows it (ALLOW_DEMO), and missing secrets are made up at random on every start.
+DEMO_VARIABLES = {
+    "NUTRISENSE_SEED_DEMO_DATA": "true",
+    "NUTRISENSE_ALLOW_DEMO": "1",
+    "NUTRISENSE_EPHEMERAL_SECRETS": "1",
+}
 GITHUB_URL = "https://github.com/kkurniawan-blip/Nutrisense"
 
 SPACE_README = f"""---
@@ -82,6 +89,11 @@ def wait_until_live(api, repo_id: str, url: str, timeout_s: int = 1500) -> None:
     sys.exit(f"The Space did not come up within {timeout_s // 60} minutes. Check https://huggingface.co/spaces/{repo_id}")
 
 
+def space_url(api, repo_id: str) -> str:
+    info = api.space_info(repo_id)
+    return (getattr(info, "host", None) or f"https://{repo_id.replace('/', '-').replace('_', '-').replace('.', '-').lower()}.hf.space").rstrip("/")
+
+
 def main() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         folder = Path(tmp)
@@ -100,14 +112,17 @@ def main() -> None:
         repo_id = os.environ.get("HF_SPACE") or f"{api.whoami()['name']}/nutrisense"
         print(f"Deploying {len(files)} files to https://huggingface.co/spaces/{repo_id}", flush=True)
         api.create_repo(repo_id, repo_type="space", space_sdk="docker", exist_ok=True)
+        url = space_url(api, repo_id)
+        # Set before the upload, so the build that the upload starts already runs as a demo.
+        for key, value in {**DEMO_VARIABLES, "NUTRISENSE_CORS_ORIGINS": url}.items():
+            api.add_space_variable(repo_id, key, value)
+        print(f"Space variables set: {', '.join(DEMO_VARIABLES)}, NUTRISENSE_CORS_ORIGINS={url}", flush=True)
         api.upload_folder(
             folder_path=folder, repo_id=repo_id, repo_type="space",
             commit_message=f"Deploy {os.environ.get('GITHUB_SHA', 'local build')[:12]}",
-            delete_patterns=["backend/**", "mobile/**"],  # remove files deleted from the repo
+            delete_patterns=["backend/**", "mobile/**", "deploy/**"],  # remove files deleted from the repo
         )
 
-    info = api.space_info(repo_id)
-    url = (getattr(info, "host", None) or f"https://{repo_id.replace('/', '-').replace('_', '-').replace('.', '-').lower()}.hf.space").rstrip("/")
     print(f"Uploaded. Waiting for the build (usually 5–10 minutes): {url}", flush=True)
     wait_until_live(api, repo_id, url)
     print(f"\nNutriSense is live: {url}")

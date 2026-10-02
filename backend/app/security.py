@@ -31,9 +31,11 @@ def verify_password(password: str, stored: str) -> bool:
     return hmac.compare_digest(digest.hex(), digest_hex)
 
 
-def create_access_token(user_id: int, role: str) -> str:
+def create_access_token(user_id: int, role: str, token_version: int = 0) -> str:
     now = datetime.now(timezone.utc)
-    payload = {"sub": str(user_id), "role": role, "iat": now, "exp": now + timedelta(minutes=settings.jwt_expire_minutes)}
+    # "tv" must match users.token_version: bumping it (logout, password change) revokes every older token.
+    payload = {"sub": str(user_id), "role": role, "tv": token_version, "iat": now,
+               "exp": now + timedelta(minutes=settings.jwt_expire_minutes)}
     return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
 
 

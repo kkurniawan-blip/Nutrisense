@@ -4,12 +4,21 @@ __pycache__/
 .venv/
 .pytest_cache/
 
+# Secrets and local settings (the *.example files are committed)
+.env
+.env.*
+!.env.example
+backend/.env
+mobile/.env*
+!mobile/.env.example
+
 # Backend runtime data
 backend/*.db
+backend/*.db-*
 backend/model_store/
 backend/uploads/
-backend/.env
 backend/web/
+backend/web.new/
 backend/backups/
 
 # OS / editors

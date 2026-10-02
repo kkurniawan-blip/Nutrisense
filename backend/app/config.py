@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     # N.E.X.U.S. simulation parameters
 
     seed_demo_data: bool = True
+    # Demo accounts share one known password, so production refuses to seed them unless this is set on purpose
+    # (NUTRISENSE_ALLOW_DEMO=1 on demo deployments).
+    allow_demo: bool = False
     cors_origins: str = "*"
 
 

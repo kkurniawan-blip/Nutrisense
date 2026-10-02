@@ -204,8 +204,9 @@ def test_consent_controls_ai_and_fhir(client, auth):
     birth = date.today() - timedelta(days=400)
     cid = client.post("/api/children", headers=h, json={"name": "C", "sex": "female", "birth_date": birth.isoformat()}).json()["id"]
     r = client.post(f"/api/children/{cid}/measurements", headers=h, json={"weight_kg": 9.0, "height_cm": 74, "position": "lying"})
-    assert r.status_code == 201 and r.json()["assessment"] is None  # no AI without consent
-    assert client.post(f"/api/children/{cid}/assess", headers=h).status_code == 403
+    # Without AI consent the WHO rules and triage still run (only the LLM text is skipped).
+    assert r.status_code == 201 and r.json()["assessment"] is not None
+    assert client.post(f"/api/children/{cid}/assess", headers=h).status_code == 200
 
     kader = auth("kader.oesapa@nutrisense.id")
     assert client.post(f"/api/children/{cid}/fhir/sync", headers=kader).status_code == 403
@@ -389,6 +390,8 @@ def test_notifications_follow_recipient_language(client, auth):
     try:
         client.patch(f"/api/cases/{case['id']}", headers=kader, json={"note": "Please give an egg every day.", "share_with_family": True})
         latest = client.get("/api/notifications", headers=mom).json()[0]
-        assert latest["title"] == "Message from your health worker" and latest["body"] == "Please give an egg every day."
+        # The note itself stays in the app; the notification only says there is one (shared phones show it on the lock screen).
+        assert latest["title"] == "Message from your health worker" and "egg" not in latest["body"]
+        assert "Open the app" in latest["body"]
     finally:
         client.patch("/api/auth/me", json={"language": "id"}, headers=mom)

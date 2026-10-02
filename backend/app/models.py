@@ -69,13 +69,14 @@ class User(Base):
     email: Mapped[str | None] = mapped_column(String(255), unique=True, index=True, nullable=True)  # phone-only accounts have none
     password_hash: Mapped[str] = mapped_column(String(255))
     full_name: Mapped[str] = mapped_column(String(160))
-    phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(40), nullable=True, index=True)
     role: Mapped[str] = mapped_column(String(20), default=Role.caregiver.value)
     region_id: Mapped[int | None] = mapped_column(ForeignKey("regions.id"), nullable=True)
     language: Mapped[str] = mapped_column(String(5), default="id")
     # Kaders often serve several villages; their home region plus these form their coverage area.
     covered_region_ids: Mapped[list] = mapped_column(JSON, default=list)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    token_version: Mapped[int] = mapped_column(Integer, default=0)  # bumped on logout / password change to revoke tokens
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
 
     region: Mapped[Region | None] = relationship()
@@ -219,7 +220,7 @@ class Case(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     child_id: Mapped[int] = mapped_column(ForeignKey("children.id"), index=True)
     assessment_id: Mapped[int | None] = mapped_column(ForeignKey("risk_assessments.id"), nullable=True)
-    status: Mapped[str] = mapped_column(String(20), default="open")  # open|in_progress|referred|resolved|closed
+    status: Mapped[str] = mapped_column(String(20), default="open", index=True)  # open|in_progress|referred|resolved|closed
     priority: Mapped[str] = mapped_column(String(20), default="medium")  # low|medium|high|emergency
     urgency: Mapped[str | None] = mapped_column(String(40), nullable=True)
     assigned_to_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
@@ -289,7 +290,7 @@ class SupplyRequest(Base):
     status: Mapped[str] = mapped_column(String(30), default="pending_approval")
     fulfillment: Mapped[str | None] = mapped_column(String(20), nullable=True)  # locker_stock | courier
     locker_id: Mapped[int | None] = mapped_column(ForeignKey("lockers.id"), nullable=True)
-    pickup_code: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    pickup_code: Mapped[str | None] = mapped_column(String(10), nullable=True, index=True)
     qr_payload: Mapped[str | None] = mapped_column(String(255), nullable=True)
     decision: Mapped[dict] = mapped_column(JSON, default=dict)  # logistics decision rationale
     approved_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)

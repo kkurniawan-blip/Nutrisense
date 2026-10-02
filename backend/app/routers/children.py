@@ -41,12 +41,15 @@ def create_child(body: ChildIn, user: User = Depends(get_current_user), db: Sess
         if not body.caregiver_email and not body.caregiver_phone:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "caregiver_email or caregiver_phone is required when staff register a child")
         if body.caregiver_email:
-            caregiver = db.scalar(select(User).where(User.email == body.caregiver_email.lower(), User.role == "caregiver"))
+            caregiver = db.scalar(select(User).where(User.email == body.caregiver_email.lower()))
         else:
             caregiver = find_by_phone(db, body.caregiver_phone)
-            caregiver = caregiver if caregiver is not None and caregiver.role == "caregiver" else None
         if caregiver is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "No caregiver account with that email or phone; register the caregiver first")
+        # Same answer for a staff account and for a mother outside the Kader's villages, so neither can be probed.
+        if caregiver.role != "caregiver" or (user.role == "kader" and caregiver.region_id is not None
+                                             and caregiver.region_id not in user.coverage()):
+            raise HTTPException(status.HTTP_409_CONFLICT, "This email or phone belongs to an account you cannot add a child to")
     else:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed")
     if not has_consent(db, caregiver.id, "data_processing"):
@@ -56,6 +59,8 @@ def create_child(body: ChildIn, user: User = Depends(get_current_user), db: Sess
     region_id = body.region_id or caregiver.region_id or (user.region_id if user.role == "kader" else None)
     if region_id is not None and db.get(Region, region_id) is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Unknown region")
+    if user.role == "kader" and region_id not in user.coverage():
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "This village is outside your area")
     kader_id = user.id if user.role == "kader" else None
     if kader_id is None and region_id is not None:
         kaders = db.scalars(select(User).where(User.role == "kader", User.is_active.is_(True)).order_by(User.id)).all()
@@ -87,8 +92,16 @@ def get_child_detail(child_id: int, user: User = Depends(get_current_user), db: 
 def update_child(child_id: int, body: ChildUpdateIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     child = get_child(child_id, db, user)
     data = body.model_dump(exclude_unset=True)
+    if any(data.get(f) is None for f in ("name", "clean_water_access", "sanitation_access") if f in data):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Name, clean water and sanitation cannot be empty")
+    if data.get("region_id") is not None and db.get(Region, data["region_id"]) is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Unknown region")
     if "kader_id" in data and user.role not in OVERSIGHT:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Only officers can reassign Kaders")
+    if data.get("kader_id") is not None:
+        k = db.get(User, data["kader_id"])
+        if k is None or k.role != "kader" or not k.is_active:
+            raise HTTPException(422, "kader_id must be an active Kader")
     for field, value in data.items():
         setattr(child, field, value)
     audit(db, user, "update_child", "child", child.id, fields=list(data))
@@ -103,10 +116,11 @@ def delete_child(child_id: int, user: User = Depends(get_current_user), db: Sess
     child = get_child(child_id, db, user)
     if user.role not in ("caregiver", "admin"):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Only the caregiver or an admin can delete a record")
-    from ..models import (Case, ChatMessage, Consent, DevelopmentCheck, FhirSyncLog, MealLog, NutritionRecommendation,
-                          SupplyRequest)
+    links = _notification_links(db, child)
+    from ..models import (BreastfeedingLog, Case, ChatMessage, Consent, DevelopmentCheck, FhirSyncLog, KiaRecord, MealLog,
+                          Notification, NutritionRecommendation, Pregnancy, SupplyRequest)
 
-    for model in (NutritionRecommendation, MealLog, ChatMessage, FhirSyncLog, Consent, DevelopmentCheck):
+    for model in (NutritionRecommendation, MealLog, ChatMessage, FhirSyncLog, Consent, DevelopmentCheck, KiaRecord, BreastfeedingLog):
         for row in db.scalars(select(model).where(model.child_id == child.id)).all():
             db.delete(row)
     for req in db.scalars(select(SupplyRequest).where(SupplyRequest.child_id == child.id)).all():
@@ -115,6 +129,12 @@ def delete_child(child_id: int, user: User = Depends(get_current_user), db: Sess
         db.delete(req)
     for row in db.scalars(select(Case).where(Case.child_id == child.id)).all():
         db.delete(row)
+    for p in db.scalars(select(Pregnancy).where(Pregnancy.child_id == child.id)).all():
+        p.child_id = None  # the mother's pregnancy record stays hers
+    # Notifications name the child; JSON filters differ per database, so match their links in Python.
+    for n in db.scalars(select(Notification).where(Notification.user_id.in_(_recipients(db, child)))).all():
+        if any(isinstance(v, int) and (k, v) in links for k, v in (n.data or {}).items()):
+            db.delete(n)
     db.flush()
     for model in (RiskAssessment, SymptomReport):
         for row in db.scalars(select(model).where(model.child_id == child.id)).all():
@@ -125,9 +145,33 @@ def delete_child(child_id: int, user: User = Depends(get_current_user), db: Sess
     db.commit()
 
 
+def _notification_links(db: Session, child: Child) -> set[tuple[str, int]]:
+    """The notification data keys that point at this child or its records (cases, assessments, packages, measurements)."""
+    from ..models import Case, SupplyRequest
+
+    links = {("child_id", child.id)} | {("measurement_id", m.id) for m in child.measurements}
+    for key, model in (("case_id", Case), ("assessment_id", RiskAssessment), ("supply_request_id", SupplyRequest)):
+        links |= {(key, i) for i in db.scalars(select(model.id).where(model.child_id == child.id)).all()}
+    return links
+
+
+def _recipients(db: Session, child: Child) -> list[int]:
+    """Everyone who can have been notified about the child: the family and the staff."""
+    staff = db.scalars(select(User.id).where(User.role.in_(("kader", "officer", "doctor", "admin")))).all()
+    return [child.caregiver_id, *staff]
+
+
+def _existing_measurement(db: Session, child: Child, client_uuid: str) -> GrowthMeasurement | None:
+    """A retry of an offline upload returns the saved row; the same id on another child is a conflict, never its data."""
+    m = db.scalar(select(GrowthMeasurement).where(GrowthMeasurement.client_uuid == client_uuid))
+    if m is not None and m.child_id != child.id:
+        raise HTTPException(status.HTTP_409_CONFLICT, "This client_uuid is already used")
+    return m
+
+
 def _record_measurement(db: Session, child: Child, body: MeasurementIn, user: User) -> tuple[GrowthMeasurement, bool]:
     if body.client_uuid:
-        existing = db.scalar(select(GrowthMeasurement).where(GrowthMeasurement.client_uuid == body.client_uuid))
+        existing = _existing_measurement(db, child, body.client_uuid)
         if existing:
             return existing, False
     measured_at = body.measured_at or date.today()
@@ -148,7 +192,16 @@ def _record_measurement(db: Session, child: Child, body: MeasurementIn, user: Us
                           whz=z.whz, source="kader" if user.role == "kader" else body.source, client_uuid=body.client_uuid,
                           recorded_by_id=user.id, measured_by=measured_by, oedema=body.oedema)
     db.add(m)
-    db.flush()
+    try:
+        db.flush()
+    except IntegrityError:
+        # Two uploads of the same entry at once: the second insert hits the unique key, so hand back the first one.
+        # Callers that pass a client_uuid have nothing else pending, so the rollback loses no other write.
+        db.rollback()
+        existing = _existing_measurement(db, child, body.client_uuid) if body.client_uuid else None
+        if existing is None:
+            raise HTTPException(status.HTTP_409_CONFLICT, "This measurement could not be saved; try again")
+        return existing, False
     if body.oedema:
         # Oedema of both feet is a sign of severe acute malnutrition: tell the Kader and staff at once.
         notify_roles(db, ["kader", "officer", "doctor"], child.region_id, "oedema",
@@ -174,8 +227,10 @@ def add_measurement(child_id: int, body: MeasurementIn, lang: str | None = None,
     db.commit()
     db.refresh(child)
     result = {"measurement": S.measurement(m), "created": created, "assessment": None}
-    if created and body.run_assessment and has_consent(db, child.caregiver_id, "ai_analysis"):
-        result["assessment"] = S.assessment(run_assessment(db, child, user, lang_of(user, lang), measurement_id=m.id))
+    if created and body.run_assessment:
+        # WHO rules, triage, cases and Kader alerts run for every child; only the LLM text needs the ai_analysis consent.
+        result["assessment"] = S.assessment(run_assessment(db, child, user, lang_of(user, lang), measurement_id=m.id,
+                                                           use_ai=has_consent(db, child.caregiver_id, "ai_analysis")))
     return result
 
 
@@ -205,9 +260,9 @@ def sync_offline(body: SyncBatchIn, lang: str | None = None, user: User = Depend
     for child_id, mid in touched.items():
         child = db.get(Child, child_id)
         db.refresh(child)
-        if has_consent(db, child.caregiver_id, "ai_analysis"):
-            a = run_assessment(db, child, user, lang_of(user, lang), measurement_id=mid)
-            assessed.append({"child_id": child_id, "risk_level": a.risk_level})
+        a = run_assessment(db, child, user, lang_of(user, lang), measurement_id=mid,
+                           use_ai=has_consent(db, child.caregiver_id, "ai_analysis"))
+        assessed.append({"child_id": child_id, "risk_level": a.risk_level})
     return {"results": results, "assessed": assessed}
 
 
@@ -312,10 +367,8 @@ def list_assessments(child_id: int, user: User = Depends(get_current_user), db: 
 @router.post("/children/{child_id}/assess")
 def assess(child_id: int, lang: str | None = None, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     child = get_child(child_id, db, user)
-    if not has_consent(db, child.caregiver_id, "ai_analysis"):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Caregiver has not consented to AI analysis")
     try:
-        return S.assessment(run_assessment(db, child, user, lang_of(user, lang)))
+        return S.assessment(run_assessment(db, child, user, lang_of(user, lang), use_ai=has_consent(db, child.caregiver_id, "ai_analysis")))
     except ValueError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
 
@@ -348,8 +401,8 @@ def report_symptoms(child_id: int, body: SymptomIn, lang: str | None = None, use
     db.commit()
     db.refresh(child)
     out = {"report": S.symptom_report(report), "other_concerns": parsed.get("other_concerns", []), "assessment": None}
-    if use_ai and (child.measurements or report.danger_signs):
-        out["assessment"] = S.assessment(run_assessment(db, child, user, L, symptom_report_id=report.id))
+    if child.measurements or report.danger_signs:  # danger signs must reach the Kader with or without AI consent
+        out["assessment"] = S.assessment(run_assessment(db, child, user, L, symptom_report_id=report.id, use_ai=use_ai))
     return out
 
 

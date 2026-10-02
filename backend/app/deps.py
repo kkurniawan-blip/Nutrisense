@@ -18,9 +18,10 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     try:
         payload = decode_access_token(token)
         user = db.get(User, int(payload["sub"]))
-    except (PyJWTError, KeyError, ValueError):
-        user = None
-    if user is None or not user.is_active:
+        version = int(payload.get("tv", 0))  # tokens issued before revocation existed carry no "tv": version 0
+    except (PyJWTError, KeyError, ValueError, TypeError):
+        user, version = None, None
+    if user is None or not user.is_active or version != (user.token_version or 0):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or expired token", headers={"WWW-Authenticate": "Bearer"})
     return user
 

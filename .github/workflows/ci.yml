@@ -1,0 +1,263 @@
+# CI: runs on every push and pull request. One job per concern, each with a short name, so a red run says what broke.
+#   backend   - pytest on SQLite (Python 3.11, same as the Dockerfile and the devcontainer)
+#   postgres  - the same suite on PostgreSQL 16 (NEVER RUN in the dev sandbox: no PostgreSQL there; first real run is on GitHub)
+#   mobile    - npm ci, typecheck, lint, web export (Node 22, same as the Dockerfile); uploads the web build
+#   e2e       - browser walkthrough (npm test) and QA pass (npm run qa), each on a fresh demo DB, app + API on one address
+#   docker    - builds the root Dockerfile and smoke-tests it (NEVER RUN in the dev sandbox: no Docker daemon there)
+#   audit     - pip-audit and npm audit; report-only until the known expo tooling advisories are cleared
+# Versions: Python and Node match .python-version / .nvmrc at the repo root.
+# TODO (supply chain): actions are pinned to major tags; pin each to a full commit SHA (with a "# vX.Y.Z" comment).
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 2 * * 1" # Mondays 02:17 UTC: catches new advisories and upstream breakage on a quiet branch
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "22"
+  EXPO_NO_TELEMETRY: "1"
+  CI: "1"
+
+jobs:
+  backend:
+    name: Backend tests (SQLite)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - run: pip install -r requirements-dev.txt
+      - name: pytest
+        run: python -m pytest -q --durations=10
+
+  # Never run in the dev sandbox (no PostgreSQL there). The password below belongs to a throwaway
+  # service container that only exists for this job; it is not a real credential.
+  postgres:
+    name: Backend tests (PostgreSQL 16)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: nutrisense
+          POSTGRES_PASSWORD: ci-only-throwaway
+          POSTGRES_DB: nutrisense_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U nutrisense"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      NUTRISENSE_TEST_DATABASE_URL: postgresql+psycopg2://nutrisense:ci-only-throwaway@localhost:5432/nutrisense_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - run: pip install -r requirements-dev.txt
+      - name: pytest on PostgreSQL
+        run: python -m pytest -q
+
+  mobile:
+    name: Mobile typecheck, lint, web export
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Lint
+        run: npx expo lint
+      - name: Web export (same-origin build, as in the Dockerfile)
+        env:
+          EXPO_PUBLIC_SAME_ORIGIN_API: "1"
+        run: npx expo export --platform web --clear --output-dir ../web-build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: web-build
+          retention-days: 3
+          if-no-files-found: error
+
+  e2e:
+    name: End-to-end and QA (fresh demo DB)
+    needs: [backend, mobile]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      APP_URL: http://localhost:8000
+      API_URL: http://localhost:8000
+      NUTRISENSE_ENVIRONMENT: development
+      NUTRISENSE_SEED_DEMO_DATA: "true"
+      NUTRISENSE_ANTHROPIC_API_KEY: ""
+      NUTRISENSE_WEB_DIR: ${{ github.workspace }}/web-build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - run: pip install -r backend/requirements.txt
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: web-build
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: e2e
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('e2e/package-lock.json') }}
+      - name: Install Chromium
+        working-directory: e2e
+        env:
+          PW_CACHE_HIT: ${{ steps.pw-cache.outputs.cache-hit }}
+        run: |
+          if [ "$PW_CACHE_HIT" = "true" ]; then
+            npx playwright install-deps chromium
+          else
+            npx playwright install --with-deps chromium
+          fi
+      - name: Start the server on a fresh demo database
+        run: bash "$GITHUB_WORKSPACE/.github/ci-start-server.sh" e2e
+      - name: End-to-end walkthrough
+        working-directory: e2e
+        run: npm test
+      - name: Restart on a fresh demo database for QA
+        run: bash "$GITHUB_WORKSPACE/.github/ci-start-server.sh" qa
+      - name: QA pass
+        working-directory: e2e
+        run: npm run qa
+      - name: Server log
+        if: always()
+        run: tail -n 200 "$RUNNER_TEMP"/server-*.log || true
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-evidence
+          path: |
+            e2e/screenshots
+            e2e/qa-screenshots
+            e2e/qa-results.json
+          retention-days: 7
+
+  # Never run in the dev sandbox (no Docker daemon there): the first real build and smoke test is on GitHub.
+  docker:
+    name: Docker image build and smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: nutrisense:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Refuses to start in production without secrets
+        run: |
+          if timeout 120 docker run --rm nutrisense:ci > no-secrets.log 2>&1; then
+            echo "::error::The image started without NUTRISENSE_JWT_SECRET / NUTRISENSE_ENCRYPTION_KEY; it must refuse."
+            cat no-secrets.log; exit 1
+          fi
+          grep -q "NUTRISENSE_JWT_SECRET" no-secrets.log || { echo "::error::Start-up failed, but not with the secrets message:"; cat no-secrets.log; exit 1; }
+          echo "OK: refused to start without secrets."
+      - name: Smoke test (health, web app, non-root, healthcheck)
+        run: |
+          docker run -d --name ns -p 8000:8000 \
+            -e NUTRISENSE_JWT_SECRET="$(openssl rand -hex 32)" \
+            -e NUTRISENSE_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
+            nutrisense:ci
+          for _ in $(seq 1 60); do curl -fsS http://localhost:8000/api/health > /dev/null && break; sleep 2; done
+          curl -fsS http://localhost:8000/api/health
+          curl -fsS http://localhost:8000/ | grep -qi "<html"
+          uid="$(docker exec ns id -u)"
+          if [ "$uid" = "0" ]; then echo "::error::The container runs as root."; exit 1; fi
+          for _ in $(seq 1 30); do
+            [ "$(docker inspect -f '{{.State.Health.Status}}' ns)" = "healthy" ] && break; sleep 3
+          done
+          health="$(docker inspect -f '{{.State.Health.Status}}' ns)"
+          [ "$health" = "healthy" ] || { echo "::error::Docker HEALTHCHECK status is '$health'"; exit 1; }
+          {
+            echo "Image size: $(docker image inspect nutrisense:ci --format '{{.Size}}' | numfmt --to=iec)"
+            echo "Runs as uid: $uid; HEALTHCHECK: $health"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Demo mode starts with throwaway secrets (as on Hugging Face / Render demo)
+        run: |
+          docker run -d --name ns-demo -p 8001:8000 \
+            -e NUTRISENSE_SEED_DEMO_DATA=true -e NUTRISENSE_ALLOW_DEMO=1 -e NUTRISENSE_EPHEMERAL_SECRETS=1 \
+            nutrisense:ci
+          for _ in $(seq 1 90); do curl -fsS http://localhost:8001/api/health > /dev/null && break; sleep 2; done
+          curl -fsS http://localhost:8001/api/health
+      - name: Container logs
+        if: always()
+        run: |
+          docker logs ns 2>&1 | tail -n 100 || true
+          docker logs ns-demo 2>&1 | tail -n 100 || true
+
+  audit:
+    name: Dependency audit (report-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true # flip to blocking once the 4 high expo-tooling advisories are cleared
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install pip-audit
+      - name: pip-audit (backend)
+        run: pip-audit -r backend/requirements.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: npm audit (mobile, runtime deps)
+        working-directory: mobile
+        run: npm audit --omit=dev --audit-level=high
+      - name: npm audit (e2e)
+        working-directory: e2e
+        run: npm audit --audit-level=high

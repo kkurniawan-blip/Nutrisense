@@ -1,12 +1,28 @@
 """Request bodies (responses are serialised in serializers.py)."""
 from datetime import date
+from typing import Annotated
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import AfterValidator, BaseModel, EmailStr, Field, StringConstraints
+
+# Passwords people commonly pick first; refused even though they meet the length rule.
+WEAK_PASSWORDS = {"12345678", "password", "87654321", "qwertyui", "11111111", "00000000"}
+
+
+def _not_weak(value: str) -> str:
+    if value.lower() in WEAK_PASSWORDS:
+        raise ValueError("This password is too easy to guess; choose another one")
+    return value
+
+
+# Max 128 so a huge password cannot make the PBKDF2 hash expensive.
+NewPassword = Annotated[str, Field(min_length=8, max_length=128), AfterValidator(_not_weak)]
+Password = Annotated[str, Field(max_length=128)]
+Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=160)]
 
 
 class RegisterIn(BaseModel):
     email: EmailStr | None = Field(default=None, description="Email, or leave empty and give a phone number")
-    password: str = Field(min_length=8)
+    password: NewPassword
     full_name: str = Field(min_length=2, max_length=160)
     phone: str | None = None
     region_id: int | None = None
@@ -19,8 +35,8 @@ class RegisterIn(BaseModel):
 
 class StaffCreateIn(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=8)
-    full_name: str
+    password: NewPassword
+    full_name: str = Field(min_length=2, max_length=160)
     role: str = Field(pattern="^(caregiver|kader|officer|doctor|admin)$")
     phone: str | None = None
     region_id: int | None = None
@@ -31,7 +47,14 @@ class StaffCreateIn(BaseModel):
 class LoginIn(BaseModel):
     email: str | None = Field(default=None, description="Email or phone number")
     phone: str | None = None
-    password: str
+    password: Password
+
+
+class StaffAreaIn(BaseModel):
+    """Admin only: a health worker's home region and the extra villages they cover (their access area)."""
+
+    region_id: int | None = None
+    covered_region_ids: list[int] | None = None
 
 
 class ProfileUpdateIn(BaseModel):
@@ -42,12 +65,12 @@ class ProfileUpdateIn(BaseModel):
 
 
 class PasswordChangeIn(BaseModel):
-    current_password: str
-    new_password: str = Field(min_length=8, max_length=128)
+    current_password: Password
+    new_password: NewPassword
 
 
 class ChildIn(BaseModel):
-    name: str = Field(min_length=1, max_length=160)
+    name: Name
     sex: str = Field(pattern="^(male|female)$")
     birth_date: date
     region_id: int | None = None
@@ -61,7 +84,7 @@ class ChildIn(BaseModel):
 
 
 class ChildUpdateIn(BaseModel):
-    name: str | None = None
+    name: Name | None = None
     birth_gestational_weeks: float | None = Field(default=None, ge=22, le=44)
     region_id: int | None = None
     kader_id: int | None = None

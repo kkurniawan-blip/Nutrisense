@@ -21,8 +21,11 @@ def serve_web_app(app: FastAPI, web_dir: Path) -> bool:
         if path == "api" or path.startswith("api/"):
             raise HTTPException(status_code=404, detail="Not Found")
         target = (root / path).resolve()
-        if path and target.is_file() and target.is_relative_to(root):
-            return FileResponse(target)
+        if path and path != "index.html" and target.is_file() and target.is_relative_to(root):
+            # Expo puts a content hash in these file names, so a cached copy never goes stale.
+            hashed = path.startswith(("_expo/static/", "assets/"))
+            return FileResponse(target, headers={"Cache-Control": "public, max-age=31536000, immutable"} if hashed else None)
+        # index.html names the current bundles: always revalidate it so a new release is picked up.
         return FileResponse(root / "index.html", headers={"Cache-Control": "no-cache"})
 
     return True

@@ -1,18 +1,41 @@
-# Render Blueprint: one web service with the app and the API on the same address.
-# Render dashboard → New → Blueprint → pick this repository (and branch). See README "Put it online".
+# Render Blueprint: a public DEMO, with the app and the API on one address.
+# Render dashboard -> New -> Blueprint -> pick this repository (and branch). See README "Put it online".
+#
+# This is a demo, not a production deployment:
+#   - free plan, no persistent disk: the SQLite database in /app/data starts again from fresh demo data
+#     on every deploy and restart;
+#   - demo accounts with a public password are seeded (NUTRISENSE_SEED_DEMO_DATA=true, allowed in production
+#     mode only because NUTRISENSE_ALLOW_DEMO=1).
+# For real data, follow README "Production checklist": a managed PostgreSQL database, SEED_DEMO_DATA=false,
+# no ALLOW_DEMO, no EPHEMERAL_SECRETS, and backups.
 services:
   - type: web
     name: nutrisense
     runtime: docker
     plan: free
     dockerfilePath: ./Dockerfile
-    healthCheckPath: /api/health
+    # Readiness (database reachable, model loaded). Render only routes traffic to a new deploy once this
+    # answers 200, and restarts the service when it keeps failing.
+    healthCheckPath: /api/health/ready
     envVars:
       - key: NUTRISENSE_ENVIRONMENT
         value: production
+      - key: NUTRISENSE_SEED_DEMO_DATA
+        value: "true"
+      - key: NUTRISENSE_ALLOW_DEMO
+        value: "1"
+      # Only fills in a secret that is missing. Render generates both below once and keeps them across
+      # restarts, so in practice sessions survive restarts here.
+      - key: NUTRISENSE_EPHEMERAL_SECRETS
+        value: "1"
       - key: NUTRISENSE_JWT_SECRET
         generateValue: true
       - key: NUTRISENSE_ENCRYPTION_KEY
         generateValue: true
+      # The web app is served from the same address, so it needs no CORS at all (nor does the native app).
+      # Keep this to the service's own URL; add other browser origins comma-separated. Never "*" in production.
+      # Change it if Render gives your service a different URL (to verify after the first deploy).
+      - key: NUTRISENSE_CORS_ORIGINS
+        value: https://nutrisense.onrender.com
       - key: NUTRISENSE_ANTHROPIC_API_KEY
         sync: false # optional: a Claude API key turns on photo NutriScan and free-form Tanya Nuri

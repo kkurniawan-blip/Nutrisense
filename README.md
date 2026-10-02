@@ -15,6 +15,8 @@ AI output is decision support, not a medical diagnosis. The app says so on every
 
 ## Quick start
 
+Needs **Python 3.11** and **Node.js 22** (the versions CI, the Docker image and the codespace use; see `.python-version` and `.nvmrc`).
+
 ### 1. Backend
 
 ```bash
@@ -27,13 +29,13 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 On first start it creates the database (SQLite, `backend/nutrisense.db`), loads a simulated posyandu network in East Nusa Tenggara, and trains the risk model (about 20 s). Interactive API docs are at **http://localhost:8000/docs**.
 
-With Docker and PostgreSQL instead: `docker compose up --build` from the repository root.
+With Docker and PostgreSQL instead: `cp .env.example .env`, fill in the three secrets in `.env`, then `docker compose up --build` from the repository root (app and API on http://localhost:8000).
 
 ### 2. Mobile app
 
 ```bash
 cd mobile
-npm install
+npm ci                 # installs the exact versions in package-lock.json
 npx expo start
 ```
 
@@ -81,21 +83,29 @@ The root `Dockerfile` builds a single image. The backend serves both the API and
 The link works while the codespace is running. Codespaces stop after 30 minutes of inactivity by default (up to 4 hours in GitHub settings), and restarting one starts the app again. Details: [.devcontainer/README.md](.devcontainer/README.md).
 
 **Always-on hosting (needs a card or a paid plan):**
-- **Render:** `render.yaml` is a Render Blueprint. Choose **New → Blueprint** and pick this repository. Render asks for card details. Its free services sleep after 15 minutes without visitors, and the next visit wakes them within about a minute.
+- **Render:** `render.yaml` is a Render Blueprint for a public demo. Choose **New → Blueprint** and pick this repository. Render asks for card details. Its free services sleep after 15 minutes without visitors, and the next visit wakes them within about a minute. After the first deploy, check that `NUTRISENSE_CORS_ORIGINS` in the Render dashboard matches the service's real URL.
 - **Hugging Face Spaces:** Docker Spaces need a Hugging Face PRO subscription; the free plan only hosts static pages. With PRO:
   1. Add a write token as the repository secret `HF_TOKEN`.
   2. Run **Actions → Deploy to Hugging Face**, or run `HF_TOKEN=hf_... python deploy/hf_space.py`.
+  3. The script sets the Space variables that make it a demo: `NUTRISENSE_SEED_DEMO_DATA=true`, `NUTRISENSE_ALLOW_DEMO=1`, `NUTRISENSE_EPHEMERAL_SECRETS=1` and `NUTRISENSE_CORS_ORIGINS` (the Space's own URL).
 
 Good to know about demo hosting:
-- On Render and Hugging Face the disk is temporary. Every restart starts again from fresh demo data, with new secrets. That is fine for demos.
+- On Render and Hugging Face the disk is temporary: every restart or redeploy starts again from fresh demo data. That is fine for demos.
+- Secrets: Render generates `NUTRISENSE_JWT_SECRET` and `NUTRISENSE_ENCRYPTION_KEY` once and keeps them across restarts. The Hugging Face Space has no secrets set, so with `NUTRISENSE_EPHEMERAL_SECRETS=1` it makes new random ones on every start, which logs everyone out.
 - For real use, add a PostgreSQL database (`NUTRISENSE_DATABASE_URL`), set fixed `NUTRISENSE_JWT_SECRET` and `NUTRISENSE_ENCRYPTION_KEY`, and follow the production checklist below.
 - The demo accounts and their password are public. Do not enter real children's data on a public demo.
 
 To run the same image on any computer or server with Docker:
 ```bash
 docker build -t nutrisense .
-docker run -p 8000:8000 nutrisense      # then open http://localhost:8000
+# Throwaway demo: demo accounts, random secrets, data lost when the container is removed
+docker run -p 8000:8000 -e NUTRISENSE_SEED_DEMO_DATA=true -e NUTRISENSE_ALLOW_DEMO=1 \
+  -e NUTRISENSE_EPHEMERAL_SECRETS=1 nutrisense              # then open http://localhost:8000
+# Kept data: fixed secrets (from a file that is not committed) and a volume for /app/data
+docker run -p 8000:8000 --env-file .env -v nutrisense-data:/app/data nutrisense
 ```
+
+The image runs as a non-root user (uid 1000). Only `/app/data` is writable: the SQLite database (`/app/data/nutrisense.db`) and the trained models. By default it starts in production mode with no demo data, and it refuses to start without `NUTRISENSE_JWT_SECRET` and `NUTRISENSE_ENCRYPTION_KEY`. Docker checks `/api/health` every 30 seconds (`HEALTHCHECK`), and on `docker stop` the server finishes requests in flight (up to 20 seconds).
 
 ---
 
@@ -258,14 +268,16 @@ in `.claude/agents/`. Their shared context, the definition of done and who owns 
 ## Tests and checks
 
 ```bash
-cd backend && pytest -q            # 181 tests: WHO z-scores vs published tables, model quality, triage,
+cd backend && pytest -q            # 180+ tests: WHO z-scores vs published tables, model quality, triage,
                                    # symptom lexicon, the full caregiver→Kader→officer→locker workflow,
                                    # RBAC, consent, encryption at rest, FHIR (out and in), offline sync
-cd mobile && npx tsc --noEmit && npx eslint src
+cd mobile && npx tsc --noEmit && npx expo lint
 cd e2e && npm test                 # 48-step browser walkthrough for every role (see e2e/README.md)
 ```
 
 The test suite runs on SQLite by default. Set `NUTRISENSE_TEST_DATABASE_URL` to an empty PostgreSQL database to run it there.
+
+**CI** (`.github/workflows/ci.yml`) runs on every push and pull request: backend tests on SQLite and on PostgreSQL 16, mobile typecheck, lint and web export, the browser walkthrough and QA pass on a fresh demo database, a Docker build with a smoke test, and a dependency audit (report-only for now).
 
 Useful commands: `python -m app.cli train` (retrain and activate a new model run), `python -m app.cli seed`.
 
@@ -279,6 +291,39 @@ Useful commands: `python -m app.cli train` (retrain and activate a new model run
 
 ## Production checklist
 
-- Set `NUTRISENSE_ENVIRONMENT=production`, a long random `NUTRISENSE_JWT_SECRET` and a long random `NUTRISENSE_ENCRYPTION_KEY` (a Fernet key, or any random secret that a key is derived from). The server refuses to start in production without them.
-- Use PostgreSQL over TLS, restrict `NUTRISENSE_CORS_ORIGINS`, and set `NUTRISENSE_SEED_DEMO_DATA=false`.
-- Create a real API key for each health facility (`python -m app.cli facility-add`). The demo facility keys are public. See [docs/FACILITY_INTEGRATION.md](docs/FACILITY_INTEGRATION.md#9-security).
+Before any real child or pregnancy data goes in:
+
+- **Mode and secrets.** `NUTRISENSE_ENVIRONMENT=production` (the Docker image's default). Set a long random `NUTRISENSE_JWT_SECRET` and `NUTRISENSE_ENCRYPTION_KEY` (a Fernet key, or any random secret that a key is derived from) in the host's secret store, never in the repository or in logs. Keep them fixed for the life of the database. The server refuses to start in production without them.
+- **No demo data.** `NUTRISENSE_SEED_DEMO_DATA=false` (the image's default), and do not set `NUTRISENSE_ALLOW_DEMO` or `NUTRISENSE_EPHEMERAL_SECRETS`: those are for public demos only. Create the first admin with `python -m app.cli user-add --role admin ...` (in Docker: `docker compose exec api python -m app.cli user-add ...`).
+- **Database.** PostgreSQL over TLS (add `?sslmode=require` to `NUTRISENSE_DATABASE_URL`), with scheduled backups and a restore you have tried (see below).
+- **HTTPS only.** Put the app behind a host or proxy that terminates HTTPS (Render and Hugging Face do). Set `FORWARDED_ALLOW_IPS` to the proxy's address range if you know it.
+- **CORS.** Set `NUTRISENSE_CORS_ORIGINS` to the exact browser origins that call the API, never `*`. The built-in web app and the native app need none.
+- **Facility keys.** Create a real API key for each health facility (`python -m app.cli facility-add`). The demo facility keys are public. See [docs/FACILITY_INTEGRATION.md](docs/FACILITY_INTEGRATION.md#9-security).
+- **Health checks.** Point liveness probes at `/api/health` and readiness (when traffic may be sent) at `/api/health/ready`.
+
+## Backup and restore
+
+Back up two things, and keep them apart:
+1. **The database** (below).
+2. **`NUTRISENSE_ENCRYPTION_KEY`.** Symptom descriptions and clinical notes are encrypted with it. A database restored without the same key shows those notes as "unreadable". Keep the key in a password manager or secret store, not next to the database dumps.
+
+**SQLite** (the default; `backend/nutrisense.db`, or `/app/data/nutrisense.db` in the Docker image). Use SQLite's online backup, which is safe while the server runs. Do not copy the file while the server is running.
+```bash
+sqlite3 backend/nutrisense.db ".backup 'nutrisense-$(date +%F).db'"            # on a machine with the sqlite3 tool
+docker exec <container> python -c "import sqlite3; sqlite3.connect('/app/data/nutrisense.db').backup(sqlite3.connect('/app/data/backup.db'))"
+docker cp <container>:/app/data/backup.db nutrisense-$(date +%F).db                # inside the image (no sqlite3 tool there)
+```
+Restore: stop the server, replace the database file with the backup copy (in Docker: `docker cp` it to `/app/data/nutrisense.db`, owned by uid 1000), and start the server with the same `NUTRISENSE_ENCRYPTION_KEY`.
+
+**PostgreSQL** (custom format, so you can restore all or part of it):
+```bash
+# Backup (docker compose; for a managed database use its URL: pg_dump -Fc "postgresql://user:pass@host/db?sslmode=require")
+docker compose exec -T db pg_dump -U nutrisense -Fc nutrisense > nutrisense-$(date +%F).dump
+# Restore into the same database: stop the app first so nothing writes during the restore
+docker compose stop api
+docker compose exec -T db pg_restore -U nutrisense -d nutrisense --clean --if-exists --no-owner < nutrisense-2026-10-02.dump
+docker compose start api
+```
+`NUTRISENSE_DATABASE_URL` uses `postgresql+psycopg2://`. The `pg_dump` and `pg_restore` tools need plain `postgresql://`.
+
+Then check the restore: `/api/health` answers, you can log in, and an older symptom note can be read. Try a restore into a scratch database at least once before you depend on the backups.

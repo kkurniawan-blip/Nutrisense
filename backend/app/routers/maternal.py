@@ -20,6 +20,7 @@ from ..services.local import facility
 from .family import ROLE_LABEL
 
 router = APIRouter(prefix="/api", tags=["ibu hamil"])
+HPHT_MAX_DAYS = 44 * 7  # an HPHT older than this is a typo, not a pregnancy still going on
 
 
 # ---------- input ----------
@@ -219,7 +220,7 @@ def create_pregnancy(body: PregnancyIn, user: User = Depends(get_current_user), 
     hpht = body.hpht or (M.hpht_from_weeks(body.gestational_weeks, today) if body.gestational_weeks else None)
     if hpht is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Give the HPHT date or the weeks of pregnancy")
-    if hpht > today or (today - hpht).days > 44 * 7:
+    if hpht > today or (today - hpht).days > HPHT_MAX_DAYS:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "HPHT must be within the last 44 weeks")
     if db.scalar(select(Pregnancy).where(Pregnancy.mother_id == user.id, Pregnancy.status == "active")):
         raise HTTPException(status.HTTP_409_CONFLICT, "There is already an active pregnancy")
@@ -244,6 +245,8 @@ def register_mother(body: MotherRegisterIn, user: User = Depends(require_roles("
     if not body.consent_given:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "The mother's consent is required")
     phone = normalize_phone(body.phone)
+    if not phone or len(phone) < 8:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Enter the mother's phone number in digits")
     region_id = body.region_id or user.region_id
     if region_id is None or db.get(Region, region_id) is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Choose the mother's village")
@@ -251,12 +254,15 @@ def register_mother(body: MotherRegisterIn, user: User = Depends(require_roles("
         raise HTTPException(status.HTTP_403_FORBIDDEN, "This village is outside your area")
     today = date.today()
     hpht = body.hpht or (M.hpht_from_weeks(body.gestational_weeks, today) if body.gestational_weeks else None)
-    if hpht is None or hpht > today or (today - hpht).days > 44 * 7:
+    if hpht is None or hpht > today or (today - hpht).days > HPHT_MAX_DAYS:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Give the HPHT date or the weeks of pregnancy")
     mother = find_by_phone(db, phone)
     temp_password = None
-    if mother is not None and mother.role != "caregiver":
-        raise HTTPException(status.HTTP_409_CONFLICT, "This phone number belongs to a staff account")
+    # One plain answer for a staff number and for a mother outside this Kader's villages, so numbers cannot be probed.
+    if mother is not None and (mother.role != "caregiver" or (user.role == "kader" and mother.region_id is not None
+                                                               and mother.region_id not in user.coverage())):
+        raise HTTPException(status.HTTP_409_CONFLICT, "This phone number is already used by another account. Check the number, "
+                                                      "or ask the mother to add her pregnancy in her own app.")
     if mother is None:
         temp_password = f"{secrets.randbelow(10**8):08d}"
         mother = User(email=None, phone=phone, full_name=body.full_name.strip(), password_hash=hash_password(temp_password),
@@ -276,7 +282,9 @@ def register_mother(body: MotherRegisterIn, user: User = Depends(require_roles("
     audit(db, user, "create_pregnancy", "pregnancy", p.id, by="kader")
     db.commit()
     db.refresh(p)
-    return {"mother": S.user(mother), "temp_password": temp_password, "pregnancy": view(db, p, lang_of(user))}
+    # Only who she is: an existing account's email and phone are not shown; a new one's phone is the number just typed.
+    return {"mother": {"id": mother.id, "full_name": mother.full_name, "phone": phone if temp_password else None},
+            "temp_password": temp_password, "pregnancy": view(db, p, lang_of(user))}
 
 
 @router.get("/pregnancies/{pid}")
@@ -289,6 +297,11 @@ def get_pregnancy_detail(pid: int, user: User = Depends(get_current_user), db: S
 def update_pregnancy(pid: int, body: PregnancyUpdateIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     p = get_pregnancy(pid, db, user)
     data = body.model_dump(exclude_unset=True)
+    if "hpht" in data and data["hpht"] != p.hpht:
+        if p.status != "active":
+            raise HTTPException(status.HTTP_409_CONFLICT, "The birth is recorded; HPHT can no longer change")
+        if data["hpht"] is None or data["hpht"] > date.today() or (date.today() - data["hpht"]).days > HPHT_MAX_DAYS:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "HPHT must be within the last 44 weeks")
     if "birth_plan" in data:
         allowed = {"place", "transport", "companion", "helper", "blood_donor", "funding"}
         data["birth_plan"] = {k: str(v)[:80] for k, v in (data["birth_plan"] or {}).items() if k in allowed and v}
@@ -420,9 +433,8 @@ def record_birth(pid: int, body: BirthIn, user: User = Depends(get_current_user)
     db.commit()
     db.refresh(child)
     # The child's first status comes from the birth size, so home shows it at once.
-    if has_consent(db, child.caregiver_id, "ai_analysis"):
-        run_assessment(db, child, user, lang_of(user), measurement_id=m.id)
-        db.refresh(child)
+    run_assessment(db, child, user, lang_of(user), measurement_id=m.id, use_ai=has_consent(db, child.caregiver_id, "ai_analysis"))
+    db.refresh(child)
     return {"child": S.child(child), "pregnancy": view(db, p, lang_of(user)), "low_birth_weight": body.birth_weight_kg < 2.5,
             "premature": premature, "gestational_weeks": weeks,
             "z": growth.compute_z_scores(body.sex, 0, body.birth_weight_kg, body.birth_length_cm, "lying").as_dict()}

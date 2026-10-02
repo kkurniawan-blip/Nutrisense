@@ -1,34 +1,44 @@
-# Deploys the app to a Hugging Face Space. Docker Spaces need a Hugging Face PRO subscription
+# Deploys the public DEMO to a Hugging Face Space. Docker Spaces need a Hugging Face PRO subscription
 # (their free plan hosts static pages only), so this runs only when started by hand:
-# Actions → Deploy to Hugging Face → Run workflow.
+# Actions -> Deploy to Hugging Face -> Run workflow.
 # Setup: add a Hugging Face access token (with write permission) as the repository secret HF_TOKEN.
 # Optional: set the repository variable HF_SPACE (e.g. yourname/nutrisense).
+# deploy/hf_space.py also sets the Space variables that make it a demo (seeded demo data, throwaway secrets).
 name: Deploy to Hugging Face
 
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+# One deploy at a time; a second run waits instead of cancelling an upload that is half done.
 concurrency:
   group: deploy-hf
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
+      # TODO (supply chain): pin these actions to full commit SHAs.
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Check the HF_TOKEN secret
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          if [ -z "$HF_TOKEN" ]; then
+            echo "::error title=HF_TOKEN missing::Add a Hugging Face access token with write permission as the repository secret HF_TOKEN (Settings -> Secrets and variables -> Actions), then run this workflow again."
+            exit 1
+          fi
       - name: Deploy and wait until live
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_SPACE: ${{ vars.HF_SPACE }}
         run: |
-          if [ -z "$HF_TOKEN" ]; then
-            echo "::warning::No HF_TOKEN secret yet. Add a Hugging Face write token as the repository secret HF_TOKEN, then re-run this workflow."
-            exit 0
-          fi
-          pip install --quiet "huggingface_hub>=0.25"
+          pip install --quiet "huggingface_hub==2.1.1"
           python deploy/hf_space.py

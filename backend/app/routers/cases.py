@@ -16,6 +16,15 @@ router = APIRouter(prefix="/api", tags=["cases & human review"])
 _PRIORITY_ORDER = {"emergency": 0, "high": 1, "medium": 2, "low": 3}
 
 
+def _check_assignee(db: Session, user_id: int | None, roles: tuple[str, ...], child: Child, field: str) -> None:
+    """A case can only go to an active health worker of the right kind who can see the child."""
+    if user_id is None:
+        return
+    u = db.get(User, user_id)
+    if u is None or not u.is_active or u.role not in roles or not can_access_child(u, child):
+        raise HTTPException(422, f"{field} must be an active {' or '.join(roles)} covering this child's village")
+
+
 def _case_or_404(db: Session, case_id: int, user: User) -> Case:
     case = db.get(Case, case_id)
     if case is None or not can_access_child(user, case.child):
@@ -54,6 +63,13 @@ def update_case(case_id: int, body: CaseUpdateIn, user: User = Depends(require_r
     share = data.pop("share_with_family", False)
     if data.get("status") in ("resolved", "closed") and user.role == "kader" and case.priority in ("high", "emergency"):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "High-priority cases must be closed by a doctor or officer")
+    if (user.role == "kader" and data.get("priority")
+            and _PRIORITY_ORDER[data["priority"]] > _PRIORITY_ORDER.get(case.priority, 9)):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only a doctor or officer can lower a case's priority")
+    if ("priority" in data and data["priority"] is None) or ("status" in data and data["status"] is None):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Status and priority cannot be empty")
+    _check_assignee(db, data.get("assigned_to_id"), ("kader", "officer", "doctor"), case.child, "assigned_to_id")
+    _check_assignee(db, data.get("doctor_id"), ("doctor",), case.child, "doctor_id")
     for field, value in data.items():
         setattr(case, field, value)
     if data.get("status") in ("resolved", "closed"):
@@ -61,8 +77,10 @@ def update_case(case_id: int, body: CaseUpdateIn, user: User = Depends(require_r
     if note:
         db.add(CaseNote(case_id=case.id, author_id=user.id, text=note, visible_to_caregiver=bool(share)))
         if share:
+            # The text stays in the app (behind login), not in the notification that may show on a shared phone's lock screen.
             notify(db, case.child.caregiver_id, "care_note", {"id": "Pesan dari tenaga kesehatan", "en": "Message from your health worker"},
-                   note[:200], child_id=case.child_id)
+                   {"id": f"Ada pesan baru tentang {case.child.name}. Buka aplikasi untuk membacanya.",
+                    "en": f"There is a new message about {case.child.name}. Open the app to read it."}, child_id=case.child_id)
     if data.get("status") == "referred":
         notify(db, case.child.caregiver_id, "referral", {"id": "Rujukan", "en": "Referral"},
                {"id": f"{case.child.name} dirujuk ke dokter/Puskesmas.", "en": f"{case.child.name} has been referred to a doctor."}, case_id=case.id)

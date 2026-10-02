@@ -4,7 +4,7 @@ from collections import Counter
 from pathlib import Path
 from statistics import mean
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -108,7 +108,7 @@ def heatmap(user: User = Depends(require_roles(*STAFF)), db: Session = Depends(g
 
 
 @router.get("/priority")
-def priority_list(limit: int = 50, user: User = Depends(require_roles(*STAFF)), db: Session = Depends(get_db)):
+def priority_list(limit: int = Query(50, ge=1, le=500), user: User = Depends(require_roles(*STAFF)), db: Session = Depends(get_db)):
     """Children ordered by urgency for Kader visits and officer follow-up."""
     order = {"emergency": 0, "doctor_48h": 1, "kader_7d": 2, "routine": 3}
     latest = _latest_assessments(db)
@@ -127,7 +127,7 @@ def priority_list(limit: int = 50, user: User = Depends(require_roles(*STAFF)), 
 
 
 @router.get("/projection")
-def projection(series: str = "indonesia", until: int = 2030, _: User = Depends(require_roles(*STAFF))):
+def projection(series: str = "indonesia", until: int = Query(2030, ge=2024, le=2045), _: User = Depends(require_roles(*STAFF))):
     data = json.loads(_PREVALENCE.read_text())["series"]
     if series not in data:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Unknown series; choose one of {list(data)}")
@@ -198,11 +198,11 @@ def area_children(
     filter: str = "all",
     region_id: int | None = None,
     risk: str | None = None,
-    not_measured_days: int | None = None,
+    not_measured_days: int | None = Query(None, ge=0, le=3650),
     needs_visit: bool | None = None,
     q: str | None = None,
-    limit: int = 30,
-    offset: int = 0,
+    limit: int = Query(30, ge=1, le=100),
+    offset: int = Query(0, ge=0),
     user: User = Depends(require_roles(*STAFF)),
     db: Session = Depends(get_db),
 ):
@@ -316,7 +316,7 @@ def mothers(user: User = Depends(require_roles(*STAFF)), db: Session = Depends(g
 
 
 @router.get("/flagged")
-def flagged(days: int = 60, user: User = Depends(require_roles(*STAFF)), db: Session = Depends(get_db)):
+def flagged(days: int = Query(60, ge=1, le=730), user: User = Depends(require_roles(*STAFF)), db: Session = Depends(get_db)):
     """Measurements that need a second look: oedema, 2T, severe z-scores (children); KEK or anaemia (mothers)."""
     from datetime import date, timedelta
 

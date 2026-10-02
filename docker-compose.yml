@@ -1,33 +1,47 @@
-# Backend + PostgreSQL. Run: docker compose up --build   (API on http://localhost:8000/docs)
+# The full image (API + web app) with PostgreSQL, on one machine.
+#   cp .env.example .env      # then fill in the three secrets (see the comments there)
+#   docker compose up --build # app on http://localhost:8000, API docs on /docs
+# Secrets come only from .env (not committed). Compose stops with a clear message when one is missing.
+# Back up both the database volume and the encryption key: README "Backup and restore".
 services:
   db:
     image: postgres:16
+    restart: unless-stopped
     environment:
       POSTGRES_USER: nutrisense
-      POSTGRES_PASSWORD: nutrisense
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env (copy .env.example)}
       POSTGRES_DB: nutrisense
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U nutrisense"]
+      test: ["CMD-SHELL", "pg_isready -U nutrisense -d nutrisense"]
       interval: 5s
       retries: 10
+    # No published port: only the api service can reach the database.
 
   api:
-    build: ./backend
-    env_file:
-      - path: ./backend/.env
-        required: false
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    stop_grace_period: 25s
     environment:
-      NUTRISENSE_DATABASE_URL: postgresql+psycopg2://nutrisense:nutrisense@db:5432/nutrisense
+      NUTRISENSE_DATABASE_URL: postgresql+psycopg2://nutrisense:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/nutrisense
+      NUTRISENSE_JWT_SECRET: ${NUTRISENSE_JWT_SECRET:?Set NUTRISENSE_JWT_SECRET in .env (copy .env.example)}
+      NUTRISENSE_ENCRYPTION_KEY: ${NUTRISENSE_ENCRYPTION_KEY:?Set NUTRISENSE_ENCRYPTION_KEY in .env (copy .env.example)}
+      NUTRISENSE_ENVIRONMENT: ${NUTRISENSE_ENVIRONMENT:-production}
+      NUTRISENSE_SEED_DEMO_DATA: ${NUTRISENSE_SEED_DEMO_DATA:-false}
+      NUTRISENSE_ALLOW_DEMO: ${NUTRISENSE_ALLOW_DEMO:-0}
+      NUTRISENSE_CORS_ORIGINS: ${NUTRISENSE_CORS_ORIGINS:-http://localhost:8000}
+      NUTRISENSE_ANTHROPIC_API_KEY: ${NUTRISENSE_ANTHROPIC_API_KEY:-}
     ports:
       - "8000:8000"
     volumes:
-      - models:/app/model_store
+      - appdata:/app/data # trained models (the database itself is in PostgreSQL)
     depends_on:
       db:
         condition: service_healthy
 
 volumes:
   pgdata:
-  models:
+  appdata:

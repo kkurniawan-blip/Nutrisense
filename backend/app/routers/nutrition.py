@@ -1,6 +1,6 @@
 from datetime import date, datetime, timezone
 
-from fastapi import APIRouter, Body, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -47,10 +47,20 @@ def log_meal(child_id: int, body: MealIn, user: User = Depends(get_current_user)
 
 
 @router.get("/children/{child_id}/meals")
-def list_meals(child_id: int, limit: int = 50, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def list_meals(child_id: int, limit: int = Query(50, ge=1, le=500), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     child = get_child(child_id, db, user)
     rows = db.scalars(select(MealLog).where(MealLog.child_id == child.id).order_by(MealLog.eaten_at.desc()).limit(limit)).all()
     return [S.meal(m) for m in rows]
+
+
+async def _read_image(image: UploadFile) -> bytes:
+    """Read in chunks and stop past the limit, so an oversized upload is never held in memory whole."""
+    buf = bytearray()
+    while chunk := await image.read(64 * 1024):
+        buf += chunk
+        if len(buf) > MAX_IMAGE_BYTES:
+            raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, "Image must be 5 MB or smaller")
+    return bytes(buf)
 
 
 @router.post("/children/{child_id}/nutriscan")
@@ -63,9 +73,7 @@ async def nutriscan(child_id: int, image: UploadFile = File(...), lang: str | No
     media_type = image.content_type or "image/jpeg"
     if media_type not in IMAGE_TYPES:
         raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "Upload a JPEG, PNG, WEBP or GIF image")
-    data = await image.read()
-    if len(data) > MAX_IMAGE_BYTES:
-        raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, "Image must be 5 MB or smaller")
+    data = await _read_image(image)
     if not llm.is_enabled():
         return {"available": False, "message": "AI photo recognition is not configured on this server. Select foods manually.",
                 "items": [], "nutrients": {}, "food_groups": []}
@@ -157,13 +165,16 @@ def _child_context(db: Session, child) -> str:
 @router.post("/assistant/chat")
 def chat(body: ChatIn, lang: str | None = None, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     child = get_child(body.child_id, db, user) if body.child_id else None
-    ai_ok = has_consent(db, child.caregiver_id if child else user.id, "ai_analysis") or user.role != "caregiver"
+    # A mother's own chat goes to the AI only with her consent. Staff may use the AI, but a child's details go with the
+    # question only when that child's mother agreed to AI analysis; otherwise the answer is general.
+    ai_ok = user.role != "caregiver" or has_consent(db, user.id, "ai_analysis")
+    share_child = child is not None and has_consent(db, child.caregiver_id, "ai_analysis")
     history = db.scalars(select(ChatMessage).where(ChatMessage.user_id == user.id, ChatMessage.child_id == (child.id if child else None))
                          .order_by(ChatMessage.id.desc()).limit(12)).all()
     turns = [{"role": h.role, "content": h.content} for h in reversed(history)]
     L = lang_of(user, lang)
     if ai_ok:
-        answer, source = assistant.reply(turns, body.message, _child_context(db, child) if child else None, L)
+        answer, source = assistant.reply(turns, body.message, _child_context(db, child) if share_child else None, L)
     else:
         answer, source = assistant._faq(body.message, L), "faq"
     db.add(ChatMessage(user_id=user.id, child_id=child.id if child else None, role="user", content=body.message))

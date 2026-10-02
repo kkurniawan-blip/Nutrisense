@@ -127,7 +127,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       },
       changePassword: async (current, next) => {
-        await api('/api/auth/change-password', { body: { current_password: current, new_password: next } });
+        // The server signs out every other device and hands this one a fresh token.
+        const res = await api<{ access_token?: string } | undefined>('/api/auth/change-password', { body: { current_password: current, new_password: next } });
+        if (res?.access_token) await setToken(res.access_token);
       },
     }),
     [ready, user, lang, onAuth, logout],

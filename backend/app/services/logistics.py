@@ -7,6 +7,7 @@ data is read (or when an officer fast-forwards the simulation from the dashboard
 """
 from __future__ import annotations
 
+import hmac
 import math
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -15,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..ai.triage import SUPPLY_CATALOG
+from ..deps import can_access_child
 from ..models import Child, InventoryItem, Locker, Region, SupplyRequest, User
 from ..security import sign_payload
 from .common import audit, notify, notify_roles
@@ -216,7 +218,12 @@ def tick(db: Session, fast_forward_minutes: float = 0) -> dict:
     return {"couriers_delivered": delivered}
 
 
-def verify_pickup(db: Session, locker_code: str, pickup_code: str | None, qr_payload: str | None, actor: User | None,
+class CodeMismatch(PermissionError):
+    """Wrong code, a code for another locker, or a package this person may not collect: one answer for all, so a
+    guess never learns which codes exist or where."""
+
+
+def verify_pickup(db: Session, locker_code: str, pickup_code: str | None, qr_payload: str | None, actor: User,
                   lang: str = "id") -> SupplyRequest:
     locker = db.scalar(select(Locker).where(Locker.code == locker_code))
     if locker is None:
@@ -225,25 +232,21 @@ def verify_pickup(db: Session, locker_code: str, pickup_code: str | None, qr_pay
     if qr_payload:
         try:
             _, rid, code, sig = qr_payload.split(":")
+            rid_int = int(rid)
         except ValueError:
-            raise PermissionError(bad_qr)
-        if sign_payload(f"{rid}:{code}") != sig:
-            raise PermissionError(bad_qr)
+            raise CodeMismatch(bad_qr)
+        if not hmac.compare_digest(sign_payload(f"{rid}:{code}"), sig):
+            raise CodeMismatch(bad_qr)
         pickup_code = code
-        req = db.get(SupplyRequest, int(rid))
+        req = db.get(SupplyRequest, rid_int)
     else:
         req = db.scalar(select(SupplyRequest).where(SupplyRequest.locker_id == locker.id, SupplyRequest.pickup_code == pickup_code,
                                                     SupplyRequest.status == "ready_for_pickup"))
     L = "id" if lang == "id" else "en"
-    if req is None or req.locker_id != locker.id or req.pickup_code != pickup_code:
-        # Tell the Kader where the package really is, rather than only "wrong code".
-        elsewhere = req if req is not None and req.pickup_code == pickup_code else db.scalar(
-            select(SupplyRequest).where(SupplyRequest.pickup_code == pickup_code, SupplyRequest.status == "ready_for_pickup"))
-        if elsewhere is not None and elsewhere.locker is not None and elsewhere.locker_id != locker.id:
-            name = elsewhere.locker.name
-            raise PermissionError({"id": f"Kode ini untuk {name}, bukan loker ini.", "en": f"This code is for {name}, not this locker."}[L])
-        raise PermissionError({"id": "Kode tidak cocok untuk loker ini. Periksa lagi 6 angkanya.",
-                               "en": "This code does not match this locker. Check the 6 digits again."}[L])
+    if (req is None or req.locker_id != locker.id or req.pickup_code != pickup_code
+            or not can_access_child(actor, req.child)):  # only the family or staff covering the child's village
+        raise CodeMismatch({"id": "Kode tidak cocok untuk loker ini. Periksa lagi 6 angkanya.",
+                            "en": "This code does not match this locker. Check the 6 digits again."}[L])
     if req.status != "ready_for_pickup":
         done = req.status == "picked_up"
         raise PermissionError({"id": "Paket ini sudah diambil." if done else "Paket ini belum siap diambil.",

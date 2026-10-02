@@ -33,11 +33,15 @@ _ADDED_COLUMNS = {
     "regions": {"puskesmas_name": "VARCHAR(160)", "puskesmas_phone": "VARCHAR(40)", "facility_km": "FLOAT", "posyandu_day": "INTEGER"},
     "children": {"birth_gestational_weeks": "FLOAT"},
     "growth_measurements": {"measured_by": "VARCHAR(10)", "oedema": "BOOLEAN"},
+    "users": {"token_version": "INTEGER DEFAULT 0"},
     "pregnancies": {"birth_info": "JSON", "facility_sync": "BOOLEAN DEFAULT FALSE", "link_code": "VARCHAR(12)",
                     "linked_facility_id": "INTEGER", "last_sync_at": "TIMESTAMP WITH TIME ZONE"},
 }
 # Columns that became optional: phone-only accounts have no email.
 _RELAXED_NOT_NULL = {"users": ["email"]}
+# Indexes declared on existing columns later (create_all only indexes new tables). Names follow SQLAlchemy's ix_<table>_<column>.
+_ADDED_INDEXES = {"ix_users_phone": ("users", "phone"), "ix_cases_status": ("cases", "status"),
+                  "ix_supply_requests_pickup_code": ("supply_requests", "pickup_code")}
 
 
 def ensure_columns() -> None:
@@ -63,6 +67,9 @@ def ensure_columns() -> None:
             else:
                 for name in strict:
                     conn.execute(text(f"ALTER TABLE {table} ALTER COLUMN {name} DROP NOT NULL"))
+        for name, (table, column) in _ADDED_INDEXES.items():
+            if insp.has_table(table):
+                conn.execute(text(f"CREATE INDEX IF NOT EXISTS {name} ON {table} ({column})"))
 
 
 def _sqlite_rebuild(conn, table: str) -> None:
