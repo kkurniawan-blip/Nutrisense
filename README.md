@@ -249,6 +249,12 @@ This is the overfitting risk Appendix B already flags as future work.
 
 ---
 
+## Team
+NutriSense is built with a core team of specialist agents: Product Manager, UI/UX Designer, Frontend Engineer,
+Backend Engineer, Mobile Developer, QA / Test Engineer, DevOps / Cloud Engineer and Data / AI Engineer. Each is defined
+in `.claude/agents/`. Their shared context, the definition of done and who owns which files are in
+**[docs/TEAM.md](docs/TEAM.md)**.
+
 ## Tests and checks
 
 ```bash
