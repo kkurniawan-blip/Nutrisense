@@ -127,6 +127,7 @@ def delete_child(child_id: int, user: User = Depends(get_current_user), db: Sess
         if req.status in ("in_transit", "ready_for_pickup"):
             raise HTTPException(status.HTTP_409_CONFLICT, "A supply package is in progress; cancel or collect it first")
         db.delete(req)
+    db.flush()  # packages point at the case: they must be gone before it (PostgreSQL enforces the link)
     for row in db.scalars(select(Case).where(Case.child_id == child.id)).all():
         db.delete(row)
     for p in db.scalars(select(Pregnancy).where(Pregnancy.child_id == child.id)).all():
@@ -136,10 +137,10 @@ def delete_child(child_id: int, user: User = Depends(get_current_user), db: Sess
         if any(isinstance(v, int) and (k, v) in links for k, v in (n.data or {}).items()):
             db.delete(n)
     db.flush()
-    for model in (RiskAssessment, SymptomReport):
+    for model in (RiskAssessment, SymptomReport):  # assessments point at symptom reports: delete them first
         for row in db.scalars(select(model).where(model.child_id == child.id)).all():
             db.delete(row)
-    db.flush()
+        db.flush()
     audit(db, user, "delete_child", "child", child.id)
     db.delete(child)
     db.commit()
