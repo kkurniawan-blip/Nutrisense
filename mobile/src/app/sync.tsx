@@ -27,13 +27,14 @@ const kindOf = (k: OutboxKind) => KIND[k] ?? { emoji: '📝', id: 'Catatan', en:
 /** Status sinkron: what is waiting on the phone, what reached the server and what the server refused. */
 export default function SyncStatus() {
   const { t, lang } = useAuth();
-  const { pending, syncing, offline, syncNow } = useSync();
+  const { pending, syncing, offline, syncNow, refresh } = useSync();
   const [waiting, setWaiting] = useState<OutboxItem[]>([]);
   const [done, setDone] = useState<SyncHistoryItem[]>([]);
   const load = useCallback(() => {
     void queued().then(setWaiting);
     void history().then(setDone);
-  }, []);
+    void refresh(); // entries saved on other screens (e.g. a danger report) count at once, so the header matches the list
+  }, [refresh]);
   useFocusEffect(load);
   const run = async () => {
     // With no signal syncNow can reject; the lists must still refresh and the error must not crash the screen.
