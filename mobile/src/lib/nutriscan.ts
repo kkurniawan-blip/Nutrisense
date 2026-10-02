@@ -2,6 +2,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Platform } from 'react-native';
 
 import { api } from './api';
+import { shrinkPhoto } from './photo';
 import type { MealItem } from './types';
 
 export interface ScanResult {
@@ -29,7 +30,9 @@ export async function pickPhoto(camera: boolean): Promise<ImagePicker.ImagePicke
 }
 
 /** Sends the photo to NutriScan, which lists the foods it can see. */
-export async function scanPhoto(childId: number | string, asset: ImagePicker.ImagePickerAsset, lang: string): Promise<ScanResult> {
+export async function scanPhoto(childId: number | string, picked: ImagePicker.ImagePickerAsset, lang: string): Promise<ScanResult> {
+  // 1024 px JPEG (about 100-250 KB instead of 3-5 MB): uploads on weak signal and costs mothers less data.
+  const asset = await shrinkPhoto(picked);
   const form = new FormData();
   if (Platform.OS === 'web') {
     form.append('image', await (await fetch(asset.uri)).blob(), asset.fileName ?? 'food.jpg');

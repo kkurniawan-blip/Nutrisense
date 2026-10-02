@@ -10,9 +10,10 @@
       "supportsTablet": true,
       "bundleIdentifier": "id.nutrisense.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "NutriSense uses the camera to scan meals (NutriScan) and locker pickup QR codes.",
-        "NSPhotoLibraryUsageDescription": "NutriSense lets you choose a meal photo for NutriScan."
-      }
+        "NSCameraUsageDescription": "NutriSense memakai kamera untuk memotret makanan (NutriScan) dan memindai kode QR loker saat mengambil paket.",
+        "NSPhotoLibraryUsageDescription": "NutriSense membuka galeri hanya untuk memilih foto makanan yang ingin diperiksa dengan NutriScan."
+      },
+      "buildNumber": "1"
     },
     "android": {
       "adaptiveIcon": {
@@ -22,7 +23,13 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "id.nutrisense.app"
+      "package": "id.nutrisense.app",
+      "versionCode": 1,
+      "allowBackup": false,
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -31,19 +38,27 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
       "expo-font",
       [
         "expo-camera",
         {
-          "cameraPermission": "NutriSense uses the camera to scan locker pickup QR codes."
+          "cameraPermission": "NutriSense memakai kamera untuk memotret makanan (NutriScan) dan memindai kode QR loker saat mengambil paket.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "NutriSense lets you choose a meal photo for NutriScan.",
-          "cameraPermission": "NutriSense uses the camera to photograph meals for NutriScan."
+          "photosPermission": "NutriSense membuka galeri hanya untuk memilih foto makanan yang ingin diperiksa dengan NutriScan.",
+          "cameraPermission": "NutriSense memakai kamera untuk memotret makanan (NutriScan) dan memindai kode QR loker saat mengambil paket.",
+          "microphonePermission": false
         }
       ]
     ],

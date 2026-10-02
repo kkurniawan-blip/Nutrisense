@@ -12,6 +12,7 @@ import { api, errorText, NetworkError } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 import { FOOD_EMOJI, FOOD_GROUPS, GROUP_PLAIN, groupsToday, mealStreak } from '../../../lib/fun';
 import { enqueue, uuid } from '../../../lib/offline';
+import { shrinkPhoto } from '../../../lib/photo';
 import { useSync } from '../../../lib/sync';
 import { useApi } from '../../../lib/useApi';
 import type { Child, Food, Meal, MealItem, MenuSuggestions } from '../../../lib/types';
@@ -26,11 +27,15 @@ interface ScanResult {
   notes?: string;
 }
 
-function Stepper({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+/** Portion in grams, ±10 g. Buttons are full 44 px targets and say what they do (a bare "−" reads as "minus"). */
+function Stepper({ value, onChange, food }: { value: number; onChange: (v: number) => void; food: string }) {
+  const { t } = useAuth();
   const btn = (label: string, d: number) => (
     <PressScale
       onPress={() => onChange(Math.max(5, value + d))}
-      style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}
+      accessibilityRole="button"
+      accessibilityLabel={`${d < 0 ? t('portionLess') : t('portionMore')} · ${food}`}
+      style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}
     >
       <Text style={{ fontSize: 18, fontWeight: '900', color: colors.primaryDark }}>{label}</Text>
     </PressScale>
@@ -107,7 +112,7 @@ export default function MealScreen() {
       const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.6 };
       const res = camera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
       if (res.canceled || !res.assets[0]) return;
-      const asset = res.assets[0];
+      const asset = await shrinkPhoto(res.assets[0]);
       setPhoto(asset.uri);
       setScanning(true);
       setMenus(null);
@@ -303,14 +308,20 @@ export default function MealScreen() {
             <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontSize: 20 }}>{FOOD_EMOJI[it.food_key] ?? '🍽️'}</Text>
             </View>
+            {/* The stepper sits under the name so the food name keeps its width at 360 px with large text. */}
             <View style={{ flex: 1 }}>
               <Text style={{ fontWeight: '700' }}>{foodName(it.food_key)}</Text>
               {it.confidence !== undefined && <Text style={{ fontSize: 12, color: colors.muted }}>AI {Math.round(it.confidence * 100)}%</Text>}
+              <Stepper value={Math.round(it.grams)} onChange={(g) => setGrams(i, g)} food={foodName(it.food_key)} />
             </View>
-            <Stepper value={Math.round(it.grams)} onChange={(g) => setGrams(i, g)} />
-            <Text onPress={() => remove(i)} style={{ color: colors.danger, fontSize: 18, paddingHorizontal: 4 }}>
-              ✕
-            </Text>
+            <PressScale
+              onPress={() => remove(i)}
+              accessibilityRole="button"
+              accessibilityLabel={`${t('removeFood')} ${foodName(it.food_key)}`}
+              style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start' }}
+            >
+              <Text style={{ color: statusColor.urgent.fg, fontSize: 18 }}>✕</Text>
+            </PressScale>
           </Row>
         ))}
         <Text style={{ fontWeight: '700', color: colors.muted, marginTop: 6, marginBottom: 6 }}>{t('mealTime')}</Text>
