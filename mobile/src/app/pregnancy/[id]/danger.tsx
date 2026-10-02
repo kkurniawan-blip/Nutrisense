@@ -126,7 +126,7 @@ export default function MotherDanger() {
                 </View>
               ) : null}
             </Row>
-            {kader?.phone ? <Button small variant="secondary" icon="call" title={`${t('call')} Kader ${kader.name}`} onPress={() => Linking.openURL(`tel:${kader.phone}`)} /> : null}
+            {kader?.phone ? <Button small variant="secondary" icon="call" title={`${t('call')} ${/^kader\b/i.test(kader.name) ? '' : 'Kader '}${kader.name}`} onPress={() => Linking.openURL(`tel:${kader.phone}`)} /> : null}
           </Card>
         ) : (
           <ErrorBox message={t('dangerNoSignalCommon')} onRetry={report} />

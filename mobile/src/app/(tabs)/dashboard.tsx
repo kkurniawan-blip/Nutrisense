@@ -367,9 +367,9 @@ export default function Dashboard() {
           <P muted style={{ fontSize: 12 }}>{model.data.algorithm}</P>
           {model.data.demo && <Text style={{ color: statusColor.monitor.fg, fontSize: 13, fontWeight: '600' }}>{t('demoDataNote')}</Text>}
           <Row style={{ flexWrap: 'wrap', marginVertical: 8 }}>
-            <Stat label={t('mAccuracy')} value={`${(model.data.metrics.accuracy * 100).toFixed(1)}%`} />
+            <Stat label={t('mAccuracy')} value={`${Math.round(model.data.metrics.accuracy * 100)}%`} />
             <Stat label={t('mF1')} value={model.data.metrics.f1_macro.toFixed(3)} />
-            <Stat label={t('mFnrHigh')} value={`${(model.data.metrics.false_negative_rate_high * 100).toFixed(1)}%`} tone="warn" />
+            <Stat label={t('mFnrHigh')} value={`${Math.round(model.data.metrics.false_negative_rate_high * 100)}%`} tone="warn" />
           </Row>
           <P muted style={{ fontSize: 12 }}>
             {t('mBaseline')
