@@ -32,9 +32,15 @@ def test_cohort_resembles_ntt():
     assert X.shape[1] == len(RiskModel.vectorize({}))
 
 
+HEALTHY = {"age_months": 20, "sex_male": 1, "low_birth_weight": 0, "premature": 0, "exclusive_breastfeeding": 1, "weight_not_gaining": 0,
+           "diarrhea": 0, "fever": 0, "respiratory": 0, "repeated_infection": 0, "poor_appetite": 0, "dietary_diversity": 6,
+           "animal_protein_days": 6, "immunization_complete": 1, "mother_short": 0, "mother_kek": 0, "clean_water": 1, "sanitation": 1,
+           "rural": 0}
+
+
 def test_guardrails_raise_level(trained):
     model = RiskModel(trained.model)
-    healthy = {"age_months": 20, "dietary_diversity": 6, "animal_protein_days": 6}
+    healthy = HEALTHY
     assert model.predict(healthy).risk_level == "low"
     p = model.predict(healthy, danger_signs=["convulsions"])
     assert p.risk_level == "high" and p.guardrail == "danger_signs_present" and p.needs_review
@@ -42,6 +48,81 @@ def test_guardrails_raise_level(trained):
     assert model.predict(healthy, who_status={"haz": -3.4}).risk_level == "high"
     assert model.predict(healthy, who_status={"oedema": True}).risk_level == "high"
     assert model.predict({**healthy, "haz": -3.4}).risk_level == "low"
+
+
+@pytest.mark.parametrize("who,extra,level,guardrail", [
+    # WHO 2006 / Permenkes 2/2020: WHZ < -2 wasted, < -3 severely wasted; HAZ < -3 severely stunted.
+    ({"whz": -2.4}, {}, "medium", "wasted_minimum_medium"),
+    ({"whz": -3.2}, {}, "high", "severe_stunting_or_wasting"),
+    ({"haz": -3.1}, {}, "high", "severe_stunting_or_wasting"),
+    ({"haz": -2.5}, {}, "medium", "stunted_minimum_medium"),
+    # WHO 2013 / Kemenkes 2019: child MUAC (6-59 months) < 12.5 cm moderate, < 11.5 cm severe.
+    ({"muac_cm": 12.0}, {}, "medium", "wasted_minimum_medium"),
+    ({"muac_cm": 11.2}, {}, "high", "severe_stunting_or_wasting"),
+    ({"muac_cm": 11.2}, {"age_months": 4}, "low", None),  # MUAC cut-offs apply from 6 months
+    # Kemenkes 2020 (Buku KIA): 2T, no weight gain at two weighings in a row.
+    ({}, {"weight_not_gaining": 2}, None, None),
+])
+def test_who_overrides(trained, who, extra, level, guardrail):
+    model = RiskModel(trained.model)
+    p = model.predict({**HEALTHY, **extra}, who_status=who)
+    if level is None:  # 2T: at least medium, whatever the model says
+        assert p.risk_level in ("medium", "high") and "2t" in p.overrides
+        return
+    assert p.risk_level == level and p.guardrail == guardrail
+    if guardrail:
+        assert p.overrides and p.needs_review
+
+
+def test_overrides_never_lower(trained):
+    model = RiskModel(trained.model)
+    sick = {**HEALTHY, "low_birth_weight": 1, "weight_not_gaining": 2, "diarrhea": 1, "repeated_infection": 1, "dietary_diversity": 1,
+            "animal_protein_days": 0, "mother_kek": 1, "mother_short": 1, "sanitation": 0, "clean_water": 0}
+    assert model.predict(sick).risk_level == "high"
+    assert model.predict(sick, who_status={"whz": -2.5, "haz": 0.5}).risk_level == "high"
+
+
+def test_missing_and_impossible_inputs_are_explicit(trained):
+    from app.ai.risk_model import clean_features, population_mean
+
+    clean, missing, rejected = clean_features({**HEALTHY, "dietary_diversity": 9, "animal_protein_days": -1, "age_months": 75,
+                                               "low_birth_weight": None})
+    assert set(rejected) == {"dietary_diversity", "animal_protein_days", "age_months"} and missing == ["low_birth_weight"]
+    assert clean["dietary_diversity"] is None
+    assert clean_features({**HEALTHY, "age_months": 60.4})[0]["age_months"] == 60.0  # a few days past 5 years: clipped
+    # Missing is imputed with the cohort average, never as zero or "healthy".
+    v = RiskModel.vectorize({})
+    assert (v == population_mean()).all() and v[2] > 0
+    model = RiskModel(trained.model)
+    p = model.predict({**HEALTHY, "dietary_diversity": None, "animal_protein_days": None})
+    assert p.incomplete and "dietary_diversity" in p.missing_inputs
+    assert all(c["feature"] not in ("dietary_diversity", "animal_protein_days") for c in p.contributions)
+    # Review is needed when plausible values for the missing key inputs would change the level.
+    unknown = {k: None for k in ("dietary_diversity", "animal_protein_days", "low_birth_weight", "exclusive_breastfeeding")}
+    p = model.predict({**HEALTHY, **unknown})
+    assert p.incomplete and p.missing_changes_level and p.needs_review
+    p = model.predict({**HEALTHY, "dietary_diversity": 12})
+    assert p.needs_review and p.rejected_inputs == ["dietary_diversity"]
+    assert not model.predict(HEALTHY).incomplete
+
+
+def test_model_comparison_is_stored(trained):
+    m = trained.metrics
+    c = m["model_comparison"]
+    for name in ("logistic_regression", "random_forest"):
+        assert {"mean", "sd"} <= set(c[name]["f1_macro"]) and c[name]["false_negative_rate_high"]["mean"] < 0.3
+    # The shipped model wins on macro F1 and is calibrated; the decision rule for "high" is unchanged (argmax).
+    assert c["logistic_regression"]["f1_macro"]["mean"] >= c["random_forest"]["f1_macro"]["mean"]
+    assert c["logistic_regression"]["ece"]["mean"] < 0.05 and m["selection"]["holds"]
+    assert m["baseline"]["name"] == "random_forest" and "baseline_logistic_regression" in m
+    assert len(m["high_threshold_options"]) == 2 and set(m["groups"]) >= {"rural", "urban", "boys", "girls"}
+
+
+def test_model_card_notes_are_honest(trained):
+    from app.ai.risk_model import model_card_notes
+
+    notes = model_card_notes(trained.metrics)
+    assert "Synthetic data" in notes and "assumptions" in notes and "not evidence" in notes and "random forest" in notes and "±" in notes
 
 
 def test_explanations_point_to_drivers(trained):
@@ -206,3 +287,29 @@ def test_eta_text_reads_as_hours():
     assert eta_text(45.4) == "45 menit"
     assert eta_text(755) == "12 jam 35 menit"
     assert eta_text(120) == "2 jam"
+
+
+def test_triage_uses_child_muac():
+    t = triage("high", [], [], {"muac_cm": 11.0}, {}, 18)
+    assert any(s["item_key"] == "rutf" for s in t["supplies"])
+    t = triage("medium", [], [], {"muac_cm": 12.2}, {}, 18)
+    assert any(s["item_key"] == "pmt_biscuit" and s["quantity"] == 2 for s in t["supplies"])
+    assert not any(s["item_key"] == "rutf" for s in triage("low", [], [], {"muac_cm": 11.0}, {}, 4)["supplies"])
+
+
+def test_override_and_missing_data_reasons_are_plain(trained):
+    from app.ai.risk_model import clean_features
+    from app.services.assessment import reasons
+
+    model = RiskModel(trained.model)
+    feats = {**HEALTHY, "dietary_diversity": None, "animal_protein_days": None, "low_birth_weight": None, "exclusive_breastfeeding": None}
+    who = {"haz": -1.0, "whz": -2.4, "waz": -1.5, "muac_cm": 12.1, "oedema": False, "haz_velocity": 0.0}
+    pred = model.predict(feats, who_status=who)
+    clean, _, rejected = clean_features(feats)
+    ctx = {"features": feats, "clean": clean, "rejected": rejected, "who": who, "trend": {}, "danger_signs": []}
+    codes = {r["code"]: r["text"] for r in reasons(ctx, "id", pred)}
+    assert pred.risk_level == "medium" and pred.model_level == "low"
+    assert "raised" in codes and "BB/TB di bawah -2 SD" in codes["raised"] and "LiLA" in codes["raised"]
+    assert {"whz_wasted", "muac_low", "incomplete"} <= set(codes)
+    assert codes["incomplete"].startswith("Data belum lengkap") and "catatan makan" in codes["incomplete"]
+    assert "Data incomplete" in {r["code"]: r["text"] for r in reasons(ctx, "en", pred)}["incomplete"]

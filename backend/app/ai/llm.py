@@ -20,6 +20,13 @@ _FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
 _client: anthropic.Anthropic | None = None
 
+# Chat (Nuri) must answer well before the app gives up (mobile assistant.tsx: timeoutMs 120000):
+# at most 2 attempts of 30 s each, low effort, room for a short answer after adaptive thinking.
+CHAT_MAX_TOKENS = 4000
+CHAT_TIMEOUT_SECONDS = 30.0
+CHAT_MAX_RETRIES = 1
+CHAT_EFFORT = "low"
+
 
 def is_enabled() -> bool:
     return bool(settings.anthropic_api_key)
@@ -32,7 +39,8 @@ def _get_client() -> anthropic.Anthropic:
     return _client
 
 
-def _call(system: str, content: list[dict] | str, max_tokens: int, output_schema: dict | None, messages: list[dict] | None):
+def _call(system: str, content: list[dict] | str, max_tokens: int, output_schema: dict | None, messages: list[dict] | None,
+          effort: str = "medium", timeout: float | None = None, max_retries: int | None = None):
     kwargs: dict[str, Any] = {
         "model": settings.ai_model,
         "max_tokens": max_tokens,
@@ -42,11 +50,14 @@ def _call(system: str, content: list[dict] | str, max_tokens: int, output_schema
         "extra_headers": {"anthropic-beta": _FALLBACK_BETA},
         "extra_body": {"fallbacks": "default"},
     }
-    output_config: dict[str, Any] = {"effort": "medium"}
+    output_config: dict[str, Any] = {"effort": effort}
     if output_schema is not None:
         output_config["format"] = {"type": "json_schema", "schema": output_schema}
     kwargs["output_config"] = output_config
-    return _get_client().messages.create(**kwargs)
+    client = _get_client()
+    if timeout is not None or max_retries is not None:
+        client = client.with_options(**{k: v for k, v in (("timeout", timeout), ("max_retries", max_retries)) if v is not None})
+    return client.messages.create(**kwargs)
 
 
 def _text_of(response) -> str | None:
@@ -80,18 +91,20 @@ def complete_json(system: str, content: list[dict] | str, schema: dict, max_toke
     return None
 
 
-def complete_chat(system: str, messages: list[dict], max_tokens: int = 2000) -> str | None:
-    """Free-text multi-turn call used by the NutriBot assistant."""
+def complete_chat(system: str, messages: list[dict], max_tokens: int = CHAT_MAX_TOKENS) -> str | None:
+    """Free-text multi-turn call used by Nuri. None on any failure, a refusal or a truncated (max_tokens) answer,
+    so the caller answers from the offline FAQ instead of showing half an answer."""
     if not is_enabled():
         return None
     try:
-        return _text_of(_call(system, "", max_tokens, None, messages))
+        return _text_of(_call(system, "", max_tokens, None, messages, effort=CHAT_EFFORT,
+                              timeout=min(CHAT_TIMEOUT_SECONDS, settings.ai_timeout_seconds), max_retries=CHAT_MAX_RETRIES))
     except anthropic.AuthenticationError:
         log.error("Claude API key is invalid; falling back to rule-based assistant")
     except anthropic.RateLimitError:
         log.warning("Claude rate limited; falling back to rule-based assistant")
     except anthropic.APIStatusError as e:
         log.warning("Claude API error %s: %s", e.status_code, e.message)
-    except anthropic.APIConnectionError:
-        log.warning("Cannot reach Claude API; falling back to rule-based assistant")
+    except anthropic.APIConnectionError:  # includes APITimeoutError
+        log.warning("Cannot reach Claude API (or timed out); falling back to rule-based assistant")
     return None

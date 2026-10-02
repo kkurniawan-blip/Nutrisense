@@ -23,6 +23,8 @@ from .common import audit, notify, notify_roles
 
 settings = get_settings()
 
+MIN_DIET_DAYS = 3  # days of meal logs needed before the diet inputs are used
+
 ILLNESS = {"diarrhea", "fever", "high_fever", "cough", "fast_breathing", "vomiting", "rash", "bloody_stool"}
 
 
@@ -60,6 +62,7 @@ def build_context(db: Session, child: Child, lang: str = "id") -> dict:
     growth_trend = trend.growth_trend(points_haz, child.sex) if ms else {"status": "no_data"}
     region = child.region
     days = intake["days_logged"]
+    diet_days = days if days >= MIN_DIET_DAYS else 0  # fewer logged days than this: the diet inputs count as missing
 
     # Birth, feeding, immunisation and the mother: known before any measurement of the child's size.
     given = {r.item_key: r.given_at for r in db.scalars(select(KiaRecord).where(KiaRecord.child_id == child.id)).all()}
@@ -90,8 +93,8 @@ def build_context(db: Session, child: Child, lang: str = "id") -> dict:
         "respiratory": float(bool({"cough", "fast_breathing"} & set(recent_symptoms))),
         "repeated_infection": float(illness_reports >= 2 or "repeated_illness" in recent_symptoms),
         "poor_appetite": float("poor_appetite" in recent_symptoms),
-        "dietary_diversity": intake["dietary_diversity"] if days else None,
-        "animal_protein_days": round(intake["animal_source_days"] / days * 7, 1) if days else None,
+        "dietary_diversity": intake["dietary_diversity"] if diet_days else None,
+        "animal_protein_days": min(7.0, round(intake["animal_source_days"] / diet_days * 7, 1)) if diet_days else None,
         "immunization_complete": kia.immunization_complete(child.birth_date, given),
         "mother_short": mother_short,
         "mother_kek": mother_kek,
@@ -99,10 +102,12 @@ def build_context(db: Session, child: Child, lang: str = "id") -> dict:
         "sanitation": float(child.sanitation_access),
         "rural": float(region.rural) if region else 1.0,
     }
-    imputed = [k for k, v in features.items() if v is None]
+    clean, missing, rejected = risk_model.clean_features(features)
+    imputed = missing + rejected  # filled with the cohort average by the model, and sent for review if a key input
     who = {"haz": latest.haz if latest else None, "waz": latest.waz if latest else None, "whz": latest.whz if latest else None,
-           "haz_velocity": round(_slope(points_haz), 4), "oedema": bool(latest and latest.oedema)}
-    return {"features": features, "who": who, "imputed": imputed, "latest": latest, "trend": growth_trend, "intake": intake,
+           "haz_velocity": round(_slope(points_haz), 4), "oedema": bool(latest and latest.oedema),
+           "muac_cm": latest.muac_cm if latest else None}
+    return {"features": features, "clean": clean, "rejected": rejected, "who": who, "imputed": imputed, "latest": latest, "trend": growth_trend, "intake": intake,
             "recent_symptoms": recent_symptoms, "danger_signs": danger, "age_now": age_now}
 
 
@@ -110,6 +115,12 @@ _R = {
     "haz_severe": ("Tinggi badan menurut umur sangat pendek (TB/U {v:+.1f} SD)", "Height-for-age is severely low (HAZ {v:+.1f})"),
     "haz_stunted": ("Tinggi badan menurut umur di bawah -2 SD / stunting (TB/U {v:+.1f})", "Height-for-age is below -2 SD / stunted (HAZ {v:+.1f})"),
     "haz_risk": ("Tinggi badan di bawah rata-rata, mendekati batas stunting (TB/U {v:+.1f})", "Height is below average and approaching the stunting line (HAZ {v:+.1f})"),
+    "whz_severe": ("Berat badan menurut tinggi sangat rendah / gizi buruk (BB/TB {v:+.1f})", "Weight-for-height is severely low / severely wasted (WHZ {v:+.1f})"),
+    "muac_severe": ("Lingkar lengan atas (LiLA) sangat kecil: {v:.1f} cm (di bawah 11,5 cm, gizi buruk)", "Upper-arm size (MUAC) is very small: {v:.1f} cm (below 11.5 cm, severe)"),
+    "muac_low": ("Lingkar lengan atas (LiLA) kecil: {v:.1f} cm (di bawah 12,5 cm, gizi kurang)", "Upper-arm size (MUAC) is small: {v:.1f} cm (below 12.5 cm, moderate)"),
+    "raised": ("Tingkat risiko dinaikkan sesuai batas WHO/Kemenkes: {v}", "Risk level raised by WHO/Kemenkes cut-offs: {v}"),
+    "incomplete": ("Data belum lengkap ({v}). Hasil ini perlu dicek petugas.", "Data incomplete ({v}). A health worker should check this result."),
+    "incomplete_minor": ("Data belum lengkap ({v}). Lengkapi agar hasil lebih tepat.", "Data incomplete ({v}). Add it for a more accurate result."),
     "whz_wasted": ("Berat badan menurut tinggi rendah / gizi kurang (BB/TB {v:+.1f})", "Weight-for-height is low / wasted (WHZ {v:+.1f})"),
     "waz_under": ("Berat badan menurut umur rendah (BB/U {v:+.1f})", "Weight-for-age is low (WAZ {v:+.1f})"),
     "velocity": ("Pertumbuhan tinggi melambat ({v:+.2f} SD per bulan)", "Height growth is slowing ({v:+.2f} SD per month)"),
@@ -141,8 +152,34 @@ def _reason(key: str, lang: str, v=None) -> dict:
     return {"code": key, "text": text.format(v=v) if v is not None else text}
 
 
-def reasons(ctx: dict, lang: str) -> list[dict]:
-    f, w, out = ctx["features"], ctx["who"], []
+# Plain names of the WHO/Kemenkes override rules (risk_model.who_overrides) and of inputs that can be missing.
+_RULE = {
+    "danger_signs": ("tanda bahaya", "danger signs"), "oedema": ("bengkak kedua kaki", "oedema of both feet"),
+    "whz_below_-3": ("BB/TB di bawah -3 SD", "WHZ below -3"), "muac_below_11.5": ("LiLA di bawah 11,5 cm", "MUAC below 11.5 cm"),
+    "haz_below_-3": ("TB/U di bawah -3 SD", "HAZ below -3"), "whz_below_-2": ("BB/TB di bawah -2 SD", "WHZ below -2"),
+    "muac_below_12.5": ("LiLA di bawah 12,5 cm", "MUAC below 12.5 cm"), "haz_below_-2": ("TB/U di bawah -2 SD", "HAZ below -2"),
+    "2t": ("berat tidak naik 2 kali (2T)", "no weight gain twice (2T)"),
+}
+_INPUT = {
+    "low_birth_weight": ("berat lahir", "birth weight"), "premature": ("umur kehamilan saat lahir", "weeks at birth"),
+    "exclusive_breastfeeding": ("ASI eksklusif", "exclusive breastfeeding"),
+    "dietary_diversity": ("catatan makan minimal 3 hari", "meal log for at least 3 days"),
+    "animal_protein_days": ("catatan makan minimal 3 hari", "meal log for at least 3 days"),
+    "mother_short": ("tinggi ibu", "mother's height"), "mother_kek": ("LiLA ibu saat hamil", "mother's MUAC in pregnancy"),
+}
+
+
+def _input_names(keys: list[str], lang: str) -> str:
+    i = 0 if lang == "id" else 1
+    return ", ".join(dict.fromkeys(_INPUT.get(k, (k.replace("_", " "),) * 2)[i] for k in keys))
+
+
+def reasons(ctx: dict, lang: str, pred: risk_model.Prediction | None = None) -> list[dict]:
+    f, w, out = ctx.get("clean") or ctx["features"], ctx["who"], []
+    if pred is not None and pred.guardrail and pred.risk_level != pred.model_level and pred.overrides:
+        rules = [r for r in pred.overrides if r != "danger_signs"]
+        if rules:
+            out.append(_reason("raised", lang, ", ".join(_RULE[r][0 if lang == "id" else 1] for r in rules)))
     if ctx["danger_signs"]:
         out.append(_reason("danger", lang, ", ".join(symptom_label(k, lang) for k in ctx["danger_signs"])))
     if w.get("oedema"):
@@ -155,15 +192,23 @@ def reasons(ctx: dict, lang: str) -> list[dict]:
             out.append(_reason("haz_stunted", lang, haz))
         elif haz < -1:
             out.append(_reason("haz_risk", lang, haz))
-    if whz is not None and whz < -2:
+    if whz is not None and whz < -3:
+        out.append(_reason("whz_severe", lang, whz))
+    elif whz is not None and whz < -2:
         out.append(_reason("whz_wasted", lang, whz))
+    muac, age = w.get("muac_cm"), f.get("age_months")
+    if muac is not None and (age is None or age >= risk_model.MUAC_MIN_AGE_MONTHS):
+        if muac < risk_model.MUAC_SEVERE_CM:
+            out.append(_reason("muac_severe", lang, muac))
+        elif muac < risk_model.MUAC_MODERATE_CM:
+            out.append(_reason("muac_low", lang, muac))
     if waz is not None and waz < -2:
         out.append(_reason("waz_under", lang, waz))
     if ctx["trend"].get("status") == "projected_stunting":
         out.append(_reason("projected", lang))
     elif w["haz_velocity"] < trend.DECLINE_THRESHOLD:
         out.append(_reason("velocity", lang, w["haz_velocity"]))
-    if f["weight_not_gaining"] >= 2:
+    if (f["weight_not_gaining"] or 0) >= 2:
         out.append(_reason("two_t", lang))
     elif f["weight_not_gaining"] == 1:
         out.append(_reason("one_t", lang))
@@ -178,15 +223,15 @@ def reasons(ctx: dict, lang: str) -> list[dict]:
     if f["dietary_diversity"] is not None:
         if f["dietary_diversity"] < 4:
             out.append(_reason("diversity", lang, f["dietary_diversity"]))
-        if f["animal_protein_days"] < 3:
+        if f["animal_protein_days"] is not None and f["animal_protein_days"] < 3:
             out.append(_reason("protein", lang, f["animal_protein_days"]))
     if f["exclusive_breastfeeding"] == 0:
         out.append(_reason("no_ebf", lang))
     if f["immunization_complete"] == 0:
         out.append(_reason("imm", lang))
-    if not f["clean_water"]:
+    if f["clean_water"] == 0:
         out.append(_reason("water", lang))
-    if not f["sanitation"]:
+    if f["sanitation"] == 0:
         out.append(_reason("sanitation", lang))
     if f["low_birth_weight"]:
         out.append(_reason("lbw", lang))
@@ -196,6 +241,9 @@ def reasons(ctx: dict, lang: str) -> list[dict]:
         out.append(_reason("mother_kek", lang))
     if f["mother_short"]:
         out.append(_reason("mother_short", lang))
+    if pred is not None and pred.incomplete:
+        review = pred.rejected_inputs or (pred.missing_changes_level and pred.risk_level != "high")
+        out.append(_reason("incomplete" if review else "incomplete_minor", lang, _input_names(pred.missing_inputs + pred.rejected_inputs, lang)))
     return out or [_reason("none", lang)]
 
 
@@ -211,7 +259,8 @@ def run_assessment(db: Session, child: Child, actor: User, lang: str = "id", mea
     model = model_registry.get_active(db)
     pred = model.predict(ctx["features"], ctx["danger_signs"], settings.review_confidence_threshold, who_status=ctx["who"])
     z = {k: ctx["who"][k] for k in ("haz", "waz", "whz", "oedema")}
-    tri = triage(pred.risk_level, ctx["danger_signs"], ctx["recent_symptoms"], z, ctx["trend"], ctx["age_now"], ctx["intake"], lang)
+    tri_z = {**z, "muac_cm": ctx["who"]["muac_cm"]}  # triage also uses the child's MUAC (not stored with the features)
+    tri = triage(pred.risk_level, ctx["danger_signs"], ctx["recent_symptoms"], tri_z, ctx["trend"], ctx["age_now"], ctx["intake"], lang)
 
     assessment = RiskAssessment(
         child_id=child.id,
@@ -224,7 +273,7 @@ def run_assessment(db: Session, child: Child, actor: User, lang: str = "id", mea
         needs_review=pred.needs_review,
         guardrail=pred.guardrail,
         explanation=pred.contributions,
-        reasons=reasons(ctx, lang),
+        reasons=reasons(ctx, lang, pred),
         triage=tri,
         trend=ctx["trend"],
         # Model inputs, plus the WHO status shown next to the risk (never fed to the model).
@@ -258,7 +307,7 @@ def run_assessment(db: Session, child: Child, actor: User, lang: str = "id", mea
                  "low": ("Perlu tinjauan", "Review needed")}[case.priority]
         notify_roles(db, ["kader", "officer", "doctor"] if case.priority in ("high", "emergency") else ["kader", "officer"],
                      child.region_id, "case_escalated", {"id": f"{title[0]}: {child.name}", "en": f"{title[1]}: {child.name}"},
-                     {code: "; ".join(r["text"] for r in reasons(ctx, code)[:3]) for code in ("id", "en")}, case_id=case.id, child_id=child.id, priority=case.priority)
+                     {code: "; ".join(r["text"] for r in reasons(ctx, code, pred)[:3]) for code in ("id", "en")}, case_id=case.id, child_id=child.id, priority=case.priority)
 
     if tri["supplies"] and tri["urgency"] != "emergency":
         open_req = db.scalar(select(SupplyRequest).where(
@@ -269,7 +318,7 @@ def run_assessment(db: Session, child: Child, actor: User, lang: str = "id", mea
                                  items=[{"item_key": s["item_key"], "quantity": s["quantity"]} for s in tri["supplies"]],
                                  urgency=tri["urgency"], status="pending_approval"))
 
-    first_step = {code: triage(pred.risk_level, ctx["danger_signs"], ctx["recent_symptoms"], z, ctx["trend"], ctx["age_now"],
+    first_step = {code: triage(pred.risk_level, ctx["danger_signs"], ctx["recent_symptoms"], tri_z, ctx["trend"], ctx["age_now"],
                                ctx["intake"], code)["actions"][0]["text"] for code in ("id", "en")}
     notify(db, child.caregiver_id, "assessment", {"id": f"Hasil pemeriksaan {child.name}", "en": f"{child.name}'s assessment"},
            first_step, assessment_id=assessment.id, child_id=child.id, risk_level=pred.risk_level, urgency=tri["urgency"])

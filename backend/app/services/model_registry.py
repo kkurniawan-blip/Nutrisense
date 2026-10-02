@@ -25,13 +25,14 @@ def train_and_register(db: Session, notes: str | None = None) -> ModelRun:
     result = risk_model.train()
     run = ModelRun(
         name="stunting_risk",
-        algorithm="RandomForestClassifier(n_estimators=250, max_depth=12, class_weight=balanced)",
+        algorithm=risk_model.ALGORITHM,
         version=risk_model.MODEL_VERSION,
         n_samples=result.n_samples,
         metrics=result.metrics,
         feature_importances=result.feature_importances,
         is_active=False,
-        notes=notes or "Trained on synthetic rural-NTT cohort (see risk_model.generate_synthetic_cohort).",
+        # The model card text (synthetic data, simulator assumptions, baseline comparison) always comes first.
+        notes=risk_model.model_card_notes(result.metrics) + (f"\n{notes}" if notes else ""),
     )
     db.add(run)
     db.flush()
@@ -52,7 +53,8 @@ def get_active(db: Session) -> risk_model.RiskModel:
         if _active is not None:
             return _active
     run = db.scalar(select(ModelRun).where(ModelRun.name == "stunting_risk", ModelRun.is_active.is_(True)).order_by(ModelRun.id.desc()))
-    if run is not None and _path(run.id).exists():
+    # A run from an older model version (e.g. rf-2.0) is replaced by training the current version once.
+    if run is not None and run.version == risk_model.MODEL_VERSION and _path(run.id).exists():
         model = risk_model.RiskModel.load(_path(run.id), run.id)
         with _lock:
             _active = model

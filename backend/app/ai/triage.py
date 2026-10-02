@@ -73,11 +73,15 @@ def triage(
 
     supplies: list[dict] = []
     whz, haz = z.get("whz"), z.get("haz")
+    # Child MUAC (LiLA), 6-59 months: < 11.5 cm severe, < 12.5 cm moderate acute malnutrition (WHO 2013; Kemenkes 2019).
+    muac = z.get("muac_cm") if age_months >= 6 else None
+    severe_wasting = (whz is not None and whz < -3) or (muac is not None and muac < 11.5)
+    wasting = (whz is not None and whz < -2) or (muac is not None and muac < 12.5)
     if "diarrhea" in symptoms:
         supplies.append({"item_key": "ors_zinc", "quantity": 1})
-    if whz is not None and whz < -3:
+    if severe_wasting:
         supplies.append({"item_key": "rutf", "quantity": 2})
-    elif (whz is not None and whz < -2) or risk_level == "high":
+    elif wasting or risk_level == "high":
         supplies.append({"item_key": "pmt_biscuit", "quantity": 2})
     elif risk_level == "medium":
         supplies.append({"item_key": "pmt_biscuit", "quantity": 1})
