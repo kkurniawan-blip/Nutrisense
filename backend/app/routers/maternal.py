@@ -62,6 +62,7 @@ class DailyIn(BaseModel):
 
 class DangerIn(BaseModel):
     signs: list[str] = []
+    client_uuid: str | None = Field(default=None, max_length=64)
 
 
 class BirthIn(BaseModel):
@@ -390,7 +391,12 @@ def report_danger(pid: int, body: DangerIn, user: User = Depends(get_current_use
     p = get_pregnancy(pid, db, user)
     signs = [s for s in body.signs if s in M.DANGER_SIGNS or s in M.COMMON_COMPLAINTS]
     danger = any(s in M.DANGER_SIGNS for s in signs)
-    db.add(PregnancyDangerReport(pregnancy_id=p.id, signs=signs, danger=danger, reported_by_id=user.id))
+    replay = body.client_uuid and db.scalar(select(PregnancyDangerReport).where(
+        PregnancyDangerReport.pregnancy_id == p.id, PregnancyDangerReport.client_uuid == body.client_uuid))
+    if replay:  # a report queued offline and sent again: answer as before, without a second alert to the Kader
+        return {"danger": replay.danger, "signs": replay.signs, "kader": {"name": p.kader.full_name, "phone": p.kader.phone} if p.kader else None,
+                "facility": facility(p.region)}
+    db.add(PregnancyDangerReport(pregnancy_id=p.id, signs=signs, danger=danger, reported_by_id=user.id, client_uuid=body.client_uuid))
     if danger:
         notify_roles(db, ["kader"], p.region_id, "mother_danger", {"id": "Tanda bahaya kehamilan", "en": "Pregnancy danger sign"},
                      {"id": f"{p.mother.full_name} melaporkan tanda bahaya. Segera hubungi.", "en": f"{p.mother.full_name} reported a danger sign. Contact her now."},

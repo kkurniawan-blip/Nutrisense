@@ -8,20 +8,20 @@ import { Text } from '../../../components/Text';
 import { Bubble, Button, Card, Chip, ErrorBox, Field, H2, IconChip, Row, Screen, Segmented, StatusPill, StepDots } from '../../../components/ui';
 import { api, errorText } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
+import { localDate } from '../../../lib/dates';
 import { formatDate } from '../../../lib/fun';
 import { BIRTH_ATTENDANTS, BIRTH_PLACES_DONE, label } from '../../../lib/pregnancy';
 import type { Child, Pregnancy } from '../../../lib/types';
 import { useApi } from '../../../lib/useApi';
 import { colors, statusColor, tones } from '../../../theme';
 
-const today = () => new Date().toISOString().slice(0, 10);
 
 /** Catat kelahiran: the baby, weight and length at birth, check, save. Creates the child's profile and starts nifas. */
 export default function RecordBirth() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t, lang } = useAuth();
   const [step, setStep] = useState(1);
-  const [date, setDate] = useState(today());
+  const [date, setDate] = useState(localDate());
   const [sex, setSex] = useState<'female' | 'male'>('female');
   const [name, setName] = useState('');
   const [weight, setWeight] = useState('');

@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { View } from 'react-native';
 
@@ -9,6 +8,7 @@ import type { KitchenRecipe, MenuIdea, Recipe } from '../lib/types';
 import { colors, radius, statusColor, tones } from '../theme';
 import { Text } from './Text';
 import { Button, Card, H2, MoreLink, PressScale, Row } from './ui';
+import { Icon } from './Icon';
 
 const emojis = (foods: string[]) => foods.filter((f) => f !== 'asi').map((f) => FOOD_EMOJI[f] ?? '🍽️').join(' ');
 
@@ -140,7 +140,7 @@ export function RecipeOptionCard({ recipe, onPress }: { recipe: KitchenRecipe; o
           ⏱ {recipe.minutes} {t('minutes')} · {recipe.need_cost_idr > 0 ? `🛒 ${rupiah(recipe.need_cost_idr, lang)}` : `✓ ${t('allAtHome')}`}
         </Text>
       </View>
-      <Ionicons name="chevron-forward" size={22} color={colors.primary} />
+      <Icon name="chevron-forward" size={22} color={colors.primary} />
     </PressScale>
   );
 }

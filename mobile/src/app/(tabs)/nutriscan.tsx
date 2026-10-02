@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { View } from 'react-native';
@@ -13,6 +12,7 @@ import { groupsToday } from '../../lib/fun';
 import type { Child, Meal } from '../../lib/types';
 import { useApi } from '../../lib/useApi';
 import { colors, radius, shadow } from '../../theme';
+import { Icon } from '../../components/Icon';
 
 
 /** NutriScan start: one big photo button, two alternatives, and how it works in three steps. */
@@ -60,7 +60,7 @@ export default function NutriScanTab() {
         <Gradient from={colors.primaryLight} to={colors.primary} r={radius.lg} />
         <View style={{ backgroundColor: '#ffffff33', width: 92, height: 92, borderRadius: 46, alignItems: 'center', justifyContent: 'center' }}>
           <View style={{ backgroundColor: '#fff', width: 66, height: 66, borderRadius: 33, alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="camera" size={32} color={colors.primary} />
+            <Icon name="camera" size={32} color={colors.primary} />
           </View>
         </View>
         <Text style={{ color: '#fff', fontSize: 21, fontWeight: '900', marginTop: 14 }}>{t('takePhoto')}</Text>

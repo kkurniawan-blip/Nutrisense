@@ -85,6 +85,15 @@ def test_pregnancy_journey_to_birth_and_nifas(client, auth):
     r = client.post(f"/api/pregnancies/{pid}/danger", headers=h, json={"signs": ["bleeding", "nausea"]}).json()
     assert r["danger"] and r["kader"]["phone"]
     assert client.post(f"/api/pregnancies/{pid}/danger", headers=h, json={"signs": ["nausea"]}).json()["danger"] is False
+    # A report queued offline and replayed with the same key alerts the Kader once.
+    def alerts():
+        return sum(n["kind"] == "mother_danger" for n in client.get("/api/notifications", headers=k).json())
+    before = alerts()
+    body = {"signs": ["fever"], "client_uuid": "danger-replay-1"}
+    first = client.post(f"/api/pregnancies/{pid}/danger", headers=h, json=body)
+    again = client.post(f"/api/pregnancies/{pid}/danger", headers=h, json=body)
+    assert first.status_code == again.status_code == 201 and again.json()["danger"] == first.json()["danger"]
+    assert alerts() - before == (1 if first.json()["danger"] else 0)
 
     # Catat kelahiran creates the child with the birth measurement and starts nifas.
     r = client.post(f"/api/pregnancies/{pid}/birth", headers=h, json={"name": "Bayi Test", "sex": "female", "birth_weight_kg": 2.4,

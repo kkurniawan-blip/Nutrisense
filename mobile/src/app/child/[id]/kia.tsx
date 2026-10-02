@@ -6,6 +6,7 @@ import { Text } from '../../../components/Text';
 import { Bubble, Button, Card, ErrorBox, Loading, MoreLink, Row, Screen, Section, Source, StatusPill } from '../../../components/ui';
 import { api, errorText } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
+import { localDate } from '../../../lib/dates';
 import { formatDate } from '../../../lib/fun';
 import { saveOrQueue } from '../../../lib/offline';
 import { VISIT_STATUS } from '../../../lib/pregnancy';
@@ -37,7 +38,7 @@ export default function KiaScreen() {
     setBusy(r.key);
     setError(null);
     try {
-      const body = { item_key: r.key, given_at: new Date().toISOString().slice(0, 10) };
+      const body = { item_key: r.key, given_at: localDate() };
       const res = await saveOrQueue<KiaSchedule>('kia', Number(id), child.data!.name, `/api/children/${id}/kia`, body);
       if (res) q.setData(res);
       else {

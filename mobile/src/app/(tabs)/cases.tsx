@@ -27,7 +27,7 @@ export default function Cases() {
 
   return (
     <Screen refreshing={cases.loading} onRefresh={() => [cases.reload(), reviews.reload()]}>
-      <SyncBanner stale={cases.stale} />
+      <SyncBanner stale={cases.stale || reviews.stale} />
       <Segmented
         value={filter}
         onChange={setFilter}

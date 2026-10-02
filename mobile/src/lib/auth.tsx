@@ -64,7 +64,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (token) {
         try {
           // Short wait: on one bar of signal the saved profile below is better than a long loading screen.
-          const me = await api<User>('/api/auth/me', { timeoutMs: 8000 });
+          let me = await api<User>('/api/auth/me', { timeoutMs: 8000 });
+          // A language picked while offline is sent now, so it does not revert to the account's old one.
+          const picked = await getJSON<Lang | null>(PICKED_KEY, null);
+          if (picked && picked !== me.language) {
+            me = await api<User>('/api/auth/me', { method: 'PATCH', body: { language: picked } }).catch(() => ({ ...me, language: picked }));
+          }
+          await setJSON(PICKED_KEY, null);
           if ((await getJSON<number | null>(OWNER_KEY, null)) === null) await setJSON(OWNER_KEY, me.id);
           await setJSON(USER_KEY, me);
           setUser(me);
@@ -111,8 +117,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLang: async (l) => {
         setLangState(l);
         await setJSON(LANG_KEY, l);
-        if (user) setUser(await api<User>('/api/auth/me', { method: 'PATCH', body: { language: l } }));
-        else await setJSON(PICKED_KEY, l);
+        if (!user) return setJSON(PICKED_KEY, l);
+        try {
+          setUser(await api<User>('/api/auth/me', { method: 'PATCH', body: { language: l } }));
+        } catch (e) {
+          if (!(e instanceof NetworkError)) throw e;
+          await setJSON(PICKED_KEY, l); // no signal: sent on the next start with signal
+          setUser({ ...user, language: l });
+        }
       },
       login: async (email, password) => onAuth(await api('/api/auth/login', { body: { email, password } })),
       register: async (body) => onAuth(await api('/api/auth/register', { body })),

@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
 import { Pressable, View } from 'react-native';
@@ -13,6 +12,7 @@ import { useExamSeen } from './FacilityLink';
 import { RiskCard } from './PregnancyParts';
 import { Text } from './Text';
 import { Bar, Card, QuickAction, Row, Section, StatusPill } from './ui';
+import { Icon } from './Icon';
 
 /** Home when "Bunda" is picked: how the pregnancy is, what to do today, four shortcuts. Same shape as the child's home. */
 export function PregnancyHome({ p }: { p: Pregnancy }) {
@@ -46,7 +46,7 @@ export function PregnancyHome({ p }: { p: Pregnancy }) {
               {delivered ? formatDate(p.delivered_at, lang) : `Trimester ${p.trimester} · ${t('hplLabel')} ${formatDate(p.hpl, lang)}`}
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#A09CB5" />
+          <Icon name="chevron-forward" size={20} color={colors.muted} />
         </Row>
         <View style={{ marginTop: 14, gap: 6 }}>
           <StatusPill status={st.key} label={st.text} large />
@@ -74,7 +74,7 @@ export function PregnancyHome({ p }: { p: Pregnancy }) {
                 </Text>
                 <Text style={{ fontSize: 13, color: colors.muted }}>{worst.length ? t('flTodaySeeCall') : t('flAllNormal')}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={worst.length ? statusColor[worst[0].key].fg : statusColor.info.fg} />
+              <Icon name="chevron-forward" size={18} color={worst.length ? statusColor[worst[0].key].fg : statusColor.info.fg} />
             </Row>
           </Pressable>
         )}
@@ -86,7 +86,7 @@ export function PregnancyHome({ p }: { p: Pregnancy }) {
           return (
             <Pressable key={item.key} onPress={() => go(item.action)} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center' }}>
               <Row style={{ gap: 10 }}>
-                <Ionicons name={done ? 'checkmark-circle' : 'alert-circle'} size={21} color={c.mark} />
+                <Icon name={done ? 'checkmark-circle' : 'alert-circle'} size={21} color={c.mark} />
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 15, fontWeight: done ? '400' : '700', color: done ? colors.text : c.fg }}>{item.text}</Text>
                   {code ? (
@@ -95,7 +95,7 @@ export function PregnancyHome({ p }: { p: Pregnancy }) {
                     </Text>
                   ) : null}
                 </View>
-                {!done && <Ionicons name="chevron-forward" size={18} color={c.fg} />}
+                {!done && <Icon name="chevron-forward" size={18} color={c.fg} />}
               </Row>
             </Pressable>
           );
@@ -103,9 +103,9 @@ export function PregnancyHome({ p }: { p: Pregnancy }) {
         {delivered && nextNifas && (
           <Pressable onPress={() => router.push(`/pregnancy/${p.id}`)} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center' }}>
             <Row style={{ gap: 10 }}>
-              <Ionicons name="alert-circle" size={21} color={statusColor.action.mark} />
+              <Icon name="alert-circle" size={21} color={statusColor.action.mark} />
               <Text style={{ flex: 1, fontSize: 15, fontWeight: '700', color: statusColor.action.fg }}>{t('nifasTitle')}</Text>
-              <Ionicons name="chevron-forward" size={18} color={statusColor.action.fg} />
+              <Icon name="chevron-forward" size={18} color={statusColor.action.fg} />
             </Row>
           </Pressable>
         )}

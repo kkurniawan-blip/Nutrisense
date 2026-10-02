@@ -510,6 +510,7 @@ class PregnancyDangerReport(Base):
     signs: Mapped[list] = mapped_column(JSON, default=list)
     danger: Mapped[bool] = mapped_column(Boolean, default=False)
     reported_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    client_uuid: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)  # offline replay key
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
 
 

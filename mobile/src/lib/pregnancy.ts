@@ -1,5 +1,6 @@
 /** Ibu hamil: labels, symptom lists and small helpers shared by the pregnancy screens. */
 import type { StatusKey } from '../theme';
+import { localDate, ymd } from './dates';
 import type { AncExam, Lang, MotherFlag, Pregnancy, VisitStatus } from './types';
 
 type L = { id: string; en: string };
@@ -139,10 +140,10 @@ export function fromHpht(hpht: string) {
   const start = new Date(`${hpht}T00:00:00`);
   const days = Math.floor((Date.now() - start.getTime()) / 86400000);
   const hpl = new Date(start.getTime() + 280 * 86400000);
-  return { days, weeks: Math.floor(days / 7), extra: days % 7, hpl: hpl.toISOString().slice(0, 10) };
+  return { days, weeks: Math.floor(days / 7), extra: days % 7, hpl: ymd(hpl) };
 }
 
-export const hphtFromWeeks = (weeks: number) => new Date(Date.now() - Math.round(weeks * 7) * 86400000).toISOString().slice(0, 10);
+export const hphtFromWeeks = (weeks: number) => localDate(-Math.round(weeks * 7));
 
 /**
  * Status of each check-up value from the Puskesmas, for the status colours. Thresholds mirror the backend

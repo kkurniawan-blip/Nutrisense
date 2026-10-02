@@ -1,10 +1,10 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import { Linking, Pressable, View } from 'react-native';
 
 import { FacilityLinkCard, useExamSeen } from '../../../components/FacilityLink';
 import { AncDots, NifasList, RiskCard } from '../../../components/PregnancyParts';
+import { SyncBanner } from '../../../components/SyncBanner';
 import { Text } from '../../../components/Text';
 import { Bar, Button, Card, ErrorBox, H2, Loading, QuickAction, Row, Screen, Section, StatusMark, StatusPill } from '../../../components/ui';
 import { useAuth } from '../../../lib/auth';
@@ -13,15 +13,16 @@ import { BIRTH_HELPERS, BIRTH_PLACES, BIRTH_ATTENDANTS, BIRTH_PLACES_DONE, FUNDI
 import type { FacilityLink, Pregnancy } from '../../../lib/types';
 import { useApi } from '../../../lib/useApi';
 import { colors, statusColor, StatusKey, tones } from '../../../theme';
+import { Icon, type IconName } from '../../../components/Icon';
 
 /** A mother's number as a small pastel tile, like the child's growth tiles. */
-function MomTile({ label: title, value, unit, status, word, tone, icon }: { label: string; value: string; unit: string; status: StatusKey; word: string; tone: keyof typeof tones; icon: keyof typeof Ionicons.glyphMap }) {
+function MomTile({ label: title, value, unit, status, word, tone, icon }: { label: string; value: string; unit: string; status: StatusKey; word: string; tone: keyof typeof tones; icon: IconName }) {
   const c = statusColor[status];
   const t = tones[tone];
   return (
     <View accessible accessibilityLabel={`${title}: ${value} ${unit}, ${word}`} style={{ flex: 1, backgroundColor: t.bg, borderRadius: 18, padding: 12, gap: 4 }}>
       <Row style={{ gap: 5 }}>
-        <Ionicons name={icon} size={14} color={t.fg} />
+        <Icon name={icon} size={14} color={t.fg} />
         <Text style={{ fontSize: 12.5, fontWeight: '600', color: t.fg }}>{title}</Text>
       </Row>
       <Text style={{ fontSize: 20, fontWeight: '900', color: status === 'unknown' ? colors.muted : c.fg }}>
@@ -60,6 +61,7 @@ export default function PregnancyDetail() {
   return (
     <Screen refreshing={q.loading} onRefresh={() => [q.reload(), link.reload()]}>
       <Stack.Screen options={{ title: t('pregnancy') }} />
+      <SyncBanner stale={q.stale || link.stale} />
 
       {/* Who and how she is */}
       <Row style={{ gap: 14, marginBottom: 18 }}>
@@ -170,12 +172,12 @@ export default function PregnancyDetail() {
       {/* TTD & PMT */}
       {!delivered && (
         <Card onPress={() => router.push(`/pregnancy/${id}/supplements`)}>
-          <H2 right={<Ionicons name="chevron-forward" size={18} color="#A09CB5" />}>{t('ttdPmt')}</H2>
+          <H2 right={<Icon name="chevron-forward" size={18} color={colors.muted} />}>{t('ttdPmt')}</H2>
           <Row style={{ justifyContent: 'space-between' }}>
             {p.daily_week.map((d) => (
               <View key={d.day} style={{ alignItems: 'center', gap: 4 }}>
                 <View style={{ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: d.ttd ? colors.mint : colors.line }}>
-                  {d.ttd ? <Ionicons name="checkmark" size={17} color="#fff" /> : null}
+                  {d.ttd ? <Icon name="checkmark" size={17} color="#fff" /> : null}
                 </View>
                 <Text style={{ fontSize: 11, color: colors.muted }}>{new Date(`${d.day}T00:00:00`).getDate()}</Text>
               </View>
@@ -205,7 +207,7 @@ export default function PregnancyDetail() {
       {/* Birth plan, one line each */}
       {!delivered && (
         <Card onPress={() => router.push(`/pregnancy/${id}/plan`)}>
-          <H2 right={<Ionicons name="chevron-forward" size={18} color="#A09CB5" />}>{t('birthPlan')}</H2>
+          <H2 right={<Icon name="chevron-forward" size={18} color={colors.muted} />}>{t('birthPlan')}</H2>
           {[
             { emoji: '🏥', title: t('birthPlace'), value: plan.place ? label(BIRTH_PLACES, plan.place, lang) : null },
             { emoji: '🚑', title: t('transportLbl'), value: plan.transport ? label(TRANSPORT, plan.transport, lang) : null },
@@ -239,8 +241,8 @@ export default function PregnancyDetail() {
               </Text>
             </View>
             {mbr.phone && mbr.role !== 'mother' ? (
-              <Pressable onPress={() => Linking.openURL(`tel:${mbr.phone}`)} accessibilityLabel={`${t('call')} ${mbr.name}`} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.mintSoft, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="call" size={20} color={colors.ok} />
+              <Pressable onPress={() => Linking.openURL(`tel:${mbr.phone}`)} accessibilityRole="button" accessibilityLabel={`${t('call')} ${mbr.name}`} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.mintSoft, alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name="call" size={20} color={colors.ok} />
               </Pressable>
             ) : null}
           </Row>

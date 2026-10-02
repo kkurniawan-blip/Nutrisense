@@ -6,10 +6,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BestRecipeCard, CookView, RecipeOptionCard } from '../../components/Cook';
 import { DiversityCard } from '../../components/Diversity';
 import { Mascot } from '../../components/Mascot';
+import { PermissionNotice } from '../../components/PermissionNotice';
 import { Text } from '../../components/Text';
 import { Bubble, Button, Card, ErrorBox, Loading, PressScale, Row, StepDots, Wash } from '../../components/ui';
 import { api, errorText, NetworkError } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
+import { ensureCamera, ensurePhotos, PermissionState } from '../../lib/camera';
 import { FOOD_EMOJI, groupsToday } from '../../lib/fun';
 import { KITCHEN_ORDER, pickPhoto, scanPhoto } from '../../lib/nutriscan';
 import { enqueue, uuid } from '../../lib/offline';
@@ -37,7 +39,7 @@ function FoodTile({ food, on, onPress }: { food: Food; on: boolean; onPress: () 
     <PressScale
       onPress={onPress}
       accessibilityRole="checkbox"
-      accessibilityState={{ checked: on }}
+      aria-checked={on}
       accessibilityLabel={food.name}
       style={{
         width: '31%',
@@ -86,6 +88,7 @@ export default function NutriScanFlow() {
   const [savedOffline, setSavedOffline] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [perm, setPerm] = useState<{ kind: 'camera' | 'photos'; state: PermissionState } | null>(null);
   const scroller = useRef<ScrollView>(null);
   const launched = useRef(false);
 
@@ -100,9 +103,16 @@ export default function NutriScanFlow() {
   const takePhoto = useCallback(
     async (camera: boolean) => {
       setError(null);
+      setPerm(null);
+      // Ask first with the shared helper, so "blocked" (only Settings can fix it) is told apart from a plain "no".
+      const state = camera ? await ensureCamera() : await ensurePhotos();
+      if (state !== 'granted') {
+        setPerm({ kind: camera ? 'camera' : 'photos', state });
+        return;
+      }
       const asset = await pickPhoto(camera);
       if (asset === 'denied') {
-        setError(t('photoPermission'));
+        setPerm({ kind: camera ? 'camera' : 'photos', state: 'denied' });
         return;
       }
       if (!asset) return;
@@ -248,6 +258,7 @@ export default function NutriScanFlow() {
             {scan === 'no_ai' && <Bubble mood="caring">{t('nuriCannotSee')}</Bubble>}
             {scanNote && scan === 'found' ? <Text style={{ color: colors.muted, fontSize: 16, marginBottom: 12 }}>💬 {scanNote}</Text> : null}
             {error && <ErrorBox message={error} />}
+            {perm && <PermissionNotice kind={perm.kind} state={perm.state} />}
 
             {!foodList.data && <Loading />}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between' }}>

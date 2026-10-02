@@ -1,5 +1,5 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
 import { api, errorText, NetworkError } from './api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -19,24 +19,43 @@ export function useApi<T>(path: string | null) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [stale, setStale] = useState(false);
+  // The path the current request is for. When the mother switches child, the slow answer for the previous
+  // child must not land on the new child's screen (on 2G the two answers often arrive out of order).
+  const latest = useRef(path);
+  useLayoutEffect(() => {
+    latest.current = path;
+  }, [path]);
+
+  // A new path starts empty instead of showing the previous child's data until the new answer arrives.
+  const [shownPath, setShownPath] = useState(path);
+  if (shownPath !== path) {
+    setShownPath(path);
+    setData(null);
+    setError(null);
+    setStale(false);
+  }
 
   const reload = useCallback(async () => {
     if (!path) return;
+    const current = () => latest.current === path;
     setLoading(true);
     setError(null);
     try {
       const fresh = await api<T>(path);
+      // Still cache it: it is a valid answer for that path, just no longer the one on screen.
+      void setJSON(CACHE_PREFIX + path, fresh).catch(() => undefined);
+      if (!current()) return;
       setData(fresh);
       setStale(false);
-      void setJSON(CACHE_PREFIX + path, fresh).catch(() => undefined);
     } catch (e) {
       const cached = e instanceof NetworkError ? await getJSON<T | null>(CACHE_PREFIX + path, null) : null;
+      if (!current()) return;
       if (cached !== null) {
         setData(cached);
         setStale(true);
       } else setError(errorText(e));
     } finally {
-      setLoading(false);
+      if (current()) setLoading(false);
     }
   }, [path]);
 

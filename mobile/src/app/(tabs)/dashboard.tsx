@@ -5,10 +5,12 @@ import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 
 import { Card, ErrorBox, H2, Loading, MoreLink, P, RiskBadge, Row, Screen, Segmented, Source, Stat, StatusPill } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
+import { formatDate } from '../../lib/fun';
 import { FEATURE_LABELS, label } from '../../lib/i18n';
 import type { SourceRef } from '../../lib/types';
 import { useApi } from '../../lib/useApi';
 import { colors, fonts, statusColor } from '../../theme';
+import { SyncBanner } from '../../components/SyncBanner';
 import { Text } from '../../components/Text';
 
 interface Summary {
@@ -86,6 +88,8 @@ interface ModelInfo {
     false_negative_rate_high: number;
     confusion_matrix: { labels: string[]; matrix: number[][] };
     baseline_logistic_regression: { accuracy: number; f1_macro: number };
+    /** The comparison model (since lr-3.0 a Random Forest; the shipped model is the logistic regression). */
+    baseline?: { name: string; accuracy: number; f1_macro: number };
   };
   feature_importances: Record<string, number>;
   demo: boolean;
@@ -170,6 +174,8 @@ function ProjectionChart({ d }: { d: ProjectionData }) {
 
 export default function Dashboard() {
   const { t, user, lang } = useAuth();
+  // The model's class names (low/medium/high) shown in the reader's language.
+  const riskWord = (l: string) => (['low', 'medium', 'high'].includes(l) ? t(`risk_${l}`) : l);
   const summary = useApi<Summary>('/api/dashboard/summary');
   const heat = useApi<HeatRow[]>('/api/dashboard/heatmap');
   const [series, setSeries] = useState<'ntt' | 'indonesia'>('ntt');
@@ -191,6 +197,7 @@ export default function Dashboard() {
       <P muted style={{ marginBottom: 8 }}>
         {user?.full_name}
       </P>
+      <SyncBanner stale={[summary, heat, proj, model, priority, mothers, flagged].some((x) => x.stale)} />
       {summary.error && <ErrorBox message={summary.error} onRetry={reload} />}
       {!s ? (
         <Loading />
@@ -293,7 +300,7 @@ export default function Dashboard() {
                 ))}
               </Row>
               <Text style={{ color: colors.muted, fontSize: 12.5, marginTop: 4 }}>
-                {r.measured_at} · {t('measuredBy')}: {r.measured_by === 'kader' ? 'Kader' : t('byMother')}
+                {formatDate(r.measured_at, lang)} · {t('measuredBy')}: {r.measured_by === 'kader' ? 'Kader' : t('byMother')}
               </Text>
             </Card>
           ))}
@@ -339,7 +346,9 @@ export default function Dashboard() {
             <ProjectionChart d={proj.data} />
             {tech && (
               <P muted style={{ fontSize: 12 }}>
-                Poly degree {proj.data.selected_degree} · LOOCV RMSE {Object.entries(proj.data.cv_rmse).map(([k, v]) => `${k.replace('degree_', 'd')}=${v}`).join(', ')}
+                {t('projDegree')
+                  .replace('{d}', String(proj.data.selected_degree))
+                  .replace('{r}', Object.entries(proj.data.cv_rmse).map(([k, v]) => `${k.replace('degree_', 'd')}=${v}`).join(', '))}
               </P>
             )}
             <Source label={proj.data.source} year={`${proj.data.years[0]}–${proj.data.years[1]}`} />
@@ -358,18 +367,20 @@ export default function Dashboard() {
           <P muted style={{ fontSize: 12 }}>{model.data.algorithm}</P>
           {model.data.demo && <Text style={{ color: statusColor.monitor.fg, fontSize: 13, fontWeight: '600' }}>{t('demoDataNote')}</Text>}
           <Row style={{ flexWrap: 'wrap', marginVertical: 8 }}>
-            <Stat label="Accuracy" value={`${(model.data.metrics.accuracy * 100).toFixed(1)}%`} />
-            <Stat label="F1 (macro)" value={model.data.metrics.f1_macro.toFixed(3)} />
-            <Stat label="FNR (high)" value={`${(model.data.metrics.false_negative_rate_high * 100).toFixed(1)}%`} tone="warn" />
+            <Stat label={t('mAccuracy')} value={`${(model.data.metrics.accuracy * 100).toFixed(1)}%`} />
+            <Stat label={t('mF1')} value={model.data.metrics.f1_macro.toFixed(3)} />
+            <Stat label={t('mFnrHigh')} value={`${(model.data.metrics.false_negative_rate_high * 100).toFixed(1)}%`} tone="warn" />
           </Row>
           <P muted style={{ fontSize: 12 }}>
-            Baseline logistic regression: acc {(model.data.metrics.baseline_logistic_regression.accuracy * 100).toFixed(1)}%, F1{' '}
-            {model.data.metrics.baseline_logistic_regression.f1_macro.toFixed(3)}
+            {t('mBaseline')
+              .replace('{name}', (model.data.metrics.baseline?.name ?? 'logistic_regression').replace('_', ' '))
+              .replace('{acc}', ((model.data.metrics.baseline ?? model.data.metrics.baseline_logistic_regression).accuracy * 100).toFixed(1))
+              .replace('{f1}', (model.data.metrics.baseline ?? model.data.metrics.baseline_logistic_regression).f1_macro.toFixed(3))}
           </P>
-          <Text style={{ fontWeight: '700', marginTop: 8, color: colors.text }}>Confusion matrix (rows = true)</Text>
+          <Text style={{ fontWeight: '700', marginTop: 8, color: colors.text }}>{t('mConfusion')}</Text>
           {model.data.metrics.confusion_matrix.matrix.map((row, i) => (
             <Row key={i}>
-              <Text style={{ width: 70, color: colors.muted }}>{model.data!.metrics.confusion_matrix.labels[i]}</Text>
+              <Text style={{ width: 100, color: colors.muted, fontSize: 13 }}>{riskWord(model.data!.metrics.confusion_matrix.labels[i])}</Text>
               {row.map((v, j) => (
                 <Text key={j} style={{ width: 56, textAlign: 'right', fontWeight: i === j ? '800' : '400', color: i === j ? colors.ok : colors.text }}>
                   {v}

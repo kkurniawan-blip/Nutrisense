@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Linking, View } from 'react-native';
 
@@ -10,6 +9,7 @@ import { colors, statusColor, tones } from '../theme';
 import { AudioButton } from './AudioButton';
 import { Text } from './Text';
 import { Button, Card, Row, StatusPill } from './ui';
+import { Icon } from './Icon';
 
 /**
  * Risiko sedang / tinggi: the level in large type, why in a few words, and one action: call the midwife
@@ -71,10 +71,10 @@ export function AncDots({ anc, fromFacility = [] }: { anc: AncVisit[]; fromFacil
                   borderColor: c.mark,
                 }}
               >
-                {done ? <Ionicons name="checkmark" size={20} color="#fff" /> : <Text style={{ fontWeight: '800', fontSize: 13, color: v.status === 'upcoming' ? colors.muted : c.fg }}>K{v.number}</Text>}
+                {done ? <Icon name="checkmark" size={20} color="#fff" /> : <Text style={{ fontWeight: '800', fontSize: 13, color: v.status === 'upcoming' ? colors.muted : c.fg }}>K{v.number}</Text>}
                 {fac && (
                   <View style={{ position: 'absolute', right: -5, bottom: -5, width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', borderWidth: 1.5, borderColor: colors.sky, alignItems: 'center', justifyContent: 'center' }}>
-                    <Ionicons name="business" size={11} color={tones.blue.fg} />
+                    <Icon name="business" size={11} color={tones.blue.fg} />
                   </View>
                 )}
               </View>
@@ -86,7 +86,7 @@ export function AncDots({ anc, fromFacility = [] }: { anc: AncVisit[]; fromFacil
       {marked && (
         <Row style={{ gap: 6, marginTop: 8 }}>
           <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: colors.sky, alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="business" size={11} color={tones.blue.fg} />
+            <Icon name="business" size={11} color={tones.blue.fg} />
           </View>
           <Text style={{ fontSize: 13, color: colors.muted }}>{t('flLegend')}</Text>
         </Row>

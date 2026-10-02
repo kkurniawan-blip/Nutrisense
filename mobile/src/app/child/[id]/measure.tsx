@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { View } from 'react-native';
@@ -12,6 +11,7 @@ import { AudioButton } from '../../../components/AudioButton';
 import { Bubble, Button, Card, Chip, ErrorBox, Field, IconChip, PressScale, Row, Screen, Segmented, StatusPill, StepDots } from '../../../components/ui';
 import { api, errorText, NetworkError } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
+import { localDate } from '../../../lib/dates';
 import { formatAge, formatDate } from '../../../lib/fun';
 import { enqueue, uuid } from '../../../lib/offline';
 import { useSync } from '../../../lib/sync';
@@ -19,14 +19,9 @@ import type { Assessment, Child, Measurement } from '../../../lib/types';
 import { useApi } from '../../../lib/useApi';
 import { measurementProblems } from '../../../lib/validate';
 import { colors, radius, statusColor, Tone, tones } from '../../../theme';
+import { Icon } from '../../../components/Icon';
 
 type Pos = 'lying' | 'standing';
-/** Local date (YYYY-MM-DD), `days` from today: NTT is UTC+8, so the UTC date is wrong in the early morning. */
-const today = (days = 0) => {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
 
 /** Simple line illustration of the correct measuring position. */
 function Illustration({ pos }: { pos: Pos }) {
@@ -96,7 +91,7 @@ export default function Measure() {
   const [weight, setWeight] = useState('');
   const [height, setHeight] = useState('');
   const [muac, setMuac] = useState('');
-  const [date, setDate] = useState(today());
+  const [date, setDate] = useState(localDate());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [queuedInfo, setQueuedInfo] = useState(false);
@@ -208,12 +203,12 @@ export default function Measure() {
                   key={p}
                   onPress={() => setPosition(p)}
                   accessibilityRole="radio"
-                  accessibilityState={{ checked: on }}
+                  aria-checked={on}
                   style={{ flex: 1, backgroundColor: on ? colors.primarySoft : '#fff', borderWidth: 2, borderColor: on ? colors.primary : colors.border, borderRadius: radius.lg, padding: 14, alignItems: 'center', gap: 6 }}
                 >
                   {on && (
                     <View style={{ position: 'absolute', top: 10, right: 10 }}>
-                      <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
+                      <Icon name="checkmark-circle" size={24} color={colors.primary} />
                     </View>
                   )}
                   <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: tone.bg, alignItems: 'center', justifyContent: 'center', marginTop: 4 }}>
@@ -250,7 +245,7 @@ export default function Measure() {
               : [t('instShoes'), t('instHeadBoard'), t('instLegsStraight'), t('instTwoPeople')]
             ).map((s, i) => (
               <Row key={s} style={{ alignItems: 'flex-start', marginBottom: 8 }}>
-                <Ionicons name="checkmark-circle" size={24} color={statusColor.ok.mark} />
+                <Icon name="checkmark-circle" size={24} color={statusColor.ok.mark} />
                 <Text style={{ flex: 1, fontSize: 16, lineHeight: 23 }}>{s}</Text>
               </Row>
             ))}
@@ -268,8 +263,8 @@ export default function Measure() {
             <Field label={`📏 ${pos === 'lying' ? t('lengthLbl') : t('heightLbl')}`} value={height} onChangeText={setHeight} keyboardType="decimal-pad" placeholder={`${t('eg')} 82.5`} />
             <Text style={{ fontSize: 14, fontWeight: '600', marginBottom: 8, marginLeft: 2 }}>🗓️ {t('dateLbl')}</Text>
             <Row style={{ flexWrap: 'wrap', marginBottom: 10 }}>
-              <Chip label={t('todayLbl')} selected={!otherDate && date === today()} onPress={() => { setOtherDate(false); setDate(today()); }} />
-              <Chip label={t('yesterdayLbl')} selected={!otherDate && date === today(-1)} onPress={() => { setOtherDate(false); setDate(today(-1)); }} />
+              <Chip label={t('todayLbl')} selected={!otherDate && date === localDate()} onPress={() => { setOtherDate(false); setDate(localDate()); }} />
+              <Chip label={t('yesterdayLbl')} selected={!otherDate && date === localDate(-1)} onPress={() => { setOtherDate(false); setDate(localDate(-1)); }} />
               <Chip label={t('otherDateLbl')} selected={otherDate} onPress={() => setOtherDate(true)} />
             </Row>
             {otherDate && <Field label={t('measuredAt')} value={date} onChangeText={setDate} keyboardType="numbers-and-punctuation" />}
@@ -298,7 +293,7 @@ export default function Measure() {
                 { value: 'yes', label: t('yesSwollen') },
               ]}
             />
-            {oedema === 'yes' && <Text style={{ color: colors.danger, fontWeight: '700' }}>🚨 {t('oedemaWarn')}</Text>}
+            {oedema === 'yes' && <Text style={{ color: statusColor.urgent.fg, fontWeight: '700' }}>🚨 {t('oedemaWarn')}</Text>}
           </Card>
           <Row>
             <View style={{ flex: 1 }}>

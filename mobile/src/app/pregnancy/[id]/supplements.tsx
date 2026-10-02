@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { View } from 'react-native';
@@ -10,9 +9,11 @@ import { errorText } from '../../../lib/api';
 import { saveOrQueue } from '../../../lib/offline';
 import { useSync } from '../../../lib/sync';
 import { useAuth } from '../../../lib/auth';
+import { localDate } from '../../../lib/dates';
 import type { Pregnancy } from '../../../lib/types';
 import { useApi } from '../../../lib/useApi';
 import { colors } from '../../../theme';
+import { Icon } from '../../../components/Icon';
 
 /** TTD & PMT ibu hamil: today's two ticks, the last seven days, and the running total of iron tablets. */
 export default function Supplements() {
@@ -26,7 +27,7 @@ export default function Supplements() {
 
   const set = async (body: { ttd?: boolean; pmt?: boolean }) => {
     setError(null);
-    const day = new Date().toISOString().slice(0, 10);
+    const day = localDate();
     try {
       const r = await saveOrQueue<Pregnancy>('daily', p.id, p.mother_name, `/api/pregnancies/${id}/daily`, { ...body, day });
       if (r) q.setData(r);
@@ -61,7 +62,7 @@ export default function Supplements() {
             <Text style={{ width: 40, fontSize: 13, fontWeight: '700', color: colors.muted }}>{k.toUpperCase()}</Text>
             {p.daily_week.map((d) => (
               <View key={d.day} style={{ width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: d[k] ? colors.mint : colors.line }}>
-                {d[k] ? <Ionicons name="checkmark" size={15} color="#fff" /> : null}
+                {d[k] ? <Icon name="checkmark" size={15} color="#fff" /> : null}
               </View>
             ))}
           </Row>

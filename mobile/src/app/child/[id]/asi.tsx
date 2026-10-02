@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -8,12 +7,14 @@ import { TodayBox } from '../../../components/TodayBox';
 import { Bar, Bubble, Button, Card, Chip, ErrorBox, H2, Loading, Row, Screen, Source, StatusPill } from '../../../components/ui';
 import { errorText } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
+import { localDate } from '../../../lib/dates';
 import { formatAge, formatDate } from '../../../lib/fun';
 import { saveOrQueue } from '../../../lib/offline';
 import { useSync } from '../../../lib/sync';
 import type { AsiTracker, Child } from '../../../lib/types';
 import { useApi } from '../../../lib/useApi';
 import { colors, statusColor } from '../../../theme';
+import { Icon } from '../../../components/Icon';
 
 const OTHER: { key: string; emoji: string; id: string; en: string }[] = [
   { key: 'water', emoji: '💧', id: 'Air putih', en: 'Water' },
@@ -24,7 +25,6 @@ const OTHER: { key: string; emoji: string; id: string; en: string }[] = [
   { key: 'other', emoji: '➕', id: 'Lainnya', en: 'Other' },
 ];
 
-const today = () => new Date().toISOString().slice(0, 10);
 
 /** ASI eksklusif (0-5 months): today's tick, how often, the last 7 days, and the way to 6 months. Replaces the meal log. */
 export default function AsiScreen() {
@@ -43,7 +43,7 @@ export default function AsiScreen() {
 
   const save = async (next: { asi_only: boolean; feeds?: number | null; other?: string[] }) => {
     setError(null);
-    const body = { day: today(), asi_only: next.asi_only, feeds: next.feeds ?? day?.feeds ?? null, other: next.other ?? (next.asi_only ? [] : (day?.other ?? [])) };
+    const body = { day: localDate(), asi_only: next.asi_only, feeds: next.feeds ?? day?.feeds ?? null, other: next.other ?? (next.asi_only ? [] : (day?.other ?? [])) };
     // Show the tick at once, also when the phone is offline.
     q.setData({ ...a, today: { asi_only: body.asi_only, feeds: body.feeds, other: body.other } });
     try {
@@ -112,7 +112,7 @@ export default function AsiScreen() {
             accessibilityLabel="−"
             style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}
           >
-            <Ionicons name="remove" size={26} color={colors.primaryDark} />
+            <Icon name="remove" size={26} color={colors.primaryDark} />
           </Pressable>
           <Text style={{ fontSize: 34, fontWeight: '900', minWidth: 60, textAlign: 'center' }}>
             {feeds}
@@ -124,7 +124,7 @@ export default function AsiScreen() {
             accessibilityLabel="+"
             style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}
           >
-            <Ionicons name="add" size={26} color="#fff" />
+            <Icon name="add" size={26} color="#fff" />
           </Pressable>
         </Row>
         <Text style={{ color: colors.muted, fontSize: 13, textAlign: 'center', marginTop: 8 }}>{t('asiFeedsHint')}</Text>
@@ -145,7 +145,7 @@ export default function AsiScreen() {
                   backgroundColor: d.asi_only === true ? colors.mint : d.asi_only === false ? colors.accent : colors.line,
                 }}
               >
-                {d.asi_only === true ? <Ionicons name="checkmark" size={17} color="#fff" /> : d.asi_only === false ? <Text style={{ color: '#fff', fontWeight: '900' }}>!</Text> : null}
+                {d.asi_only === true ? <Icon name="checkmark" size={17} color="#fff" /> : d.asi_only === false ? <Text style={{ color: '#fff', fontWeight: '900' }}>!</Text> : null}
               </View>
               <Text style={{ fontSize: 11, color: colors.muted }}>{dayName(d.day)}</Text>
             </View>

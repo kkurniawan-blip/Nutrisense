@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { View } from 'react-native';
@@ -11,6 +10,7 @@ import type { LogisticsOption, SupplyRequest } from '../../lib/types';
 import { useApi } from '../../lib/useApi';
 import { colors } from '../../theme';
 import { Text } from '../../components/Text';
+import { Icon } from '../../components/Icon';
 
 const ICON = { locker_stock: 'file-tray-stacked-outline', courier: 'bicycle-outline' } as const;
 
@@ -80,7 +80,7 @@ export default function SupplyDetail() {
             >
               <Row style={{ justifyContent: 'space-between' }}>
                 <Row>
-                  <Ionicons name={ICON[o.type]} size={20} color={colors.primaryDark} />
+                  <Icon name={ICON[o.type]} size={20} color={colors.primaryDark} />
                   <Text style={{ fontWeight: '700', color: colors.text }}>{t(`via_${o.type}`)}</Text>
                 </Row>
                 {isChosen ? <Badge text={t('chosen')} fg="#fff" bg={colors.primary} /> : !o.feasible ? <Badge text={t('infeasible')} fg={colors.muted} bg="#F1EFF8" /> : null}

@@ -7,6 +7,7 @@ import { formatDate } from '../lib/fun';
 import type { Notification } from '../lib/types';
 import { useApi } from '../lib/useApi';
 import { colors } from '../theme';
+import { SyncBanner } from '../components/SyncBanner';
 import { Text } from '../components/Text';
 
 const URGENT_KINDS = ['mother_danger', 'oedema', 'referral'];
@@ -43,10 +44,12 @@ export default function Notifications() {
         variant="ghost"
         title={t('markAllRead')}
         onPress={async () => {
-          await api('/api/notifications/read-all', { method: 'POST' });
+          // Offline this fails; the list simply stays as it is (no unhandled error).
+          await api('/api/notifications/read-all', { method: 'POST' }).catch(() => undefined);
           void list.reload();
         }}
       />
+      <SyncBanner stale={list.stale} />
       {list.error && <ErrorBox message={list.error} onRetry={list.reload} />}
       {!list.data && !list.error && <Loading />}
       {list.data?.length === 0 && <Empty text={t('noNotifications')} />}

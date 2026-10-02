@@ -8,6 +8,7 @@ import { api, errorText } from '../../../lib/api';
 import { saveOrQueue } from '../../../lib/offline';
 import { useSync } from '../../../lib/sync';
 import { useAuth } from '../../../lib/auth';
+import { localDate } from '../../../lib/dates';
 import { formatDate } from '../../../lib/fun';
 import { ANC_PLACES, label, VISIT_STATUS } from '../../../lib/pregnancy';
 import type { AncVisit, FacilityLink, Pregnancy } from '../../../lib/types';
@@ -33,7 +34,7 @@ export default function AncTracker() {
     setBusy(v.number);
     setError(null);
     try {
-      const visit_date = new Date().toISOString().slice(0, 10);
+      const visit_date = localDate();
       const r = await saveOrQueue<Pregnancy>('anc', p.id, p.mother_name, `/api/pregnancies/${id}/anc`, { number: v.number, place, visit_date });
       if (r) q.setData(r);
       else {

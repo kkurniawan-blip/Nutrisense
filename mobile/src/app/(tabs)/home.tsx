@@ -1,6 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -16,8 +15,30 @@ import { motherStatus, txt } from '../../lib/status';
 import type { Child, Facility, Posyandu, Pregnancy, TodayChecklist } from '../../lib/types';
 import { useApi } from '../../lib/useApi';
 import { colors, glass, radius, statusColor, Tone } from '../../theme';
+import { Icon } from '../../components/Icon';
 
 const STATUS_RANK: Record<string, number> = { urgent: 0, action: 1, monitor: 2, info: 3, ai: 3, unknown: 4, ok: 5 };
+const URGENCY_RANK: Record<string, number> = { emergency: 0, doctor_48h: 1, kader_7d: 2, routine: 3 };
+const RISK_RANK: Record<string, number> = { high: 0, medium: 1, low: 2 };
+
+/** Lower sorts first: status, then how soon care is needed, then risk, then 2T (weight not gaining twice). */
+function childNeed(c: Child): number[] {
+  const a = c.latest_assessment;
+  return [STATUS_RANK[motherStatus(a).key] ?? 4, a ? (URGENCY_RANK[a.triage.urgency] ?? 3) : 4, a ? (RISK_RANK[a.risk_level] ?? 3) : 3, c.weight_gain?.two_t ? 0 : 1];
+}
+const before = (x: number[], y: number[]) => {
+  for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] ?? 9) !== (y[i] ?? 9)) return (x[i] ?? 9) < (y[i] ?? 9);
+  return false;
+};
+
+/**
+ * Who the mother picked in the picker during this app session (per account). Kept outside the component so
+ * it survives tab switches; a fresh start opens on whoever needs her most again.
+ */
+let sessionPick: { user: number; pick: number | 'mom' } | null = null;
+const rememberPick = (user: number, pick: number | 'mom') => {
+  sessionPick = { user, pick };
+};
 
 /** A big pastel feature card that folds open to show its shortcuts. */
 function FeatureGroup({ emoji, tone, title, children }: { emoji: string; tone: Tone; title: string; children: React.ReactNode }) {
@@ -55,13 +76,27 @@ function MotherHome() {
   const children = useApi<Child[]>('/api/children');
   const pregnancies = useApi<Pregnancy[]>('/api/pregnancies');
   const local = useApi<{ facility: Facility | null; posyandu: Posyandu | null }>('/api/local');
-  const [picked, setPicked] = useState<number | 'mom' | null>(null);
+  const [picked, setPickedState] = useState<number | 'mom' | null>(sessionPick && sessionPick.user === user?.id ? sessionPick.pick : null);
+  const setPicked = (pick: number | 'mom') => {
+    if (user) rememberPick(user.id, pick);
+    setPickedState(pick);
+  };
   const [adding, setAdding] = useState(false);
-  const kids = children.data ?? [];
+  const kids = useMemo(() => children.data ?? [], [children.data]);
   const preg = pregnancies.data?.[0] ?? null;
+  // Until she picks someone, open on whoever needs her most: an urgent pregnancy, or the child with the most
+  // urgent status (Budi's referral, not healthy Adel just because she is listed first).
+  const auto = useMemo<number | 'mom' | null>(() => {
+    let best: Child | null = null;
+    for (const c of kids) if (!best || before(childNeed(c), childNeed(best))) best = c;
+    const momRank = preg && preg.status === 'active' ? (STATUS_RANK[preg.risk.key] ?? 4) : null;
+    if (momRank !== null && (!best || (momRank <= STATUS_RANK.action && momRank < childNeed(best)[0]))) return 'mom';
+    return best?.id ?? null;
+  }, [kids, preg]);
+  const choice = picked ?? auto;
   // "Bunda" is shown when picked, or when there is a pregnancy and no child yet.
-  const momOn = !!preg && (picked === 'mom' || (picked === null && kids.length === 0));
-  const child = momOn ? null : (kids.find((c) => c.id === picked) ?? kids[0] ?? null);
+  const momOn = !!preg && (choice === 'mom' || (choice === null && kids.length === 0));
+  const child = momOn ? null : (kids.find((c) => c.id === choice) ?? kids[0] ?? null);
   const today = useApi<TodayChecklist>(child ? `/api/children/${child.id}/today` : null);
   const first = (user?.full_name ?? '').replace(/^(Ibu|Bapak)\s+/i, '').split(' ')[0];
   const name = child?.name.split(' ')[0] ?? '';
@@ -97,8 +132,8 @@ function MotherHome() {
           <Text style={{ flex: 1, fontSize: 19, fontWeight: '800', lineHeight: 25 }}>
             {greeting(lang)}, {t('mom')} {first} 👋
           </Text>
-          <Pressable onPress={() => router.push('/notifications')} accessibilityLabel={t('notifications')} style={[{ borderRadius: 22, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }, glass]}>
-            <Ionicons name="notifications-outline" size={21} color={colors.primary} />
+          <Pressable onPress={() => router.push('/notifications')} accessibilityRole="button" accessibilityLabel={t('notifications')} style={[{ borderRadius: 22, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }, glass]}>
+            <Icon name="notifications-outline" size={21} color={colors.primary} />
           </Pressable>
         </Row>
 
@@ -111,8 +146,8 @@ function MotherHome() {
                 <PressScale
                   key={c.id}
                   onPress={() => setPicked(c.id)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: on }}
+                  accessibilityRole="tab"
+                  aria-selected={on}
                   style={[{ flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: radius.pill, paddingLeft: 5, paddingRight: 12, minHeight: 44 }, on ? { backgroundColor: colors.primary } : glass]}
                 >
                   <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: on ? '#ffffff33' : c.sex === 'female' ? colors.pinkSoft : colors.skySoft, alignItems: 'center', justifyContent: 'center' }}>
@@ -125,8 +160,8 @@ function MotherHome() {
             {preg && (
               <PressScale
                 onPress={() => setPicked('mom')}
-                accessibilityRole="button"
-                accessibilityState={{ selected: momOn }}
+                accessibilityRole="tab"
+                aria-selected={momOn}
                 style={[{ flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: radius.pill, paddingLeft: 5, paddingRight: 12, minHeight: 44 }, momOn ? { backgroundColor: colors.primary } : glass]}
               >
                 <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: momOn ? '#ffffff33' : colors.pinkSoft, alignItems: 'center', justifyContent: 'center' }}>
@@ -138,7 +173,7 @@ function MotherHome() {
             <Pressable
               onPress={() => setAdding(!adding)}
               accessibilityRole="button"
-              accessibilityState={{ expanded: adding }}
+              aria-expanded={adding}
               accessibilityLabel={`${t('addChild')} / ${t('addPregnancy')}`}
               style={{
                 width: 44,
@@ -152,7 +187,7 @@ function MotherHome() {
                 justifyContent: 'center',
               }}
             >
-              <Ionicons name="add" size={22} color={colors.primary} />
+              <Icon name="add" size={22} color={colors.primary} />
             </Pressable>
           </Row>
         )}
@@ -171,7 +206,7 @@ function MotherHome() {
       </View>
 
       <View style={{ padding: 18, paddingTop: 16 }}>
-        <SyncBanner stale={children.stale || today.stale} />
+        <SyncBanner stale={children.stale || pregnancies.stale || today.stale} />
         {children.error && <ErrorBox message={children.error} onRetry={children.reload} />}
         {!children.data && children.loading && <Loading />}
 
@@ -198,7 +233,7 @@ function MotherHome() {
                   <Text style={{ fontSize: 20, fontWeight: '800' }}>{name}</Text>
                   <Text style={{ color: colors.muted, fontSize: 13 }}>{formatAge(child.age_months, lang)}</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color="#A09CB5" />
+                <Icon name="chevron-forward" size={20} color={colors.muted} />
               </Row>
               <Row style={{ marginTop: 14, flexWrap: 'wrap', gap: 6 }}>
                 <StatusPill status={st.key} label={txt(st.headline, lang)} large />
@@ -235,9 +270,9 @@ function MotherHome() {
                 return (
                   <Pressable key={item.key} onPress={() => go(item.action)} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center' }}>
                     <Row style={{ gap: 10 }}>
-                      <Ionicons name={done ? 'checkmark-circle' : 'alert-circle'} size={21} color={c.mark} />
+                      <Icon name={done ? 'checkmark-circle' : 'alert-circle'} size={21} color={c.mark} />
                       <Text style={{ flex: 1, fontSize: 15, fontWeight: done ? '400' : '700', color: done ? colors.text : c.fg }}>{item.text}</Text>
-                      {!done && <Ionicons name="chevron-forward" size={18} color={c.fg} />}
+                      {!done && <Icon name="chevron-forward" size={18} color={c.fg} />}
                     </Row>
                   </Pressable>
                 );

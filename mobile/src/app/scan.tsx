@@ -1,11 +1,13 @@
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { CameraView } from 'expo-camera';
 import React, { useEffect, useRef, useState } from 'react';
 import { Platform, View } from 'react-native';
 
+import { PermissionNotice } from '../components/PermissionNotice';
 import { Text } from '../components/Text';
 import { Button, Card, Chip, ErrorBox, Field, H2, MoreLink, Screen } from '../components/ui';
 import { api, errorText } from '../lib/api';
 import { useAuth } from '../lib/auth';
+import { ensureCamera, PermissionState } from '../lib/camera';
 import type { Locker } from '../lib/types';
 import { colors, statusColor } from '../theme';
 
@@ -16,7 +18,7 @@ export default function Scan() {
   const [lockerCode, setLockerCode] = useState<string | null>(null);
   const [code, setCode] = useState('');
   const [scanning, setScanning] = useState(false);
-  const [permission, requestPermission] = useCameraPermissions();
+  const [camPerm, setCamPerm] = useState<PermissionState | null>(null);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const handled = useRef(false);
@@ -49,10 +51,9 @@ export default function Scan() {
   };
 
   const startScan = async () => {
-    if (!permission?.granted) {
-      const p = await requestPermission();
-      if (!p.granted) return;
-    }
+    const perm = await ensureCamera();
+    setCamPerm(perm);
+    if (perm !== 'granted') return;
     handled.current = false;
     setScanning(true);
   };
@@ -114,6 +115,7 @@ export default function Scan() {
           <Button title={t('scanQR')} icon="scan-outline" onPress={startScan} disabled={Platform.OS === 'web' && !navigator?.mediaDevices} />
         )}
         {scanning && <Button small variant="ghost" title={t('cancel')} onPress={() => setScanning(false)} />}
+        {!scanning && <PermissionNotice kind="camera" state={camPerm} />}
       </Card>
       <Card>
         <Field label={t('enterCode')} value={code} onChangeText={setCode} keyboardType="number-pad" maxLength={6} />

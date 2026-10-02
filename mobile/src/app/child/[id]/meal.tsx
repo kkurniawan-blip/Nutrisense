@@ -4,12 +4,14 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Image, Platform, View } from 'react-native';
 
 import { Mascot } from '../../../components/Mascot';
+import { PermissionNotice } from '../../../components/PermissionNotice';
 import { MenuSuggestionsView } from '../../../components/Recipes';
 import { Text, TextInput } from '../../../components/Text';
 import { Bubble, Button, Card, Chip, ErrorBox, H2, Loading, PressScale, RainbowPlate, Row, Screen, Segmented } from '../../../components/ui';
 import { DiversityCard } from '../../../components/Diversity';
 import { api, errorText, NetworkError } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
+import { ensureCamera, ensurePhotos, PermissionState } from '../../../lib/camera';
 import { FOOD_EMOJI, FOOD_GROUPS, GROUP_PLAIN, groupsToday, mealStreak } from '../../../lib/fun';
 import { enqueue, uuid } from '../../../lib/offline';
 import { shrinkPhoto } from '../../../lib/photo';
@@ -62,6 +64,7 @@ export default function MealScreen() {
   const [scanNote, setScanNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [perm, setPerm] = useState<{ kind: 'camera' | 'photos'; state: PermissionState } | null>(null);
   const [saved, setSaved] = useState<null | 'online' | 'offline'>(null);
   const [savedGroups, setSavedGroups] = useState<string[]>([]);
   const [showIdeas, setShowIdeas] = useState(false);
@@ -104,9 +107,10 @@ export default function MealScreen() {
   const pick = useCallback(
     async (camera: boolean) => {
       setError(null);
-      const perm = camera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) {
-        setError('Izin kamera/galeri ditolak / Permission denied');
+      setPerm(null);
+      const state = camera ? await ensureCamera() : await ensurePhotos();
+      if (state !== 'granted') {
+        setPerm({ kind: camera ? 'camera' : 'photos', state });
         return;
       }
       const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.6 };
@@ -257,6 +261,7 @@ export default function MealScreen() {
       footer={
         <>
           {error && <ErrorBox message={error} />}
+          {perm && <PermissionNotice kind={perm.kind} state={perm.state} />}
           {items.length > 0 && (
             <Text style={{ color: colors.muted, fontSize: 14, textAlign: 'center' }}>
               🍽️ {items.length} {t('foodsChosen')}
@@ -349,7 +354,7 @@ export default function MealScreen() {
           value={filter}
           onChangeText={setFilter}
           placeholder="🔍 telur, ikan, kelor…"
-          placeholderTextColor="#A09CB5"
+          placeholderTextColor={colors.muted}
           style={{ borderWidth: 1.5, borderColor: colors.border, borderRadius: radius.pill, paddingHorizontal: 16, paddingVertical: 10, marginBottom: 10, fontSize: 16 }}
         />
         {/* Grouped like the 8 food groups, so a mother can see which group is still missing. */}

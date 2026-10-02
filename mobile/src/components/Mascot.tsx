@@ -25,7 +25,8 @@ export function Mascot({ size = 96, mood = 'happy', bounce = false }: { size?: n
 
   const eyeY = mood === 'thinking' ? 55 : 58;
   return (
-    <Animated.View style={{ transform: [{ translateY: y }] }}>
+    // Decoration only: screen readers skip it (the words next to Nuri carry the message).
+    <Animated.View style={{ transform: [{ translateY: y }] }} aria-hidden>
       <Svg width={size} height={size} viewBox="0 0 100 100">
         {/* sprout */}
         <Path d="M50 30 C50 22 50 18 50 14" stroke="#2FB38A" strokeWidth={4} strokeLinecap="round" fill="none" />

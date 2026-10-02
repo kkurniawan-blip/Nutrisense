@@ -134,14 +134,16 @@ function RootStack() {
 }
 
 export default function RootLayout() {
-  const [loaded] = useFonts({
+  const [loaded, fontError] = useFonts({
     PlusJakartaSans_400Regular,
     PlusJakartaSans_500Medium,
     PlusJakartaSans_600SemiBold,
     PlusJakartaSans_700Bold,
     PlusJakartaSans_800ExtraBold,
   });
-  if (!loaded) {
+  // If a font fails to load (blocked CDN, broken asset), carry on with the system font rather than
+  // leaving the mother on the splash forever.
+  if (!loaded && !fontError) {
     return (
       <View
         style={{

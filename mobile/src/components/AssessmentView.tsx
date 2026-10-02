@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { Linking, View } from 'react-native';
 
 import { useAuth } from '../lib/auth';
 import { formatDate } from '../lib/fun';
@@ -12,7 +12,7 @@ import { AudioButton } from './AudioButton';
 import { Mascot } from './Mascot';
 import { Escalation } from './SymptomTiles';
 import { Text } from './Text';
-import { Bar, Card, H2, ListRow, MoreLink, P, RiskBadge, Row, SourceTag, StatusPill } from './ui';
+import { Bar, Button, Card, H2, ListRow, MoreLink, P, RiskBadge, Row, SourceTag, StatusPill } from './ui';
 
 export function fmtZ(z: number | null | undefined) {
   return z === null || z === undefined ? '–' : `${z > 0 ? '+' : ''}${z.toFixed(1)}`;
@@ -61,6 +61,9 @@ function MotherResult({ a, compact, hideEmergency, facility, kaderPhone }: Props
   const f = a.features as Record<string, number | null | string[]>;
   const codes = new Set(a.triage.actions.map((x) => x.code));
   const emergency = a.triage.urgency === 'emergency';
+  // "See a doctor within 48 hours" must be the first thing the mother reads (and hears), not hidden behind
+  // "measure again in 2 weeks": it is the step that gets a high-risk child to care.
+  const doctorSoon = !emergency && (a.triage.urgency === 'doctor_48h' || codes.has('doctor_48h'));
   const id = a.child_id;
 
   // One line each: an icon and a few words. The long triage text stays in "Kenapa?".
@@ -69,6 +72,8 @@ function MotherResult({ a, compact, hideEmergency, facility, kaderPhone }: Props
     actions.push({ emoji: '🏥', title: t('actGoNow') });
     if (codes.has('keep_breastfeeding')) actions.push({ emoji: '🤱', title: t('actKeepFeeding') });
   } else {
+    if (doctorSoon)
+      actions.push({ emoji: '🏥', title: t('actSeeDoctor48h') });
     actions.push({ emoji: '📏', title: codes.has('remeasure_2w') ? `${t('actMeasureNext')} · ${t('in2Weeks')}` : t('actMeasureNext'), go: () => router.push(`/child/${id}/measure`) });
     if (Number(f.age_months) < 6) actions.push({ emoji: '🤱', title: t('asiOnly'), go: () => router.push(`/child/${id}/asi`) });
     else actions.push({ emoji: '🍽️', title: t('actWatchMeals'), go: () => router.push(`/child/${id}/meal?action=manual`) });
@@ -135,6 +140,10 @@ function MotherResult({ a, compact, hideEmergency, facility, kaderPhone }: Props
         {actions.map((x) => (
           <ListRow key={x.title} emoji={x.emoji} title={x.title} onPress={x.go} right={x.go ? undefined : <View />} />
         ))}
+        {/* The call button sits right under the actions, so "go to the doctor" comes with the number to ring. */}
+        {doctorSoon && facility?.phone ? (
+          <Button small icon="call" title={`${t('call')} ${facility.name}`} onPress={() => Linking.openURL(`tel:${facility.phone}`)} />
+        ) : null}
       </Card>
 
       <Text style={{ color: colors.muted, fontSize: 12, textAlign: 'center', marginBottom: 14 }}>{t('notDiagnosis')}</Text>
@@ -184,7 +193,7 @@ function StaffResult({ a, compact, hideEmergency }: Props) {
     <>
       {emergency && !hideEmergency && (
         <Card tint={statusColor.urgent.bg} style={{ borderColor: colors.danger, borderWidth: 2 }}>
-          <Text style={{ color: colors.danger, fontWeight: '900', fontSize: 17 }}>🚨 {t('dangerTitle')}</Text>
+          <Text style={{ color: statusColor.urgent.fg, fontWeight: '900', fontSize: 17 }}>🚨 {t('dangerTitle')}</Text>
           <Text style={{ marginTop: 6 }}>{a.triage.actions[0]?.text}</Text>
         </Card>
       )}

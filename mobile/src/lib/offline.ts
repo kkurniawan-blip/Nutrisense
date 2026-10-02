@@ -11,7 +11,7 @@ import { getJSON, setJSON } from './storage';
 const QUEUE_KEY = 'nutrisense.offlineQueue';
 const HISTORY_KEY = 'nutrisense.syncHistory';
 
-export type OutboxKind = 'measurement' | 'meal' | 'symptom' | 'mother_measurement' | 'anc' | 'daily' | 'asi' | 'kia';
+export type OutboxKind = 'measurement' | 'meal' | 'symptom' | 'mother_measurement' | 'anc' | 'daily' | 'asi' | 'kia' | 'mother_danger';
 
 export interface OutboxItem {
   kind: OutboxKind;

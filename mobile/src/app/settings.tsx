@@ -181,7 +181,8 @@ export default function Settings() {
         <Text style={{ fontSize: 13, fontWeight: '700', color: colors.muted, marginBottom: 6, marginLeft: 4 }}>{t('language')}</Text>
         <Segmented<Lang>
           value={lang}
-          onChange={(l) => void setLang(l)}
+          // Offline the PATCH fails, but the phone already shows and keeps the new language.
+          onChange={(l) => void setLang(l).catch(() => undefined)}
           options={[
             { value: 'id', label: '🇮🇩 Indonesia' },
             { value: 'en', label: '🇬🇧 English' },

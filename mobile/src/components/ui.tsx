@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import React, { useContext, useId, useState } from 'react';
 import {
   ActivityIndicator,
@@ -24,12 +23,12 @@ import { colors, fonts, glass, radius, shadow, StatusKey, statusColor, Tone, ton
 import { AudioButton } from './AudioButton';
 import { Mascot, Mood } from './Mascot';
 import { Text, TextInput, TextScaleContext } from './Text';
+import { Icon, type IconName } from './Icon';
 
 export { Text, TextInput };
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-type IconName = keyof typeof Ionicons.glyphMap;
 
 /**
  * Structural emoji (section and menu markers) are drawn as soft pastel icons so every screen
@@ -66,7 +65,7 @@ function useSvgId(prefix: string) {
 export function Gradient({ from, to, r = 0 }: { from: string; to: string; r?: number }) {
   const id = useSvgId('grad');
   return (
-    <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none">
+    <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none" aria-hidden>
       <Defs>
         <LinearGradient id={id} x1="0" y1="0" x2="1" y2="1">
           <Stop offset="0" stopColor={from} />
@@ -87,7 +86,7 @@ export function Wash({ height = 340, colorsList = ['#FFE2CF', '#D9F2E6', '#E4DEF
     { cx: '50%', cy: '78%', r: '60%' },
   ];
   return (
-    <Svg style={{ position: 'absolute', top: 0, left: 0, right: 0 }} width="100%" height={height} pointerEvents="none">
+    <Svg style={{ position: 'absolute', top: 0, left: 0, right: 0 }} width="100%" height={height} pointerEvents="none" aria-hidden>
       <Defs>
         {spots.map((s, i) => (
           <RadialGradient key={i} id={`${id}${i}`} cx={s.cx} cy={s.cy} rx={s.r} ry={s.r} fx={s.cx} fy={s.cy}>
@@ -168,7 +167,7 @@ export function IconChip({
     >
       {gradient && <Gradient from={t.from} to={t.to} r={r} />}
       {name ? (
-        <Ionicons name={name} size={Math.round(size * 0.5)} color={fg ?? (gradient ? '#fff' : t.fg)} />
+        <Icon name={name} size={Math.round(size * 0.5)} color={fg ?? (gradient ? '#fff' : t.fg)} />
       ) : (
         <Text style={{ fontSize: Math.round(size * 0.5) }}>{emoji}</Text>
       )}
@@ -205,7 +204,7 @@ export function StepDots({ total, current, label }: { total: number; current: nu
                 }}
               >
                 {done ? (
-                  <Ionicons name="checkmark" size={17} color={colors.primary} />
+                  <Icon name="checkmark" size={17} color={colors.primary} />
                 ) : (
                   <Text style={{ fontWeight: '700', fontSize: 14, color: on ? '#fff' : colors.muted }}>{i + 1}</Text>
                 )}
@@ -269,7 +268,7 @@ export function Card({ children, style, onPress, tint }: { children: React.React
   const s = [styles.card, tint ? { backgroundColor: tint, borderColor: tint } : null, style] as ViewStyle[];
   if (onPress)
     return (
-      <PressScale onPress={onPress} style={s}>
+      <PressScale onPress={onPress} accessibilityRole="button" style={s}>
         {children}
       </PressScale>
     );
@@ -285,7 +284,9 @@ export function H2({ children, right, emoji }: { children: React.ReactNode; righ
     <View style={styles.h2Row}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1 }}>
         {emoji ? <IconChip emoji={emoji} size={34} /> : null}
-        <Text style={styles.h2}>{children}</Text>
+        <Text role="heading" aria-level={2} style={styles.h2}>
+          {children}
+        </Text>
       </View>
       {right}
     </View>
@@ -296,10 +297,12 @@ export function P({ children, muted, style }: { children: React.ReactNode; muted
   return <Text style={[styles.p, muted && { color: colors.muted }, style]}>{children}</Text>;
 }
 
+// White labels need >= 4.5:1 over the whole gradient, including its light start (the old pastel starts
+// were 2.4-3.3:1). Start / end contrast with white: primary 4.6 / 7.0, mint 5.0 / 6.5, danger 5.0 / 6.5.
 const BUTTONS = {
-  primary: { bg: colors.primary, fg: '#fff', border: colors.primary, grad: [colors.primaryLight, colors.primary] },
-  mint: { bg: colors.mint, fg: '#fff', border: colors.mint, grad: ['#3FBF85', colors.mint] },
-  danger: { bg: colors.danger, fg: '#fff', border: colors.danger, grad: ['#EC6A7A', colors.danger] },
+  primary: { bg: colors.primary, fg: '#fff', border: colors.primary, grad: ['#7061E8', colors.primaryDark] },
+  mint: { bg: colors.mint, fg: '#fff', border: colors.mint, grad: ['#147F55', '#0E6B46'] },
+  danger: { bg: colors.danger, fg: '#fff', border: colors.danger, grad: ['#CB3848', '#B02A3B'] },
   secondary: { bg: colors.primarySoft, fg: colors.primaryDark, border: colors.primarySoft, grad: null },
   ghost: { bg: '#fff', fg: colors.primaryDark, border: '#DCD6F5', grad: null },
 } as const;
@@ -316,7 +319,7 @@ export function Button({
   title: string;
   onPress: () => void;
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'mint';
-  icon?: keyof typeof Ionicons.glyphMap;
+  icon?: IconName;
   loading?: boolean;
   disabled?: boolean;
   small?: boolean;
@@ -339,7 +342,7 @@ export function Button({
         <ActivityIndicator color={p.fg} />
       ) : (
         <View style={styles.buttonInner}>
-          {icon && <Ionicons name={icon} size={small ? 18 : 21} color={p.fg} />}
+          {icon && <Icon name={icon} size={small ? 18 : 21} color={p.fg} />}
           <Text style={[styles.buttonText, small && { fontSize: 15 }, { color: p.fg }]}>{title}</Text>
         </View>
       )}
@@ -352,13 +355,13 @@ export function Field({ label, hint, error, ...props }: TextInputProps & { label
     <View style={{ marginBottom: 14 }}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
       <TextInput
-        placeholderTextColor="#A09CB5"
+        placeholderTextColor={colors.muted}
         accessibilityLabel={label}
         {...props}
         style={[styles.input, props.multiline && { minHeight: 100, textAlignVertical: 'top' }, error ? { borderColor: colors.danger } : null]}
       />
       {error ? (
-        <Text style={{ color: colors.danger, fontSize: 13, fontWeight: '700', marginTop: 4 }}>⚠️ {error}</Text>
+        <Text style={{ color: statusColor.urgent.fg, fontSize: 13, fontWeight: '700', marginTop: 4 }}>⚠️ {error}</Text>
       ) : hint ? (
         <Text style={{ color: colors.muted, fontSize: 13, marginTop: 4 }}>{hint}</Text>
       ) : null}
@@ -374,7 +377,7 @@ export function PasswordField({ label, hint, error, showLabel, hideLabel, ...pro
       <Text style={styles.label}>{label}</Text>
       <View style={{ justifyContent: 'center' }}>
         <TextInput
-          placeholderTextColor="#A09CB5"
+          placeholderTextColor={colors.muted}
           accessibilityLabel={label}
           autoCapitalize="none"
           autoCorrect={false}
@@ -388,11 +391,11 @@ export function PasswordField({ label, hint, error, showLabel, hideLabel, ...pro
           accessibilityLabel={show ? hideLabel : showLabel}
           style={{ position: 'absolute', right: 4, width: TOUCH, height: TOUCH, alignItems: 'center', justifyContent: 'center' }}
         >
-          <Ionicons name={show ? 'eye-off-outline' : 'eye-outline'} size={22} color={colors.muted} />
+          <Icon name={show ? 'eye-off-outline' : 'eye-outline'} size={22} color={colors.muted} />
         </Pressable>
       </View>
       {error ? (
-        <Text style={{ color: colors.danger, fontSize: 13, fontWeight: '700', marginTop: 4 }}>⚠️ {error}</Text>
+        <Text style={{ color: statusColor.urgent.fg, fontSize: 13, fontWeight: '700', marginTop: 4 }}>⚠️ {error}</Text>
       ) : hint ? (
         <Text style={{ color: colors.muted, fontSize: 13, marginTop: 4 }}>{hint}</Text>
       ) : null}
@@ -403,7 +406,7 @@ export function PasswordField({ label, hint, error, showLabel, hideLabel, ...pro
 export function Toggle({ label, value, onChange, disabled }: { label: string; value: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
     // The whole row is the target (at least 44 px), not only the small switch.
-    <Pressable onPress={() => !disabled && onChange(!value)} accessibilityRole="switch" accessibilityLabel={label} accessibilityState={{ checked: value, disabled }} style={[styles.toggleRow, { minHeight: 44 }]}>
+    <Pressable onPress={() => !disabled && onChange(!value)} accessibilityRole="switch" accessibilityLabel={label} aria-checked={value} aria-disabled={disabled} style={[styles.toggleRow, { minHeight: 44 }]}>
       <Text style={[styles.p, { flex: 1, marginRight: 8 }]}>{label}</Text>
       {/* Visual only: the row handles the press and is the one switch screen readers see. */}
       <View pointerEvents="none" aria-hidden>
@@ -414,9 +417,17 @@ export function Toggle({ label, value, onChange, disabled }: { label: string; va
 }
 
 export function Chip({ label, selected, onPress, tone, emoji }: { label: string; selected?: boolean; onPress?: () => void; tone?: 'danger'; emoji?: string }) {
-  const on = tone === 'danger' ? { bg: colors.dangerSoft, border: colors.danger, fg: colors.danger } : { bg: colors.primarySoft, border: colors.primary, fg: colors.primaryDark };
+  // urgent.fg, not danger: danger text on the pink chip is only 4.2:1.
+  const on = tone === 'danger' ? { bg: colors.dangerSoft, border: colors.danger, fg: statusColor.urgent.fg } : { bg: colors.primarySoft, border: colors.primary, fg: colors.primaryDark };
+  // A chip with an on/off state is a checkbox to screen readers (so they say "checked"); without one it is a button.
+  const toggle = selected !== undefined;
   return (
-    <PressScale onPress={onPress} style={[styles.chip, { backgroundColor: selected ? on.bg : '#fff', borderColor: selected ? on.border : '#E4E0F3' }]}>
+    <PressScale
+      onPress={onPress}
+      accessibilityRole={toggle ? 'checkbox' : 'button'}
+      aria-checked={toggle ? selected : undefined}
+      style={[styles.chip, { backgroundColor: selected ? on.bg : '#fff', borderColor: selected ? on.border : '#E4E0F3' }]}
+    >
       <Text style={{ color: selected ? on.fg : colors.text, fontSize: 14, fontWeight: selected ? '700' : '500' }}>
         {selected ? '✓ ' : ''}
         {emoji ? `${emoji} ` : ''}
@@ -436,7 +447,7 @@ export function Segmented<T extends string>({ options, value, onChange }: { opti
           key={o.value}
           onPress={() => onChange(o.value)}
           accessibilityRole="tab"
-          accessibilityState={{ selected: value === o.value }}
+          aria-selected={value === o.value}
           style={[styles.segmentItem, wrap && { flexBasis: '48%' }, value === o.value && styles.segmentActive]}
         >
           <Text style={{ color: value === o.value ? colors.primaryDark : colors.muted, fontWeight: value === o.value ? '800' : '600', textAlign: 'center' }}>{o.label}</Text>
@@ -467,7 +478,7 @@ export function StatusMark({ status, size = 8 }: { status: StatusKey; size?: num
 /** "Lihat detail →" style link: the way into detail on demand. */
 export function MoreLink({ label, onPress, open, center, color = colors.primary }: { label: string; onPress: () => void; open?: boolean; center?: boolean; color?: string }) {
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={open === undefined ? undefined : { expanded: open }} style={{ minHeight: 44, justifyContent: 'center', alignSelf: center ? 'center' : 'flex-start' }}>
+    <Pressable onPress={onPress} accessibilityRole="button" aria-expanded={open} style={{ minHeight: 44, justifyContent: 'center', alignSelf: center ? 'center' : 'flex-start' }}>
       <Text style={{ color, fontWeight: '700', fontSize: 14 }}>
         {label} {open === undefined ? '→' : open ? '↑' : '→'}
       </Text>
@@ -479,7 +490,9 @@ export function MoreLink({ label, onPress, open, center, color = colors.primary 
 export function Section({ title, right }: { title: string; right?: React.ReactNode }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, marginBottom: 10 }}>
-      <Text style={{ fontSize: 16, fontWeight: '800' }}>{title}</Text>
+      <Text role="heading" aria-level={2} style={{ fontSize: 16, fontWeight: '800', flexShrink: 1 }}>
+        {title}
+      </Text>
       {right}
     </View>
   );
@@ -506,7 +519,7 @@ export function SourceTag({ kind }: { kind: 'ai' | 'pro' }) {
   const c = kind === 'ai' ? statusColor.ai : statusColor.info;
   return (
     <View style={[styles.badge, { backgroundColor: c.bg, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
-      <Ionicons name={kind === 'ai' ? 'sparkles' : 'medkit'} size={13} color={c.fg} />
+      <Icon name={kind === 'ai' ? 'sparkles' : 'medkit'} size={13} color={c.fg} />
       <Text style={{ color: c.fg, fontWeight: '700', fontSize: 13 }}>{kind === 'ai' ? t('aiGuidance') : t('proRecommendation')}</Text>
     </View>
   );
@@ -521,7 +534,7 @@ export function ListRow({ emoji, title, subtitle, onPress, right }: { emoji: str
         <Text style={{ fontWeight: '600', fontSize: 15 }}>{title}</Text>
         {subtitle ? <Text style={{ color: colors.muted, fontSize: 13, lineHeight: 18 }}>{subtitle}</Text> : null}
       </View>
-      {right ?? <Ionicons name="chevron-forward" size={18} color="#A09CB5" />}
+      {right ?? <Icon name="chevron-forward" size={18} color={colors.muted} />}
     </PressScale>
   );
 }
@@ -531,7 +544,7 @@ export function JourneyHeader({ step, emoji, title }: { step: string; emoji: str
   return (
     <View style={{ marginTop: 10, marginBottom: 10 }}>
       <Row style={{ gap: 6 }}>
-        {iconFor(emoji) ? <Ionicons name={iconFor(emoji)!} size={14} color={colors.primary} /> : <Text style={{ fontSize: 13 }}>{emoji}</Text>}
+        {iconFor(emoji) ? <Icon name={iconFor(emoji)!} size={14} color={colors.primary} /> : <Text style={{ fontSize: 13 }}>{emoji}</Text>}
         <Eyebrow>{step}</Eyebrow>
       </Row>
       <Text style={{ fontSize: 17, fontWeight: '800', marginTop: 2 }}>{title}</Text>
@@ -559,7 +572,7 @@ export function Stat({ label, value, tone, onPress }: { label: string; value: st
       <PressScale onPress={onPress} accessibilityRole="button" accessibilityLabel={`${value} ${label}`} style={styles.stat}>
         <Row style={{ justifyContent: 'space-between' }}>
           <Text style={[styles.statValue, { color }]}>{value}</Text>
-          <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+          <Icon name="chevron-forward" size={18} color={colors.muted} />
         </Row>
         <Text style={styles.statLabel}>{label}</Text>
       </PressScale>
@@ -594,7 +607,7 @@ export function Tile({
     <PressScale
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityState={open === undefined ? undefined : { expanded: open }}
+      aria-expanded={open}
       style={[styles.tile, { backgroundColor: t.bg }]}
     >
       <IconChip emoji={emoji} tone={tone ?? toneFor(emoji)} gradient size={52} />
@@ -603,7 +616,7 @@ export function Tile({
         {subtitle ? <Text style={{ fontSize: 13, color: colors.muted, marginTop: 2, lineHeight: 18 }}>{subtitle}</Text> : null}
       </View>
       <View style={styles.tileArrow}>
-        <Ionicons name={open === undefined ? 'chevron-forward' : open ? 'chevron-up' : 'chevron-down'} size={18} color={t.fg} />
+        <Icon name={open === undefined ? 'chevron-forward' : open ? 'chevron-up' : 'chevron-down'} size={18} color={t.fg} />
       </View>
     </PressScale>
   );
@@ -642,11 +655,11 @@ export function Bubble({ children, mood = 'happy', tint = colors.card, audio }: 
 
 /** Where a figure comes from: "Sumber: SSGI 2024, Kemenkes RI · 2024". Every figure shows its source and year. */
 export function Source({ label, year, style }: { label: string | { id: string; en: string }; year?: number | string; style?: object }) {
-  const { lang } = useAuth();
+  const { lang, t } = useAuth();
   const text = typeof label === 'string' ? label : label[lang];
   return (
     <Text style={[{ color: colors.muted, fontSize: 12, lineHeight: 17, marginTop: 6 }, style]}>
-      {lang === 'id' ? 'Sumber' : 'Source'}: {text}
+      {t('sourceLbl')}: {text}
       {year && !String(text).includes(String(year)) ? ` · ${year}` : ''}
     </Text>
   );

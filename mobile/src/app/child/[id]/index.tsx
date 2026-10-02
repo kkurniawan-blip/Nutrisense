@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, Linking, Platform, Pressable, View } from 'react-native';
@@ -35,6 +34,7 @@ import { VISIT_STATUS } from '../../../lib/pregnancy';
 import type { Child, Development, KiaSchedule, Meal, Measurement } from '../../../lib/types';
 import { useApi } from '../../../lib/useApi';
 import { colors, statusColor, tones } from '../../../theme';
+import { Icon } from '../../../components/Icon';
 
 type Indicator = 'hfa' | 'wfa' | 'wfh';
 
@@ -56,7 +56,7 @@ function MetricTile({ label, full, z, kind, plain, value }: { label: string; ful
   return (
     <View accessible accessibilityLabel={`${full}: ${fmtZ(z)} SD, ${w.text}`} style={{ flex: plain ? undefined : 1, backgroundColor: m.tone.bg, borderRadius: 18, padding: 12, gap: 4 }}>
       <Row style={{ gap: 5 }}>
-        <Ionicons name={m.icon} size={14} color={m.tone.fg} />
+        <Icon name={m.icon} size={14} color={m.tone.fg} />
         <Text style={{ fontSize: 12.5, fontWeight: '600', color: m.tone.fg }}>{label}</Text>
       </Row>
       {plain ? (
@@ -142,7 +142,7 @@ function KiaSummary({ childId }: { childId: string }) {
   const st = n ? VISIT_STATUS[n.status] : null;
   return (
     <Card onPress={() => router.push(`/child/${childId}/kia`)}>
-      <H2 emoji="💉" right={<Ionicons name="chevron-forward" size={18} color="#A09CB5" />}>
+      <H2 emoji="💉" right={<Icon name="chevron-forward" size={18} color={colors.muted} />}>
         {t('kiaTitle')}
       </H2>
       <Row style={{ justifyContent: 'space-between', gap: 8 }}>
@@ -169,7 +169,7 @@ function DevelopmentSummary({ childId }: { childId: string }) {
   const map = { on_track: 'ok', monitor: 'monitor', unknown: 'unknown' } as const;
   return (
     <Card onPress={() => router.push(`/child/${childId}/development`)}>
-      <H2 right={<Ionicons name="chevron-forward" size={18} color="#A09CB5" />}>{t('development')}</H2>
+      <H2 right={<Icon name="chevron-forward" size={18} color={colors.muted} />}>{t('development')}</H2>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
         {dev.data.domains.map((d) => {
           const c = statusColor[map[d.status]];
@@ -211,7 +211,9 @@ export default function ChildDetail() {
       const b = await api<{ entry: { resource: { resourceType: string } }[] }>(`/api/children/${id}/fhir`);
       const counts: Record<string, number> = {};
       b.entry.forEach((e) => (counts[e.resource.resourceType] = (counts[e.resource.resourceType] ?? 0) + 1));
-      setMsg(`FHIR R4 Bundle: ${Object.entries(counts).map(([k, v]) => `${v} ${k}`).join(', ')}`);
+      // Mothers get a plain count; staff also see the FHIR resource types they will import.
+      const n = Object.values(counts).reduce((x, y) => x + y, 0);
+      setMsg(`${t('fhirReady').replace('{n}', String(n))}${isStaff(user) ? ` (${Object.entries(counts).map(([k, v]) => `${v} ${k}`).join(', ')})` : ''}`);
     } catch (e) {
       setMsg(errorText(e));
     }
@@ -259,7 +261,7 @@ export default function ChildDetail() {
   return (
     <Screen refreshing={child.loading} onRefresh={reload}>
       <Stack.Screen options={{ title: c.name }} />
-      <SyncBanner stale={child.stale} />
+      <SyncBanner stale={child.stale || measurements.stale || meals.stale} />
 
       {/* Who and how they are */}
       <Row style={{ gap: 14, marginBottom: 18 }}>
@@ -373,8 +375,8 @@ export default function ChildDetail() {
               </Row>
             </View>
             {mbr.phone ? (
-              <Pressable onPress={() => Linking.openURL(`tel:${mbr.phone}`)} accessibilityLabel={`${t('call')} ${mbr.name}`} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.mintSoft, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="call" size={20} color={colors.ok} />
+              <Pressable onPress={() => Linking.openURL(`tel:${mbr.phone}`)} accessibilityRole="button" accessibilityLabel={`${t('call')} ${mbr.name}`} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.mintSoft, alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name="call" size={20} color={colors.ok} />
               </Pressable>
             ) : null}
           </Row>
@@ -405,7 +407,7 @@ export default function ChildDetail() {
       {more && (
         <Card>
           <ListRow emoji="📄" title={t('exportData')} onPress={exportFhir} />
-          {isStaff(user) && <ListRow emoji="☁️" title="SATUSEHAT sync (FHIR)" onPress={syncSatusehat} />}
+          {isStaff(user) && <ListRow emoji="☁️" title={t('satusehatSync')} onPress={syncSatusehat} />}
           {mom && <ListRow emoji="⚙️" title={t('privacySettings')} onPress={() => router.push('/privacy')} />}
           {(mom || user?.role === 'admin') && <Button small variant="danger" title={t('deleteChild')} icon="trash-outline" onPress={confirmDelete} loading={busy} />}
           {msg && <P muted>{msg}</P>}

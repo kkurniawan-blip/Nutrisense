@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
 import { View } from 'react-native';
@@ -9,6 +8,7 @@ import type { Pregnancy } from '../lib/types';
 import { colors } from '../theme';
 import { Text } from './Text';
 import { Card, Row, StatusPill } from './ui';
+import { Icon } from './Icon';
 
 export const RISK_ORDER = { urgent: 0, action: 1, monitor: 2, unknown: 3, ok: 4 } as const;
 
@@ -35,7 +35,7 @@ export function MotherRow({ p }: { p: Pregnancy }) {
             ) : null}
           </Row>
         </View>
-        <Ionicons name="chevron-forward" size={22} color={colors.primary} accessibilityLabel={t('seeArrow')} />
+        <Icon name="chevron-forward" size={22} color={colors.primary} accessibilityLabel={t('seeArrow')} />
       </Row>
     </Card>
   );

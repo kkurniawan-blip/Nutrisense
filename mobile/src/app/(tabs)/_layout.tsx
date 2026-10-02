@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Redirect, router, Tabs } from 'expo-router';
 import React, { useContext } from 'react';
 import { Pressable, View } from 'react-native';
@@ -8,6 +7,7 @@ import { Loading } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
 import type { Role } from '../../lib/types';
 import { colors, fonts, shadow } from '../../theme';
+import { Icon, type IconName } from '../../components/Icon';
 
 const VISIBLE: Record<string, Role[]> = {
   home: ['caregiver', 'kader'],
@@ -20,7 +20,6 @@ const VISIBLE: Record<string, Role[]> = {
   profile: ['caregiver', 'kader', 'officer', 'doctor', 'admin'],
 };
 
-type IconName = keyof typeof Ionicons.glyphMap;
 
 export default function TabsLayout() {
   const { ready, user, t } = useAuth();
@@ -39,7 +38,7 @@ export default function TabsLayout() {
         tabBarIcon: ({ color, focused }) => (
           // Obvious selected state: filled icon on a soft lavender pill, not colour alone.
           <View style={{ backgroundColor: focused ? colors.primarySoft : 'transparent', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 3 }}>
-            <Ionicons name={focused ? activeIcon : icon} color={color} size={23} />
+            <Icon name={focused ? activeIcon : icon} color={color} size={23} />
           </View>
         ),
         tabBarAccessibilityLabel: title,
@@ -63,10 +62,11 @@ export default function TabsLayout() {
         headerRight: () => (
           <Pressable
             onPress={() => router.push('/notifications')}
-            style={{ marginRight: 14, backgroundColor: '#fff', borderRadius: 20, padding: 9, ...shadow }}
+            style={{ marginRight: 14, backgroundColor: '#fff', borderRadius: 22, width: 44, height: 44, alignItems: 'center', justifyContent: 'center', ...shadow }}
+            accessibilityRole="button"
             accessibilityLabel={t('notifications')}
           >
-            <Ionicons name="notifications-outline" size={20} color={colors.primary} />
+            <Icon name="notifications-outline" size={20} color={colors.primary} />
           </Pressable>
         ),
       }}

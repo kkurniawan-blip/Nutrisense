@@ -70,7 +70,8 @@ export default function Login() {
           </View>
           <Segmented<Lang>
             value={lang}
-            onChange={(l) => void setLang(l)}
+            // Offline the PATCH fails, but the phone already shows and keeps the new language.
+            onChange={(l) => void setLang(l).catch(() => undefined)}
             options={[
               { value: 'id', label: '🇮🇩 Indonesia' },
               { value: 'en', label: '🇬🇧 English' },

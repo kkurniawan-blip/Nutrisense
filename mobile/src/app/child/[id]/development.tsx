@@ -57,7 +57,7 @@ export default function DevelopmentScreen() {
                         key={String(o.v)}
                         onPress={() => answer(it.key, o.v)}
                         accessibilityRole="radio"
-                        accessibilityState={{ checked: on }}
+                        aria-checked={on}
                         style={{ flex: 1, minHeight: 48, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: on ? o.st.fg : colors.border, backgroundColor: on ? o.st.bg : '#fff' }}
                       >
                         <Text style={{ fontWeight: '800', color: on ? o.st.fg : colors.text }}>{o.label}</Text>

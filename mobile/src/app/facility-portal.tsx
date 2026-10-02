@@ -1,12 +1,15 @@
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { CameraView } from 'expo-camera';
 import React, { useRef, useState } from 'react';
 import { Platform, View } from 'react-native';
 
 import { visitTitle } from '../components/FacilityLink';
+import { PermissionNotice } from '../components/PermissionNotice';
 import { Text } from '../components/Text';
 import { Button, Card, Chip, ErrorBox, Field, H2, Row, Screen, StatusPill } from '../components/ui';
 import { api, ApiError, NetworkError } from '../lib/api';
 import { useAuth } from '../lib/auth';
+import { ensureCamera, PermissionState } from '../lib/camera';
+import { localDate } from '../lib/dates';
 import { formatDate } from '../lib/fun';
 import type { AncExam, MotherRisk } from '../lib/types';
 import { useApi } from '../lib/useApi';
@@ -19,10 +22,6 @@ const RANGE: Record<Num, [number, number]> = {
   weight_kg: [25, 150], muac_cm: [12, 50], bp_systolic: [60, 260], bp_diastolic: [30, 160], fundal_height_cm: [5, 50],
   fetal_heart_rate: [60, 240], iron_tablets: [0, 120], hb_g_dl: [3, 20],
 };
-const today = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
 
 /**
  * Demo of the facility side: a midwife or doctor records a check-up and it goes to the mother's phone as the same FHIR
@@ -34,7 +33,7 @@ export default function FacilityPortal() {
   const [facility, setFacility] = useState<number | null>(null);
   const [code, setCode] = useState('');
   const [visit, setVisit] = useState<number | null>(null);
-  const [date, setDate] = useState(today());
+  const [date, setDate] = useState(localDate());
   // null until edited: the signed-in clinician (the user may load after the first render).
   const [examinerEdit, setExaminer] = useState<string | null>(null);
   const examiner = examinerEdit ?? user?.full_name ?? '';
@@ -50,7 +49,7 @@ export default function FacilityPortal() {
   const [fieldError, setFieldError] = useState<Partial<Record<Num, string>>>({});
   const [done, setDone] = useState<{ exam: AncExam; mother_name: string; risk: MotherRisk } | null>(null);
   const [scanning, setScanning] = useState(false);
-  const [permission, requestPermission] = useCameraPermissions();
+  const [camPerm, setCamPerm] = useState<PermissionState | null>(null);
   const handled = useRef(false);
 
   // The first facility until one is picked.
@@ -82,8 +81,8 @@ export default function FacilityPortal() {
     setFieldError(errs);
     setError(null);
     setCodeError(codeOk ? null : t('portalErrShort'));
-    setDateError(/^\d{4}-\d{2}-\d{2}$/.test(date) ? (date > today() ? t('portalErrFuture') : null) : t('portalErrDate'));
-    if (!codeOk || Object.values(errs).some(Boolean) || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date > today() || !fac) return;
+    setDateError(/^\d{4}-\d{2}-\d{2}$/.test(date) ? (date > localDate() ? t('portalErrFuture') : null) : t('portalErrDate'));
+    if (!codeOk || Object.values(errs).some(Boolean) || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date > localDate() || !fac) return;
     if (!measured) {
       setError(t('portalErrNone'));
       return;
@@ -181,7 +180,9 @@ export default function FacilityPortal() {
                 icon="scan"
                 title={t('portalScan')}
                 onPress={async () => {
-                  if (!permission?.granted && !(await requestPermission()).granted) return;
+                  const perm = await ensureCamera();
+                  setCamPerm(perm);
+                  if (perm !== 'granted') return;
                   handled.current = false;
                   setScanning(true);
                 }}
@@ -189,6 +190,7 @@ export default function FacilityPortal() {
             </View>
           )}
         </Row>
+        {!scanning && <PermissionNotice kind="camera" state={camPerm} />}
         {scanning && (
           <View style={{ height: 260, borderRadius: 12, overflow: 'hidden', marginBottom: 8 }}>
             <CameraView
@@ -220,34 +222,34 @@ export default function FacilityPortal() {
       <Card>
         <H2>{t('portalMeasures')}</H2>
         <Text style={{ color: colors.muted, marginTop: -8, marginBottom: 8 }}>{t('portalOnlyChecked')}</Text>
-        {twoCol(numField('weight_kg', 'Berat (kg)'), numField('muac_cm', 'LiLA (cm)'))}
-        {muac !== null && muac < 23.5 && <StatusPill status="action" label="KEK (< 23,5 cm)" />}
+        {twoCol(numField('weight_kg', t('pfWeight')), numField('muac_cm', t('pfMuac')))}
+        {muac !== null && muac < 23.5 && <StatusPill status="action" label={t('pfKek')} />}
         <Text style={{ fontSize: 14, fontWeight: '600', marginBottom: 8, marginLeft: 2 }}>{t('portalBp')}</Text>
-        {twoCol(numField('bp_systolic', 'Sistolik'), numField('bp_diastolic', 'Diastolik'))}
+        {twoCol(numField('bp_systolic', t('pfSys')), numField('bp_diastolic', t('pfDia')))}
         {bpHigh && <StatusPill status="urgent" label={t('portalBpHigh')} />}
-        {twoCol(numField('fundal_height_cm', 'TFU (cm)'), numField('fetal_heart_rate', 'DJJ (/menit)', `60–240 · ${t('portalFhrNormal')}`))}
-        {fhr !== null && (fhr < 120 || fhr > 160) && <StatusPill status="urgent" label="DJJ di luar 120–160" />}
-        <Text style={{ fontWeight: '700', marginVertical: 6 }}>Letak janin</Text>
+        {twoCol(numField('fundal_height_cm', t('pfFundal')), numField('fetal_heart_rate', t('pfFhr'), `60–240 · ${t('portalFhrNormal')}`))}
+        {fhr !== null && (fhr < 120 || fhr > 160) && <StatusPill status="urgent" label={t('pfFhrOut')} />}
+        <Text style={{ fontWeight: '700', marginVertical: 6 }}>{t('pfPresentation')}</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-          {[['head', 'Kepala'], ['breech', 'Sungsang'], ['transverse', 'Lintang']].map(([k, l]) => (
+          {[['head', t('pfHead')], ['breech', t('pfBreech')], ['transverse', t('pfTransverse')]].map(([k, l]) => (
             <Chip key={k} label={l} selected={presentation === k} onPress={() => setPresentation(presentation === k ? null : k)} />
           ))}
         </View>
-        <Text style={{ fontWeight: '700', marginBottom: 6 }}>Imunisasi Td</Text>
+        <Text style={{ fontWeight: '700', marginBottom: 6 }}>{t('pfTd')}</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
           {['TT1', 'TT2', 'TT3', 'TT4', 'TT5'].map((k) => (
             <Chip key={k} label={k} selected={td === k} onPress={() => setTd(td === k ? null : k)} />
           ))}
         </View>
-        {twoCol(numField('iron_tablets', 'TTD (tablet)'), numField('hb_g_dl', 'Hb (g/dL)'))}
-        {hb !== null && hb < 11 && <StatusPill status={hb < 7 ? 'urgent' : 'action'} label={hb < 7 ? 'Anemia berat (< 7)' : 'Anemia (< 11)'} />}
-        <Text style={{ fontWeight: '700', marginVertical: 6 }}>Protein urine</Text>
+        {twoCol(numField('iron_tablets', t('pfIron')), numField('hb_g_dl', t('pfHb')))}
+        {hb !== null && hb < 11 && <StatusPill status={hb < 7 ? 'urgent' : 'action'} label={hb < 7 ? t('pfAnemiaSevere') : t('pfAnemia')} />}
+        <Text style={{ fontWeight: '700', marginVertical: 6 }}>{t('pfUrine')}</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
           {['negatif', '+1', '+2', '+3'].map((k) => (
-            <Chip key={k} label={k === 'negatif' ? 'Negatif' : k} selected={urine === k} onPress={() => setUrine(urine === k ? null : k)} />
+            <Chip key={k} label={k === 'negatif' ? t('pfNegative') : k} selected={urine === k} onPress={() => setUrine(urine === k ? null : k)} />
           ))}
         </View>
-        <Field label="Catatan" value={notes} onChangeText={setNotes} multiline maxLength={500} />
+        <Field label={t('pfNotes')} value={notes} onChangeText={setNotes} multiline maxLength={500} />
       </Card>
 
       {error && <ErrorBox message={error} onRetry={error === t('portalErrSignal') ? send : undefined} />}

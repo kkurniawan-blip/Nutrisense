@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
@@ -16,6 +15,7 @@ import { Text, TextInput } from './Text';
 import { Mascot } from './Mascot';
 import { MotherRow, RISK_ORDER } from './MotherRow';
 import { Button, Card, Chip, ErrorBox, H2, Loading, MoreLink, QuickAction, Row, Section, Segmented, Source, StatusMark, StatusPill, Toggle, Wash } from './ui';
+import { Icon } from './Icon';
 
 type Filter = 'all' | 'priority' | 'new' | 'followup';
 const PAGE = 30;
@@ -38,7 +38,7 @@ function ChildRow({ r, n }: { r: AreaChildRow; n: number }) {
           {r.region ? <Text style={{ color: colors.muted, fontSize: 12.5 }}>📍 {r.region}</Text> : null}
           <StatusPill status={urgent ? 'urgent' : g.key} label={urgent ? t('prio_emergency') : txt(g.label, lang)} />
         </View>
-        <Ionicons name="chevron-forward" size={22} color={colors.primary} accessibilityLabel={t('seeArrow')} />
+        <Icon name="chevron-forward" size={22} color={colors.primary} accessibilityLabel={t('seeArrow')} />
       </Row>
     </Card>
   );
@@ -118,14 +118,14 @@ export function KaderHome() {
               🩺 Kader{user?.region ? ` · ${user.region.name}` : ''}
             </Text>
           </View>
-          <Pressable onPress={() => router.push('/notifications')} accessibilityLabel={t('notifications')} style={[{ backgroundColor: '#fff', borderRadius: 22, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }, shadow]}>
-            <Ionicons name="notifications-outline" size={21} color={colors.primary} />
+          <Pressable onPress={() => router.push('/notifications')} accessibilityRole="button" accessibilityLabel={t('notifications')} style={[{ backgroundColor: '#fff', borderRadius: 22, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }, shadow]}>
+            <Icon name="notifications-outline" size={21} color={colors.primary} />
           </Pressable>
         </Row>
       </View>
 
       <View style={{ padding: 16 }}>
-        <SyncBanner stale={list.stale} />
+        <SyncBanner stale={list.stale || mothers.stale} />
 
         {/* 📊 My area */}
         <Card>
@@ -175,7 +175,7 @@ export function KaderHome() {
         {(searchOpen || q.trim() !== '' || extraFilters > 0 || filter !== 'priority') && (
           <>
           <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: radius.pill, paddingHorizontal: 16, marginBottom: 12, borderWidth: 1.5, borderColor: '#E4E0F3', minHeight: 48 }}>
-            <Ionicons name="search" size={18} color={colors.muted} />
+            <Icon name="search" size={18} color={colors.muted} />
             <TextInput
               value={q}
               onChangeText={setQ}
@@ -195,9 +195,9 @@ export function KaderHome() {
               { value: 'followup', label: t('filterFollowup') },
             ]}
           />
-          <Pressable onPress={() => setShowMore(!showMore)} accessibilityRole="button" accessibilityState={{ expanded: showMore }} style={{ minHeight: 44, justifyContent: 'center' }}>
+          <Pressable onPress={() => setShowMore(!showMore)} accessibilityRole="button" aria-expanded={showMore} style={{ minHeight: 44, justifyContent: 'center' }}>
             <Text style={{ fontWeight: '800', color: colors.primary }}>
-              <Ionicons name="options" size={16} /> {t('moreFilters')}
+              <Icon name="options" size={16} /> {t('moreFilters')}
               {extraFilters ? ` (${extraFilters})` : ''} {showMore ? '▲' : '▼'}
             </Text>
           </Pressable>

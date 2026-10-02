@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { View } from 'react-native';
@@ -11,13 +10,14 @@ import { errorText } from '../../../lib/api';
 import { saveOrQueue } from '../../../lib/offline';
 import { useSync } from '../../../lib/sync';
 import { useAuth } from '../../../lib/auth';
+import { localDate } from '../../../lib/dates';
 import { formatDate } from '../../../lib/fun';
 import { FLAG_ADVICE, FLAG_LABEL } from '../../../lib/pregnancy';
 import type { MotherFlag, Pregnancy } from '../../../lib/types';
 import { useApi } from '../../../lib/useApi';
 import { colors, radius, statusColor, tones } from '../../../theme';
+import { Icon } from '../../../components/Icon';
 
-const today = () => new Date().toISOString().slice(0, 10);
 
 /** Where the LiLA tape goes: halfway between shoulder and elbow. */
 function ArmIllustration() {
@@ -45,7 +45,7 @@ export default function MotherMeasure() {
   const [muac, setMuac] = useState('');
   const [hb, setHb] = useState('');
   const [weight, setWeight] = useState('');
-  const [date, setDate] = useState(today());
+  const [date, setDate] = useState(localDate());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ flags: MotherFlag[]; queued?: boolean } | null>(null);
@@ -129,7 +129,7 @@ export default function MotherMeasure() {
             </View>
             {[t('muacHow1'), t('muacHow2'), t('muacHow3')].map((s) => (
               <Row key={s} style={{ alignItems: 'flex-start', marginBottom: 8 }}>
-                <Ionicons name="checkmark-circle" size={22} color={statusColor.ok.mark} />
+                <Icon name="checkmark-circle" size={22} color={statusColor.ok.mark} />
                 <Text style={{ flex: 1, fontSize: 15, lineHeight: 22 }}>{s}</Text>
               </Row>
             ))}

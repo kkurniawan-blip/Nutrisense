@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
 import { View } from 'react-native';
@@ -9,6 +8,7 @@ import type { Child } from '../lib/types';
 import { colors } from '../theme';
 import { Text } from './Text';
 import { Card, RiskBadge } from './ui';
+import { Icon } from './Icon';
 
 export function ChildCard({ child }: { child: Child }) {
   const { t, lang } = useAuth();
@@ -41,7 +41,7 @@ export function ChildCard({ child }: { child: Child }) {
           </Text>
           <RiskBadge level={a?.risk_level} />
         </View>
-        <Ionicons name="chevron-forward-circle" size={28} color={colors.primary} />
+        <Icon name="chevron-forward-circle" size={28} color={colors.primary} />
       </View>
       {a && a.triage.urgency !== 'routine' && (
         <View style={{ marginTop: 10, backgroundColor: emergency ? colors.dangerSoft : colors.warnSoft, borderRadius: 12, padding: 10 }}>

@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
@@ -13,7 +12,8 @@ import { useAuth } from '../../lib/auth';
 import { childEmoji } from '../../lib/fun';
 import type { Child } from '../../lib/types';
 import { useApi } from '../../lib/useApi';
-import { colors, radius, shadow, Tone, tones } from '../../theme';
+import { colors, radius, shadow, statusColor, Tone, tones } from '../../theme';
+import { Icon } from '../../components/Icon';
 
 interface Msg {
   id: number | string;
@@ -193,7 +193,14 @@ export default function Assistant() {
             ) : (
               <BotRow>
                 {item.generated_by ? <SourceTag kind="ai" /> : null}
-                <Answer text={item.content} />
+                {item.content.startsWith('⚠️') ? (
+                  // Nuri found a danger sign: the answer leads with "go now / call 119", shown as urgent.
+                  <View accessibilityLiveRegion="assertive" style={{ backgroundColor: statusColor.urgent.bg, borderColor: colors.danger, borderWidth: 2, borderRadius: radius.md, padding: 10 }}>
+                    <Answer text={item.content} />
+                  </View>
+                ) : (
+                  <Answer text={item.content} />
+                )}
                 {item.generated_by && (
                   <Pressable onPress={() => router.push('/guide')} accessibilityRole="button" style={{ minHeight: 36, justifyContent: 'center', marginTop: 4 }}>
                     <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>{t('seeFullGuide')} →</Text>
@@ -211,7 +218,7 @@ export default function Assistant() {
           }
         />
         <View style={{ backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 4, borderWidth: 1, borderBottomWidth: 0, borderColor: colors.border }}>
-          <Pressable onPress={() => setIdeasOpen(!showIdeas)} accessibilityRole="button" accessibilityState={{ expanded: showIdeas }} style={{ minHeight: 40, justifyContent: 'center', paddingHorizontal: 16 }}>
+          <Pressable onPress={() => setIdeasOpen(!showIdeas)} accessibilityRole="button" aria-expanded={showIdeas} style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: 16 }}>
             <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 14 }}>
               💡 {t('questionIdeas')} {showIdeas ? '▾' : '▸'}
             </Text>
@@ -226,7 +233,7 @@ export default function Assistant() {
                       key={tp.key}
                       onPress={() => setTopic(tp.key)}
                       accessibilityRole="tab"
-                      accessibilityState={{ selected: on }}
+                      aria-selected={on}
                       style={{ minHeight: 40, paddingHorizontal: 14, borderRadius: radius.pill, justifyContent: 'center', backgroundColor: on ? colors.primary : tones[tp.tone].bg }}
                     >
                       <Text style={{ fontSize: 13, fontWeight: '700', color: on ? '#fff' : tones[tp.tone].fg }}>{t(`topic_${tp.key}`)}</Text>
@@ -238,7 +245,7 @@ export default function Assistant() {
                 {suggestions.map((s) => (
                   <Pressable key={s} onPress={() => send(s)} accessibilityRole="button" style={{ backgroundColor: tones.lavender.bg, borderRadius: radius.pill, paddingLeft: 14, paddingRight: 10, minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                     <Text style={{ color: colors.primaryDark, fontWeight: '700' }}>{s}</Text>
-                    <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+                    <Icon name="chevron-forward" size={16} color={colors.primary} />
                   </Pressable>
                 ))}
               </ScrollView>
@@ -250,13 +257,13 @@ export default function Assistant() {
             value={text}
             onChangeText={setText}
             placeholder={t('chatPlaceholder')}
-            placeholderTextColor="#A09CB5"
+            placeholderTextColor={colors.muted}
             style={{ flex: 1, backgroundColor: '#fff', borderRadius: radius.pill, borderWidth: 1.5, borderColor: '#E4E0F3', paddingHorizontal: 16, paddingVertical: 10, fontSize: 15 }}
             onSubmitEditing={() => send()}
             returnKeyType="send"
           />
           <Pressable onPress={() => send()} accessibilityRole="button" accessibilityLabel={t('send')} style={{ backgroundColor: colors.primary, borderRadius: 24, width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="send" size={20} color="#fff" />
+            <Icon name="send" size={20} color="#fff" />
           </Pressable>
         </View>
       </KeyboardAvoidingView>

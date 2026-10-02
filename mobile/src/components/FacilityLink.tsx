@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Linking, Modal, Pressable, ScrollView, View } from 'react-native';
@@ -14,6 +13,7 @@ import { colors, radius, statusColor, StatusKey, tones } from '../theme';
 import { AudioButton } from './AudioButton';
 import { Text } from './Text';
 import { Bubble, Button, Card, ErrorBox, IconChip, MoreLink, Row, StatusPill } from './ui';
+import { Icon } from './Icon';
 
 const SEEN_KEY = (pid: number | string) => `nutrisense.examSeen:${pid}`;
 const num = (v: number, d = 1) => (Number.isInteger(v) && d === 0 ? String(v) : v.toFixed(d));
@@ -45,7 +45,7 @@ export function LinkCodeSheet({ code, facility, visible, onClose }: { code: stri
         <Row style={{ alignSelf: 'stretch', justifyContent: 'space-between' }}>
           <Text style={{ fontSize: 21, fontWeight: '900', flex: 1 }}>{t('flSheetTitle')}</Text>
           <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel={t('close')} style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primarySoft }}>
-            <Ionicons name="close" size={22} color={colors.primaryDark} />
+            <Icon name="close" size={22} color={colors.primaryDark} />
           </Pressable>
         </Row>
         <Text style={{ color: colors.muted, alignSelf: 'stretch', fontSize: 15, lineHeight: 21 }}>{t('flSheetBody')}</Text>
@@ -171,7 +171,7 @@ export function FacilityLinkCard({
         <View style={{ gap: 6, marginTop: 10 }}>
           {[t('flBenefit1'), t('flBenefit2'), t('flBenefit3')].map((b) => (
             <Row key={b} style={{ gap: 8, alignItems: 'flex-start' }}>
-              <Ionicons name="checkmark-circle" size={20} color={statusColor.ok.mark} />
+              <Icon name="checkmark-circle" size={20} color={statusColor.ok.mark} />
               <Text style={{ flex: 1, fontSize: 14, lineHeight: 20 }}>{b}</Text>
             </Row>
           ))}
@@ -357,7 +357,7 @@ export function ExamCard({ e, prev, latest, phone, pid, startOpen }: { e: AncExa
           {e.examiner ? ` · ${e.examiner}` : ''}
         </Text>
       </View>
-      {open ? <AudioButton text={spoken(audio, lang)} compact /> : <Ionicons name="chevron-forward" size={20} color={colors.muted} />}
+      {open ? <AudioButton text={spoken(audio, lang)} compact /> : <Icon name="chevron-forward" size={20} color={colors.muted} />}
     </Row>
   );
   const summary = c.urgent ? (

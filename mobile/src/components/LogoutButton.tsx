@@ -15,8 +15,14 @@ export function LogoutButton() {
   const [confirm, setConfirm] = useState(false);
 
   const doLogout = async () => {
-    await logout();
-    router.replace('/login');
+    // Always leave the account screens, even if clearing storage fails: a shared phone must not stay signed in.
+    try {
+      await logout();
+    } catch {
+      // logout() already ignores network errors; anything left is local storage, which the next login replaces.
+    } finally {
+      router.replace('/login');
+    }
   };
 
   if (!confirm || pending === 0)

@@ -34,6 +34,7 @@ _ADDED_COLUMNS = {
     "children": {"birth_gestational_weeks": "FLOAT"},
     "growth_measurements": {"measured_by": "VARCHAR(10)", "oedema": "BOOLEAN"},
     "users": {"token_version": "INTEGER DEFAULT 0"},
+    "pregnancy_danger_reports": {"client_uuid": "VARCHAR(64)"},
     "pregnancies": {"birth_info": "JSON", "facility_sync": "BOOLEAN DEFAULT FALSE", "link_code": "VARCHAR(12)",
                     "linked_facility_id": "INTEGER", "last_sync_at": "TIMESTAMP WITH TIME ZONE"},
 }
