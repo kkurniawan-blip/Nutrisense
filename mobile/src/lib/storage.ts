@@ -30,3 +30,10 @@ export async function getJSON<T>(key: string, fallback: T): Promise<T> {
 export async function setJSON(key: string, value: unknown): Promise<void> {
   await AsyncStorage.setItem(key, JSON.stringify(value));
 }
+
+/** Signing out on a shared phone: per-person keys go (e.g. which check-ups were seen); the language,
+ * text size and server address stay because they belong to the phone. */
+export async function clearPersonal(): Promise<void> {
+  const keys = await AsyncStorage.getAllKeys();
+  await AsyncStorage.multiRemove(keys.filter((k) => k.startsWith('nutrisense.examSeen:')));
+}

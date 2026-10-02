@@ -44,7 +44,14 @@ export function initApi(): Promise<string | null> {
   if (!initPromise) {
     initPromise = (async () => {
       baseUrl = (await getJSON<string | null>(SERVER_KEY, null)) || defaultBaseUrl();
-      token = await secure.get(TOKEN_KEY);
+      try {
+        token = await secure.get(TOKEN_KEY);
+      } catch {
+        // The phone's key store can become unreadable (e.g. after a screen-lock change): start logged out
+        // instead of hanging on the loading screen.
+        token = null;
+        await secure.remove(TOKEN_KEY).catch(() => undefined);
+      }
       return token;
     })();
   }

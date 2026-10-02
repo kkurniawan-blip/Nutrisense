@@ -3,7 +3,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { api, initApi, NetworkError, setToken, setUiLang, setUnauthorizedHandler } from './api';
 import { translate, TKey } from './i18n';
 import { clearQueue } from './offline';
-import { getJSON, setJSON } from './storage';
+import { clearPersonal, getJSON, setJSON } from './storage';
 import { clearApiCache, prefetchForOffline } from './useApi';
 import type { Lang, User } from './types';
 
@@ -49,8 +49,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Explicit sign-out: a shared family phone must not show (or send) this account's data afterwards.
   const logout = useCallback(async () => {
+    await api('/api/auth/logout', { method: 'POST', timeoutMs: 8000 }).catch(() => undefined); // ends the token on the server too
     await expire();
-    await Promise.all([clearApiCache(), clearQueue()]).catch(() => undefined);
+    await Promise.all([clearApiCache(), clearQueue(), clearPersonal()]).catch(() => undefined);
   }, [expire]);
 
   useEffect(() => {
@@ -62,7 +63,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const token = await initApi();
       if (token) {
         try {
-          const me = await api<User>('/api/auth/me');
+          // Short wait: on one bar of signal the saved profile below is better than a long loading screen.
+          const me = await api<User>('/api/auth/me', { timeoutMs: 8000 });
           if ((await getJSON<number | null>(OWNER_KEY, null)) === null) await setJSON(OWNER_KEY, me.id);
           await setJSON(USER_KEY, me);
           setUser(me);

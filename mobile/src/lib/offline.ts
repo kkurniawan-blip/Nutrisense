@@ -35,7 +35,17 @@ export interface SyncHistoryItem {
   error?: string;
 }
 
+/** Every read-change-write of the queue runs one at a time, so an entry saved during a sync is never overwritten. */
+let lock: Promise<unknown> = Promise.resolve();
+function exclusive<T>(fn: () => Promise<T>): Promise<T> {
+  const run = lock.then(fn, fn);
+  lock = run.catch(() => undefined);
+  return run;
+}
+
 export function uuid(): string {
+  const c = (globalThis as any).crypto;
+  if (typeof c?.randomUUID === 'function') return c.randomUUID();
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
     return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
@@ -52,12 +62,21 @@ export async function queued(): Promise<OutboxItem[]> {
   );
 }
 
-export async function enqueue(kind: OutboxKind, childId: number, childName: string, body: Record<string, unknown>, path?: string): Promise<number> {
-  const q = await queued();
-  const client_uuid = (body.client_uuid as string) ?? uuid();
-  q.push({ kind, child_id: childId, child_name: childName, client_uuid, body: { ...body, client_uuid }, queued_at: new Date().toISOString(), path });
-  await setJSON(QUEUE_KEY, q);
-  return q.length;
+export function enqueue(kind: OutboxKind, childId: number, childName: string, body: Record<string, unknown>, path?: string): Promise<number> {
+  return exclusive(async () => {
+    const q = await queued();
+    const client_uuid = (body.client_uuid as string) ?? uuid();
+    if (!q.some((i) => i.client_uuid === client_uuid))
+      q.push({ kind, child_id: childId, child_name: childName, client_uuid, body: { ...body, client_uuid }, queued_at: new Date().toISOString(), path });
+    await setJSON(QUEUE_KEY, q);
+    return q.length;
+  });
+}
+
+/** The server looked at the entry and refused it: sending it again can never work. Anything else
+ * (an expired login, a server error, too many requests) is kept and tried again later. */
+function refused(e: unknown): boolean {
+  return e instanceof ApiError && [400, 404, 409, 413, 422].includes(e.status);
 }
 
 export async function history(): Promise<SyncHistoryItem[]> {
@@ -103,10 +122,13 @@ export async function flush(): Promise<FlushResult> {
   if (!q.length) return { sent: 0, failed: 0, remaining: 0 };
   let sent = 0;
   let failed = 0;
-  const keep: OutboxItem[] = [];
+  const finished = new Set<string>(); // sent or refused: removed from the queue
   const log: SyncHistoryItem[] = [];
-  const done = (i: OutboxItem, status: 'sent' | 'rejected', error?: string) =>
+  const done = (i: OutboxItem, status: 'sent' | 'rejected', error?: string) => {
+    finished.add(i.client_uuid);
     log.push({ kind: i.kind, child_name: i.child_name, queued_at: i.queued_at, done_at: new Date().toISOString(), status, error });
+  };
+  let stop = false;
 
   const measurements = q.filter((i) => i.kind === 'measurement');
   if (measurements.length) {
@@ -125,29 +147,36 @@ export async function flush(): Promise<FlushResult> {
         }
       }
     } catch (e) {
-      if (e instanceof NetworkError) return { sent: 0, failed: 0, remaining: q.length };
-      throw e;
+      if (!refused(e)) stop = true; // no signal, logged out or a server problem: keep everything for later
     }
   }
 
-  for (const item of q.filter((i) => i.kind !== 'measurement')) {
+  for (const item of stop ? [] : q.filter((i) => i.kind !== 'measurement')) {
     try {
       await api(pathFor(item), { body: item.body, timeoutMs: 120000 });
       sent += 1;
       done(item, 'sent');
     } catch (e) {
-      if (e instanceof ApiError) {
-        failed += 1; // rejected by the server (e.g. invalid): drop so it cannot block the queue, but show it
+      if (refused(e)) {
+        failed += 1; // invalid: drop so it cannot block the queue, but show it on the sync page
         done(item, 'rejected', errorText(e));
-      } else keep.push(item);
+      } else if (e instanceof NetworkError || (e instanceof ApiError && e.status === 401)) break;
     }
   }
-  await setJSON(QUEUE_KEY, keep);
+  // Re-read: entries saved while this sync was running stay in the queue.
+  const remaining = await exclusive(async () => {
+    const keep = (await queued()).filter((i) => !finished.has(i.client_uuid));
+    await setJSON(QUEUE_KEY, keep);
+    return keep.length;
+  });
   await remember(log);
-  return { sent, failed, remaining: keep.length };
+  return { sent, failed, remaining };
 }
 
 /** Drops everything waiting to be sent (used when signing out, so data never goes out under another account). */
-export async function clearQueue(): Promise<void> {
-  await setJSON(QUEUE_KEY, []);
+export function clearQueue(): Promise<void> {
+  return exclusive(async () => {
+    await setJSON(QUEUE_KEY, []);
+    await setJSON(HISTORY_KEY, []);
+  });
 }
