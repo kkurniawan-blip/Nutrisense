@@ -26,7 +26,7 @@ import {
   StatusMark,
   StatusPill,
 } from '../../../components/ui';
-import { api, errorText } from '../../../lib/api';
+import { api, ApiError, errorText } from '../../../lib/api';
 import { isStaff, useAuth } from '../../../lib/auth';
 import { childEmoji, formatAge, formatDate, stickers } from '../../../lib/fun';
 import { clinicalStatus, motherStatus, txt, zWords } from '../../../lib/status';
@@ -221,9 +221,9 @@ export default function ChildDetail() {
   const syncSatusehat = async () => {
     try {
       const r = await api<{ status: string; resources: number }>(`/api/children/${id}/fhir/sync`, { method: 'POST' });
-      setMsg(`SATUSEHAT: ${r.status} (${r.resources})`);
+      setMsg(r.status === 'simulated_success' ? t('satusehatOk').replace('{n}', String(r.resources)) : t('satusehatInvalid'));
     } catch (e) {
-      setMsg(errorText(e));
+      setMsg(e instanceof ApiError && e.status === 403 ? t('satusehatNoConsent') : errorText(e));
     }
   };
   const doDelete = async () => {

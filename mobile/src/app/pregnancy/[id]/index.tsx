@@ -1,5 +1,5 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import { Linking, Pressable, View } from 'react-native';
 
 import { FacilityLinkCard, useExamSeen } from '../../../components/FacilityLink';
@@ -7,6 +7,7 @@ import { AncDots, NifasList, RiskCard } from '../../../components/PregnancyParts
 import { SyncBanner } from '../../../components/SyncBanner';
 import { Text } from '../../../components/Text';
 import { Bar, Button, Card, ErrorBox, H2, Loading, QuickAction, Row, Screen, Section, StatusMark, StatusPill } from '../../../components/ui';
+import { api, errorText } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 import { formatDate } from '../../../lib/fun';
 import { BIRTH_HELPERS, BIRTH_PLACES, BIRTH_ATTENDANTS, BIRTH_PLACES_DONE, FUNDING, label, motherState, TRANSPORT, VISIT_STATUS, weeksText, FLAG_LABEL } from '../../../lib/pregnancy';
@@ -45,6 +46,7 @@ export default function PregnancyDetail() {
   const { t, lang } = useAuth();
   const q = useApi<Pregnancy>(`/api/pregnancies/${id}`);
   const link = useApi<FacilityLink>(`/api/pregnancies/${id}/link`);
+  const [nifasError, setNifasError] = useState<string | null>(null);
   const { unseen } = useExamSeen(id, link.data?.exams[0]);
   const p = q.data;
   if (!p) return <Screen>{q.error ? <ErrorBox message={q.error} onRetry={q.reload} /> : <Loading />}</Screen>;
@@ -95,7 +97,20 @@ export default function PregnancyDetail() {
             </Text>
           ) : null}
           <H2>{t('nifasTitle')}</H2>
-          {p.nifas && <NifasList nifas={p.nifas} />}
+          {p.nifas && (
+            <NifasList
+              nifas={p.nifas}
+              onToggle={async (code) => {
+                setNifasError(null);
+                try {
+                  q.setData(await api<Pregnancy>(`/api/pregnancies/${id}/nifas`, { body: { code } }));
+                } catch (e) {
+                  setNifasError(errorText(e));
+                }
+              }}
+            />
+          )}
+          {nifasError && <ErrorBox message={nifasError} />}
           {p.child_id && <Button title={t('openChild')} icon="arrow-forward" onPress={() => router.push(`/child/${p.child_id}`)} />}
         </Card>
       ) : (

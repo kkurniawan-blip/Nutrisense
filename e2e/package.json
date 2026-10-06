@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "test": "node app.e2e.mjs",
-    "qa": "node qa.e2e.mjs"
+    "qa": "node qa.e2e.mjs",
+    "features": "node features.e2e.mjs"
   },
   "devDependencies": {
     "playwright": "1.56.1"

@@ -2,3 +2,5 @@ node_modules/
 screenshots/
 qa-screenshots/
 qa-results.json
+feature-screenshots/
+features-results.json

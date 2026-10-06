@@ -1,5 +1,5 @@
-import React from 'react';
-import { Linking, View } from 'react-native';
+import React, { useState } from 'react';
+import { Linking, Pressable, View } from 'react-native';
 
 import { useAuth } from '../lib/auth';
 import { formatDate } from '../lib/fun';
@@ -95,23 +95,46 @@ export function AncDots({ anc, fromFacility = [] }: { anc: AncVisit[]; fromFacil
   );
 }
 
-export function NifasList({ nifas }: { nifas: NifasVisit[] }) {
-  const { lang } = useAuth();
+/** Kunjungan nifas (KF for the mother, KN for the baby). With onToggle, a visit that is due can be marked
+ * done, and a done one undone (the server toggles), like the antenatal visits. */
+export function NifasList({ nifas, onToggle }: { nifas: NifasVisit[]; onToggle?: (code: string) => Promise<void> }) {
+  const { t, lang } = useAuth();
+  const [busy, setBusy] = useState<string | null>(null);
+  const toggle = async (code: string) => {
+    if (!onToggle) return;
+    setBusy(code);
+    try {
+      await onToggle(code);
+    } finally {
+      setBusy(null);
+    }
+  };
   return (
     <View>
       {nifas.map((v, i) => {
         const st = VISIT_STATUS[v.status];
+        const done = v.status === 'done';
         return (
-          <Row key={v.code} style={{ paddingVertical: 9, borderTopWidth: i ? 1 : 0, borderColor: colors.line, gap: 10 }}>
-            <Text style={{ fontSize: 20 }}>{v.who === 'mother' ? '🤱' : '👶'}</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontWeight: '700' }}>{NIFAS_LABEL[v.code][lang]}</Text>
-              <Text style={{ color: colors.muted, fontSize: 12.5 }}>
-                {formatDate(v.window_start, lang)} – {formatDate(v.window_end, lang)}
-              </Text>
-            </View>
-            <StatusPill status={st.key} label={st.label[lang]} />
-          </Row>
+          <View key={v.code} style={{ paddingVertical: 9, borderTopWidth: i ? 1 : 0, borderColor: colors.line, gap: 6 }}>
+            <Row style={{ gap: 10 }}>
+              <Text style={{ fontSize: 20 }}>{v.who === 'mother' ? '🤱' : '👶'}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontWeight: '700' }}>{NIFAS_LABEL[v.code][lang]}</Text>
+                <Text style={{ color: colors.muted, fontSize: 12.5 }}>
+                  {formatDate(v.window_start, lang)} – {formatDate(v.window_end, lang)}
+                </Text>
+              </View>
+              <StatusPill status={st.key} label={st.label[lang]} />
+            </Row>
+            {onToggle && !done && v.status !== 'upcoming' && (
+              <Button small title={t('markDone')} icon="checkmark" loading={busy === v.code} onPress={() => void toggle(v.code)} />
+            )}
+            {onToggle && done && (
+              <Pressable onPress={() => void toggle(v.code)} accessibilityRole="button" style={{ alignSelf: 'flex-end', minHeight: 44, justifyContent: 'center' }}>
+                <Text style={{ color: colors.muted, fontSize: 13 }}>{t('undoLbl')}</Text>
+              </Pressable>
+            )}
+          </View>
         );
       })}
     </View>

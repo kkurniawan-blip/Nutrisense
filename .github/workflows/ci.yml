@@ -2,7 +2,7 @@
 #   backend   - pytest on SQLite (Python 3.11, same as the Dockerfile and the devcontainer)
 #   postgres  - the same suite on PostgreSQL 16 (NEVER RUN in the dev sandbox: no PostgreSQL there; first real run is on GitHub)
 #   mobile    - npm ci, typecheck, lint, web export (Node 22, same as the Dockerfile); uploads the web build
-#   e2e       - browser walkthrough (npm test) and QA pass (npm run qa), each on a fresh demo DB, app + API on one address
+#   e2e       - browser walkthrough (npm test), QA pass (npm run qa) and feature check (npm run features), each on a fresh demo DB, app + API on one address
 #   docker    - builds the root Dockerfile and smoke-tests it (NEVER RUN in the dev sandbox: no Docker daemon there)
 #   audit     - pip-audit and npm audit; report-only until the known expo tooling advisories are cleared
 # Versions: Python and Node match .python-version / .nvmrc at the repo root.
@@ -116,7 +116,7 @@ jobs:
     name: End-to-end and QA (fresh demo DB)
     needs: [backend, mobile]
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       APP_URL: http://localhost:8000
       API_URL: http://localhost:8000
@@ -169,6 +169,11 @@ jobs:
       - name: QA pass
         working-directory: e2e
         run: npm run qa
+      - name: Restart on a fresh demo database for the feature check
+        run: bash "$GITHUB_WORKSPACE/.github/ci-start-server.sh" features
+      - name: Feature check (every feature, black-box)
+        working-directory: e2e
+        run: npm run features
       - name: Server log
         if: always()
         run: tail -n 200 "$RUNNER_TEMP"/server-*.log || true
@@ -180,6 +185,9 @@ jobs:
             e2e/screenshots
             e2e/qa-screenshots
             e2e/qa-results.json
+            e2e/feature-screenshots
+            e2e/features-results.json
+            e2e/features-report.md
           retention-days: 7
 
   # Never run in the dev sandbox (no Docker daemon there): the first real build and smoke test is on GitHub.
