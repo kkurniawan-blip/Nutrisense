@@ -1,0 +1,21 @@
+{"agent": "product-manager",
+ "scores": [
+  {"id": "AI-1", "impact": 4, "evidence": 5, "feasibility": 4, "safety": 4, "demo": 4, "flags": [],
+   "attack": "The smallest version adds no newborn tiles, so a mother must type 'kuning' or 'dingin' herself. Verified: interpret_rules('bayi 2 minggu panas 38 derajat') returns duration_days 14, reading the baby's age as illness duration, so age must come from the child record, not the text (ai/symptoms.py:225-237)."},
+  {"id": "AI-2", "impact": 4, "evidence": 5, "feasibility": 3, "safety": 3, "demo": 4, "flags": [],
+   "attack": "Most deaths from bleeding after birth happen in the first 24 h, before the app is opened. The depression sign needs clinically safe wording and a referral path the pitch leaves open. Honest M effort across three owners (maternal.py:141, :401; pregnancy.ts:9-18)."},
+  {"id": "AI-3", "impact": 3, "evidence": 5, "feasibility": 4, "safety": 3, "demo": 4, "flags": [],
+   "attack": "Live API confirms 45 officer notifications (22 medium, 11 low). But review-only children (incomplete data, uncertain model) leave the Kader's case list for /reviews/pending (routers/cases.py:126), which has no assignee, due date or home-screen entry, so they can be quietly forgotten."},
+  {"id": "PJ-1", "impact": 5, "evidence": 5, "feasibility": 3, "safety": 4, "demo": 4, "flags": [],
+   "attack": "The bug is real (maternal.py:138-141 takes the latest report whether or not it was a danger sign; the :172-174 item uses it too) and should ship alone first. The bundled outcome is a Kader's unchecked tap, and a new offline outbox kind touches the recently hardened offline.ts."},
+  {"id": "PJ-2", "impact": 2, "evidence": 5, "feasibility": 5, "safety": 3, "demo": 3, "flags": [],
+   "attack": "No reset exists (auth.py:88 is only the rate limiter), but the Kader sees the mother's new password and nothing checks who is asking on a shared family phone. Effect on stunting and maternal outcomes is indirect."},
+  {"id": "PJ-3", "impact": 4, "evidence": 4, "feasibility": 4, "safety": 4, "demo": 4, "flags": [],
+   "attack": "'Terlewat' comes only from KiaRecord in the app, so doses given at the Puskesmas but never entered show as overdue and can mislead or alarm. A kia_overdue=true filter must compute the schedule for every child before paging (dashboard.py has no KIA field today)."},
+  {"id": "UX-1", "impact": 5, "evidence": 5, "feasibility": 4, "safety": 4, "demo": 5, "flags": [],
+   "attack": "It reuses the 3-day check on the latest report, so a later common complaint makes the red card vanish (maternal.py:138-141). The Kader's pinned card is driven by unread notifications and disappears once read, even if nobody called the mother. Five parts plus a backend change is more than S."},
+  {"id": "UX-2", "impact": 4, "evidence": 5, "feasibility": 5, "safety": 4, "demo": 4, "flags": [],
+   "attack": "Gap verified (status.ts:21 ignores urgency; family.py:28 has no doctor item). It tells the mother what to do but never records whether the visit happened, so its 48 h measure cannot be computed. 'Dalam 2 hari' for chronic stunting may alarm families far from a doctor (to validate with users)."},
+  {"id": "UX-3", "impact": 4, "evidence": 5, "feasibility": 5, "safety": 5, "demo": 4, "flags": [],
+   "attack": "Verified: q is sent together with the default filter=priority (KaderHome.tsx:50,69). The offline list can be 10 minutes old, the demo marks every child as measured today so the mark won't show, and D/S, the measure it names, is not computed anywhere."}
+ ]}
