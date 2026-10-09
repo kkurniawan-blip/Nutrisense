@@ -1,0 +1,26 @@
+{"agent": "data-ai-engineer",
+ "pitches": [
+  {"id": "AI-1", "title": "Young-infant (0-2 months) danger signs in the symptom checker: fever, cold, jaundice, cord infection, grunting", "user": "Mother of a newborn, Kader",
+   "job": "Know at once that a sick newborn must go to the Puskesmas now, and have the Kader alerted",
+   "outcome": "Neonatal deaths from sepsis and severe jaundice: fever, low temperature, jaundice or cord infection in a baby under 2 months triggers emergency triage, a case and a Kader alert (WHO IMCI 2014 young infant; Buku KIA 2020, wording to verify)",
+   "evidence": "backend/app/ai/symptoms.py:19 has one danger set for all ages; interpret('bayi 2 minggu panas 38 derajat') -> danger []; 'kuning sampai telapak kaki', 'tali pusat merah dan bernanah', 'badannya dingin', 'merintih' -> no symptom at all. Nuri flags jaundice and cord (assistant.py:53-59), so the two paths disagree; Nuri misses 'badannya dingin' (assistant.py:57). Newborns exist via Catat kelahiran (routers/maternal.py:426-442)",
+   "smallest_version": "Pass age into symptoms.interpret; under 2 months add fever/high_fever/poor_appetite to the danger set; add jaundice/cord_infection/cold/grunting lexicon keys shared with Nuri; tests. Existing 'Demam' tile then escalates for a newborn with no UI change; newborn tiles are a follow-up",
+   "effort": "S", "risks": "More referrals of febrile newborns (intended under IMCI); thresholds and wording need clinical sign-off; must not change rules for children aged 2-59 months"},
+  {"id": "AI-2", "title": "Postpartum (nifas, 42 days) danger signs for the mother", "user": "Mother after birth, Kader, bidan",
+   "job": "Report a postpartum danger sign and be told to go now, with the Kader alerted and her status raised",
+   "outcome": "Maternal deaths from postpartum haemorrhage, infection, pre-eclampsia and depression: postpartum danger signs become reportable, raise her risk and show in 'Untuk hari ini' during the 42 days",
+   "evidence": "After delivery the danger button shows pregnancy-only tiles (mobile/src/lib/pregnancy.ts:9-18: 'Air ketuban keluar', 'Janin kurang bergerak'); server filters to pregnancy keys (routers/maternal.py:392, ai/maternal.py:48); risk ignores danger after birth (routers/maternal.py:143 'recent_danger and p.status == \"active\"'); 'Untuk hari ini' danger item only when active (:160-174); alert titled 'Tanda bahaya kehamilan' (:401); Nuri misses 'payudara bengkak merah dan demam' and 'ibu nifas sedih terus ingin menyakiti bayi'",
+   "smallest_version": "NIFAS_DANGER_SIGNS in ai/maternal.py (Buku KIA 2020 list, wording to verify); accept them in report_danger; count danger within 42 days after birth in mother_risk and 'Untuk hari ini'; danger.tsx shows the postpartum list when delivered; same patterns in Nuri; tests",
+   "effort": "M", "risks": "Copy needs ux review; mental-health sign needs careful wording and a clear referral; touches ai, router and one screen (three owners)"},
+  {"id": "AI-3", "title": "Alert triage: review-only model results stop creating cases and notifications; officers get high/emergency only", "user": "Kader, officer, doctor",
+   "job": "See the emergency first instead of one alert per flagged child",
+   "outcome": "Faster response to emergencies and high-risk children (severe wasting, danger signs) by cutting alert noise while keeping every WHO-rule escalation",
+   "evidence": "API on the fresh demo DB: /api/dashboard/summary open_cases 45 of 49 children, needs_review 33; officer /api/notifications = 45 case_escalated; cases by priority: 22 medium, 11 high, 11 low/routine, 1 emergency. services/assessment.py:294 opens a case when 'tri[\"escalate\"] or pred.needs_review'; :308 notifies officers for every case; a separate review list already exists (routers/cases.py:128)",
+   "smallest_version": "In assessment.py: open a case and notify only when tri['escalate']; review-only results stay in the review list; officers are notified only for high/emergency (Kader still told about medium). Expected on demo DB: 45 -> 34 open cases, 45 -> 12 officer notifications (estimated from the API data, not yet run). Tests",
+   "effort": "S", "risks": "Review-only items must not be lost (they stay in the review list); dashboard case counts change; may overlap a product-manager alert-fatigue pitch (merge)"}
+ ],
+ "keep": [
+  {"feature": "WHO/Kemenkes rules applied after the risk model (no height or weight inputs), raise-only; danger signs and oedema mean emergency regardless of AI consent", "why": "The model misses 22% of high-risk children on its own; the rules are the safety net (ai/risk_model.py:419-440, 500-512; routers/children.py:405)"},
+  {"feature": "Symptom reader: negation handling, Claude's result added to the rules, danger signs never 'resolved'", "why": "An AI miss can never hide a danger sign, and it works offline (ai/symptoms.py:1-5, 263-290)"},
+  {"feature": "Data-quality handling: implausible measurements rejected; missing data imputed, labelled 'Data belum lengkap' and sent for review, never zero", "why": "Stops data-entry errors from creating false alarms or false reassurance (ai/growth.py plausibility_errors, routers/children.py:186, services/assessment.py MIN_DIET_DAYS)"}
+ ]}
