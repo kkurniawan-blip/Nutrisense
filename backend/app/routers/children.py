@@ -387,11 +387,13 @@ def report_symptoms(child_id: int, body: SymptomIn, lang: str | None = None, use
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Describe the symptoms or select at least one")
     L = lang_of(user, lang)
     use_ai = has_consent(db, child.caregiver_id, "ai_analysis")
-    parsed = symptom_ai.interpret(body.description, body.symptoms, L) if use_ai else {
+    # Age from the child's record (never from the typed text): under 60 days the young-infant danger set applies.
+    age_days = (date.today() - child.birth_date).days
+    parsed = symptom_ai.interpret(body.description, body.symptoms, L, age_days=age_days) if use_ai else {
         **symptom_ai.interpret_rules(body.description), "danger_signs": [], "summary": None, "other_concerns": [], "interpreted_by": "rules"}
     if not use_ai:
-        parsed["symptoms"] = sorted(set(parsed["symptoms"]) | set(body.symptoms))
-        parsed["danger_signs"] = sorted(set(parsed["symptoms"]) & symptom_ai.DANGER_SIGNS)
+        parsed["symptoms"] = sorted(set(parsed["symptoms"]) | {s for s in body.symptoms if s in symptom_ai.SYMPTOM_KEYS})
+        parsed["danger_signs"] = symptom_ai.danger_signs_for(parsed["symptoms"], age_days)
     report = SymptomReport(child_id=child.id, reported_by_id=user.id, description=body.description or None,
                            symptoms=parsed["symptoms"], danger_signs=parsed["danger_signs"],
                            appetite=body.appetite or parsed["appetite"], duration_days=body.duration_days or parsed["duration_days"],
@@ -416,4 +418,6 @@ def list_symptoms(child_id: int, user: User = Depends(get_current_user), db: Ses
 
 @router.get("/symptoms/catalog", tags=["reference"])
 def symptom_catalog():
-    return {"symptoms": symptom_ai.SYMPTOM_KEYS, "danger_signs": sorted(symptom_ai.DANGER_SIGNS)}
+    return {"symptoms": symptom_ai.SYMPTOM_KEYS, "danger_signs": sorted(symptom_ai.DANGER_SIGNS),
+            # Babies under `young_infant_days` days old (from the child's record): these are danger signs too.
+            "young_infant_days": symptom_ai.YOUNG_INFANT_DAYS, "young_infant_danger_signs": sorted(symptom_ai.YOUNG_INFANT_DANGER_SIGNS)}

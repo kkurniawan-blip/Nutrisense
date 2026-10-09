@@ -14,7 +14,8 @@ import re
 
 from . import llm
 from .maternal import DANGER_SIGNS as PREGNANCY_DANGER_KEYS
-from .symptoms import DANGER_SIGNS as CHILD_DANGER_KEYS, interpret_rules, symptom_label
+from .symptoms import DANGER_SIGNS as CHILD_DANGER_KEYS, LABELS as SYMPTOM_LABELS, YOUNG_INFANT_DANGER_SIGNS, interpret_rules, is_young_infant, \
+    stated_age_days, symptom_label
 
 # ---------------------------------------------------------------------------------------------
 # 1. Danger check
@@ -49,12 +50,14 @@ _PREG_RULES: list[tuple[str, str, bool]] = [
     ("severe_pain", r"(sakit|nyeri|mules|kram) (perut )?(\w+ )?(hebat|sekali|parah|tidak tertahan|terus menerus)|severe (abdominal |belly |stomach )?pain", True),
     ("breathless", r"sesak|susah (ber)?napas|short(ness)? of breath|can'?t breathe", True),
 ]
-# Buku KIA 2020, "Tanda bahaya pada bayi baru lahir" (to verify: wording of the jaundice sign).
+# Buku KIA 2020, "Tanda bahaya pada bayi baru lahir"; WHO IMCI 2014, sick young infant up to 2 months.
+# Jaundice, cord infection, cold body and grunting come from the symptom checker's lexicon (symptoms.py), so Nuri and
+# the symptom checker read the same words the same way ("badannya dingin", "tali pusatnya bernanah", "tidak kuning").
+# They count when the message is about a baby. Fever and poor feeding count only when the message says the baby is
+# under 2 months ("bayi 2 minggu", "umur 1 bulan", "baru lahir"): Nuri has no child record, the symptom checker does.
+_NEWBORN_FROM_LEXICON = {"jaundice", "cord_infection", "hypothermia", "grunting"}
+_YOUNG_INFANT_ONLY = (YOUNG_INFANT_DANGER_SIGNS - CHILD_DANGER_KEYS) - _NEWBORN_FROM_LEXICON  # fever, high fever, poor feeding
 _NEWBORN_RULES: list[tuple[str, str]] = [
-    ("jaundice", r"(kulit|mata|badan|tubuh|wajah)\w*( bayi)? (\w+ )?kuning|kuning (di |pada )?(kulit|mata|badan|seluruh)|jaundice|yellow (skin|eyes)"),
-    ("cord_infection", r"(tali )?pusa[rt]\w* (\w+ )?(merah|bengkak|bernanah|nanah|berbau|bau)|umbilic\w* .*(red|pus|smell)"),
-    ("grunting", r"merintih|grunting"),
-    ("cold", r"(badan|tubuh|kaki|tangan)( bayi)? (teraba |terasa )?dingin|feels? cold"),
     ("eye_pus", r"mata (\w+ )?(bernanah|nanah)|pus (from|in) (the |his |her )?eyes?"),
 ]
 _PREG_LABELS = {
@@ -64,8 +67,7 @@ _PREG_LABELS = {
     "high_fever": ("demam saat hamil / nifas", "fever in pregnancy or after birth"), "vomiting_all": ("muntah terus", "vomiting everything"),
     "severe_pain": ("sakit perut hebat", "severe pain"), "breathless": ("sesak napas", "difficulty breathing"),
     "convulsions": ("kejang", "convulsions"),
-    "jaundice": ("bayi kuning", "yellow skin or eyes"), "cord_infection": ("tali pusat merah / bernanah", "red or pus-filled cord"),
-    "grunting": ("bayi merintih", "grunting"), "cold": ("bayi teraba dingin", "baby feels cold"), "eye_pus": ("mata bernanah", "pus from the eyes"),
+    "eye_pus": ("mata bernanah", "pus from the eyes"),
 }
 _PREG_COMPILED = [(k, re.compile(p, re.IGNORECASE), ctx) for k, p, ctx in _PREG_RULES]
 _NEWBORN_COMPILED = [(k, re.compile(p, re.IGNORECASE)) for k, p in _NEWBORN_RULES]
@@ -80,7 +82,8 @@ def danger_signs(text: str) -> list[str]:
     for key, pat, needs_ctx in _PREG_COMPILED:
         if (pregnant or not needs_ctx) and pat.search(text) and f"pregnancy:{key}" not in found:
             found.append(f"pregnancy:{key}")
-    child = set(interpret_rules(text)["symptoms"]) & CHILD_DANGER_KEYS
+    lexicon = set(interpret_rules(text)["symptoms"])
+    child = lexicon & CHILD_DANGER_KEYS
     if pregnant:
         # In pregnancy, swollen feet alone are a common complaint (Buku KIA); the danger is swelling of hands/face or
         # swelling with headache / blurred vision, caught above. Breathlessness and convulsions are hers, not a child's.
@@ -93,14 +96,21 @@ def danger_signs(text: str) -> list[str]:
             child.discard("convulsions")
             found.append("pregnancy:convulsions")
     found += [f"child:{k}" for k in sorted(child)]
-    if _BABY.search(text):
+    young = is_young_infant(stated_age_days(text))
+    if young or _BABY.search(text):
+        newborn = lexicon & _NEWBORN_FROM_LEXICON
+        if young:
+            newborn |= lexicon & _YOUNG_INFANT_ONLY
+            if "high_fever" in newborn:
+                newborn.discard("fever")
+        found += [f"newborn:{k}" for k in sorted(newborn)]
         found += [f"newborn:{k}" for k, pat in _NEWBORN_COMPILED if pat.search(text)]
     return found
 
 
 def _danger_label(code: str, L: str) -> str:
     group, key = code.split(":", 1)
-    if group == "child":
+    if group == "child" or (group == "newborn" and key in SYMPTOM_LABELS):
         return symptom_label(key, L)
     pair = _PREG_LABELS.get(key, (key, key))
     return pair[0] if L == "id" else pair[1]
@@ -114,11 +124,15 @@ def is_urgent(answer: str) -> bool:
 def _urgent_answer(signs: list[str], L: str) -> str:
     labels = ", ".join(dict.fromkeys(_danger_label(s, L) for s in signs))
     mother = any(s.startswith("pregnancy:") for s in signs)
+    # A young infant referred urgently is kept warm skin-to-skin and breastfed on the way (WHO IMCI 2014, young infant).
+    newborn = any(s.startswith("newborn:") for s in signs)
     if L == "id":
         steps = ("1. Berangkat sekarang, jangan tunggu\n2. Ajak suami atau keluarga, siapkan kendaraan\n3. Bawa Buku KIA" if mother else
+                 "1. Bawa bayi ke Puskesmas sekarang\n2. Dekap bayi kulit ke kulit agar tetap hangat, susui di jalan\n3. Bawa Buku KIA" if newborn else
                  "1. Bawa anak ke Puskesmas sekarang\n2. Beri ASI/minum sedikit-sedikit di jalan\n3. Bawa Buku KIA")
         return f"{URGENT['id']}\nTanda: {labels}.\n{steps}"
     steps = ("1. Leave now, do not wait\n2. Bring your husband or family, arrange transport\n3. Bring the KIA book" if mother else
+             "1. Take the baby to the Puskesmas now\n2. Keep the baby warm skin-to-skin and breastfeed on the way\n3. Bring the KIA book" if newborn else
              "1. Take the child to the Puskesmas now\n2. Offer breast milk or small sips on the way\n3. Bring the KIA book")
     return f"{URGENT['en']}\nSigns: {labels}.\n{steps}"
 
@@ -133,9 +147,20 @@ _FAQ: list[tuple[str, str, dict[str, str]]] = [
     # Source: Buku KIA 2020 (Kemenkes); WHO IMCI chart booklet 2014.
     ("danger_info", r"tanda bahaya|danger signs?|warning signs?",
      {"id": "Tanda bahaya, segera ke Puskesmas atau telepon 119:\n1. Anak: kejang, sangat lemas, tidak mau minum/menyusu, napas cepat/sesak, BAB berdarah\n"
-            "2. Ibu hamil: perdarahan, air ketuban keluar, gerak janin berkurang, bengkak + sakit kepala, demam\n3. Bayi baru lahir: kuning, tali pusat merah, merintih, dingin\nLihat juga Buku KIA.",
+            "2. Ibu hamil: perdarahan, air ketuban keluar, gerak janin berkurang, bengkak + sakit kepala, demam\n"
+            "3. Bayi di bawah 2 bulan: demam, malas menyusu, kuning, tali pusat merah/bernanah, napas merintih, badan dingin\nLihat juga Buku KIA.",
       "en": "Danger signs: go to the Puskesmas now or call 119:\n1. Child: convulsions, very weak, can't drink or breastfeed, fast or hard breathing, blood in stool\n"
-            "2. Pregnancy: bleeding, waters breaking, baby moving less, swelling + headache, fever\n3. Newborn: yellow skin, red cord, grunting, feels cold\nSee also the KIA book."}),
+            "2. Pregnancy: bleeding, waters breaking, baby moving less, swelling + headache, fever\n"
+            "3. Baby under 2 months: fever, not feeding well, yellow skin, red or pus-filled cord, grunting, feels cold\nSee also the KIA book."}),
+    # Yellow skin or eyes in a child (no baby, no danger caught above). Under 2 months: Buku KIA 2020 / WHO IMCI 2014.
+    # Older child: jaundice is not an IMCI 2-59 month classification, but needs a health worker the same day (hepatitis;
+    # with fever in NTT, severe malaria: WHO Guidelines for malaria). To verify (clinical sign-off): "hari ini".
+    ("jaundice", r"\b(kulit|mata|badan|tubuh|wajah|muka)\w*\s+(\w+\s+){0,2}kuning\b(?! langsat)|\bkuning\w*\s+(\w+\s+){0,2}(kulit|mata|badan|tubuh)"
+                 r"|sakit kuning|penyakit kuning|jaundice|yellow (skin|eyes)|(skin|eyes) (is |are |look |looks |turned |turning )?yellow",
+     {"id": "Kulit atau mata kuning:\n1. Bayi di bawah 2 bulan: tanda bahaya, segera ke Puskesmas atau telepon 119\n"
+            "2. Anak lebih besar: periksa ke Puskesmas hari ini, apalagi jika demam\n3. Bawa Buku KIA",
+      "en": "Yellow skin or eyes:\n1. Baby under 2 months: a danger sign, go to the Puskesmas now or call 119\n"
+            "2. Older child: see the Puskesmas today, especially with a fever\n3. Bring the KIA book"}),
 
     # --- Childhood illness. Sources: WHO IMCI chart booklet 2014; Kemenkes MTBS 2019 (to verify edition);
     # WHO/UNICEF joint statement on diarrhoea, ORS and zinc 2004; Kemenkes LINTAS Diare 2011.
@@ -156,6 +181,13 @@ _FAQ: list[tuple[str, str, dict[str, str]]] = [
             "Ke Puskesmas jika demam lebih dari 2 hari, bayi di bawah 2 bulan, kejang, atau sangat lemas.",
       "en": "Child has a fever? Do this:\n1. Offer breast milk or drinks more often\n2. Light clothes, sponge with lukewarm water\n3. Live in a malaria area (NTT)? Get a malaria blood test at the Puskesmas today\n"
             "Go to the Puskesmas if the fever lasts over 2 days, the baby is under 2 months, has convulsions, or is very weak."}),
+    # Cold body. Under 2 months: low body temperature is a danger sign (WHO IMCI 2014, young infant); keep warm
+    # skin-to-skin (WHO kangaroo mother care 2003). After "fever" so that "panas dingin" (chills) is read as fever.
+    ("cold_body", r"\b(badan|tubuh|kulit)\w*\s+(\w+\s+){0,2}(teraba |terasa )?dingin|\bhipotermi|hypotherm|(body|skin) (feels |is )?cold|feels? cold",
+     {"id": "Badan teraba dingin:\n1. Bayi di bawah 2 bulan: tanda bahaya, segera ke Puskesmas atau telepon 119\n"
+            "2. Hangatkan: dekap kulit ke kulit, pakai topi, kaus kaki dan selimut\n3. Anak dingin dan sangat lemas: segera ke Puskesmas",
+      "en": "Body feels cold:\n1. Baby under 2 months: a danger sign, go to the Puskesmas now or call 119\n"
+            "2. Warm up: hold skin-to-skin, add a hat, socks and a blanket\n3. Child cold and very weak: go to the Puskesmas now"}),
     # Fast breathing cut-offs: WHO IMCI 2014 (>= 50/min at 2-12 months, >= 40/min at 1-5 years).
     ("cough", r"\b(batuk|pilek|ingus|flu|ispa|pneumonia|cough|coughing|runny nose|cold)\b",
      {"id": "Batuk pilek biasanya bisa dirawat di rumah:\n1. Teruskan ASI dan makan\n2. Beri minum hangat lebih sering\n3. Bersihkan hidung yang tersumbat\n"
@@ -349,7 +381,7 @@ Safety:
 - Danger signs come first: tell them to go to the Puskesmas now or call 119, before anything else.
   Child: convulsions, unable to drink or breastfeed, vomiting everything, very sleepy or unconscious, fast or difficult breathing, blood in stool, swelling of both feet.
   Pregnancy and after birth: bleeding, waters breaking, baby moving less, swelling of face/hands or swelling with headache or blurred vision, fever, convulsions, vomiting everything, severe pain, difficulty breathing.
-  Newborn: not breastfeeding, convulsions, very weak, fast breathing or grunting, feels cold or hot, yellow skin or eyes, red or pus-filled cord, pus from the eyes.
+  Newborn and baby under 2 months (WHO IMCI young infant): not breastfeeding or not feeding well, convulsions, very weak, fast breathing or grunting, any fever or feels cold, yellow skin or eyes, red, smelly or pus-filled cord, pus from the eyes. Fever in a baby under 2 months is always a danger sign, even if the baby seems well.
 - For high-risk children, encourage follow-up with the Kader, midwife (bidan) or doctor."""
 
 _DANGER_NOTE = ("\n\nThe app's safety check found danger signs in this message ({signs}). The app already shows the urgent line "
