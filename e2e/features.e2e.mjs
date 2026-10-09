@@ -408,6 +408,7 @@ await feature('F13', 'Kader', 'Tanda bahaya ibu hamil: tindak lanjut', 'Maternal
   await K.text('Sudah ke Puskesmas/bidan').click(); await K.text('Ya, catat').click(); await K.wait(1500);
   expect(!(await open()), 'outcome did not close the alert');
   const left = (await call('GET', '/api/kader/danger-open', null, kaderT)).json.filter((d) => d.pregnancy_id === mariaP.id); expect(!left.length, 'still on the Kader list');
+  await K.go('/home');
 });
 await feature('F2', 'Kader', 'Cari dan filter anak', 'Search and filter children', 'Cari “Budi”; filter Risiko tinggi', 'Daftar tersaring, tanpa kode mentah', async () => {
   await K.text('Cari & filter', false).click(); await K.field('Cari nama anak').fill('Budi'); await K.wait(1200); expect(await K.has('Budi Fanggidae'), 'search');

@@ -111,3 +111,20 @@ The new features build on these and must not change them.
   *(ux-designer, round 1; confirmed by all)*
 - **Nifas danger reports do not raise the mother's risk** (`routers/maternal.py:143`). *(AI-2, PM-1)*
 - **45 identical officer notifications hide the one emergency.** *(AI-3)*
+
+## Built (same day)
+Both winners are built and verified:
+- **Commits:** `bfc7f05..7e76361` and the follow-up.
+- **Results:**
+  - backend 420 tests pass;
+  - typecheck and lint are clean;
+  - e2e 48/48 steps pass;
+  - QA 37/37 cases pass;
+  - feature checks 83/83 pass, including the new B20 (newborn danger signs) and F13 (maternal danger follow-up).
+- **Changed on review:** "Tidak bisa dihubungi" (could not be reached) only logs an attempt. The alert stays open,
+  because a mother nobody reached must stay urgent. The message after contact names who called, not always "Kader".
+- **Left for later** (named by the builders):
+  - the staff follow-up works only online (the offline outbox replays POSTs only);
+  - doctors and officers see open reports from every region;
+  - urgent check-ups from facility sync are not yet part of this loop;
+  - the wording needs clinical sign-off (Buku KIA and MTBS).

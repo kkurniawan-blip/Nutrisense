@@ -1,6 +1,6 @@
 # Pengujian fitur NutriSense (black-box)
 
-Tanggal: 2026-10-06 · Hasil: **81 dari 81 fitur berhasil**
+Tanggal: 2026-10-09 · Hasil: **83 dari 83 fitur berhasil**
 
 | No | Area | Fitur | Skenario | Hasil yang diharapkan | Hasil | Keterangan |
 |---|---|---|---|---|---|---|
@@ -34,6 +34,7 @@ Tanggal: 2026-10-06 · Hasil: **81 dari 81 fitur berhasil**
 | B17 | Anak | Tambah anak<br>*Add a child* | Isi nama, tanggal lahir, Simpan | Anak baru tercatat dan diajak mengukur | ✅ Berhasil |  |
 | B18 | Anak | Ekspor data anak (HL7 FHIR)<br>*Export the child record (HL7 FHIR)* | Buka “Data & privasi” di profil anak, tekan “Ekspor catatan anak (FHIR)” | Pesan “Data siap dibagikan”; Bundle berisi Patient dan Observation | ✅ Berhasil |  |
 | B19 | Anak | Hapus data anak<br>*Delete a child’s record* | Hapus anak yang baru ditambah | Anak dan catatannya terhapus | ✅ Berhasil |  |
+| B20 | Anak | Cek gejala: bayi di bawah 2 bulan<br>*Symptom check: baby under 2 months* | Bayi 20 hari: lihat tanda bahaya bayi, ketuk “Demam” | Tanda bahaya bayi muda tampil; demam langsung peringatan merah dengan tombol 119 | ✅ Berhasil |  |
 | C1 | Nuri | Tanya Nuri<br>*Ask Nuri* | Pilih ide “Apa menu untuk anak susah makan?” | Jawaban singkat berlabel AI | ✅ Berhasil |  |
 | C2 | Nuri | Nuri mengenali tanda bahaya<br>*Nuri spots danger signs* | Tulis “Saya hamil dan keluar darah dari jalan lahir” | Jawaban diawali “Segera ke Puskesmas atau telepon 119” | ✅ Berhasil |  |
 | C3 | Nuri | Riwayat percakapan Nuri<br>*Nuri chat history* | Buka ulang Tanya Nuri | Pertanyaan sebelumnya masih ada | ✅ Berhasil |  |
@@ -58,6 +59,7 @@ Tanggal: 2026-10-06 · Hasil: **81 dari 81 fitur berhasil**
 | E3 | Puskesmas | Terima data HL7 FHIR dari sistem Puskesmas<br>*Receive HL7 FHIR data from a Puskesmas system* | Kirim Bundle FHIR dengan kunci fasilitas; kirim ulang; kunci salah | 201 dibuat, 200 diganti (tidak dobel), 401 ditolak | ✅ Berhasil |  |
 | E4 | Puskesmas | Matikan dan nyalakan hubungan<br>*Switch the link off and on* | Matikan hubungan ke Puskesmas, lalu nyalakan lagi | Hubungan mati lalu aktif dengan kode baru | ✅ Berhasil |  |
 | F1 | Kader | Beranda Kader: wilayah dan prioritas<br>*Kader home: area and priorities* | Buka beranda Kader | Ringkasan wilayah dan daftar prioritas kunjungan | ✅ Berhasil |  |
+| F13 | Kader | Tanda bahaya ibu hamil: tindak lanjut<br>*Maternal danger sign: follow-up* | Kartu merah di beranda; buka; Sudah saya hubungi; Tidak bisa dihubungi; Sudah ke Puskesmas/bidan | Kartu tetap ada sampai hasil dicatat; “Tidak bisa dihubungi” tidak menutup; hasil menutup peringatan | ✅ Berhasil |  |
 | F2 | Kader | Cari dan filter anak<br>*Search and filter children* | Cari “Budi”; filter Risiko tinggi | Daftar tersaring, tanpa kode mentah | ✅ Berhasil |  |
 | F3 | Kader | Daftar ibu hamil dan filter<br>*Pregnant mothers list and filters* | Buka Ibu hamil, pilih Berisiko, Belum dicek, Nifas, Semua | Daftar berganti sesuai filter | ✅ Berhasil |  |
 | F4 | Kader | Tambah ibu hamil (4 langkah)<br>*Add a pregnant mother (4 steps)* | Isi nama, HP, desa; usia hamil 12 minggu; persetujuan; Simpan | Akun ibu dibuat dengan kata sandi sementara; ibu bisa masuk dengan HP | ✅ Berhasil |  |
