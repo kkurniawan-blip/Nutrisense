@@ -1,0 +1,21 @@
+{"agent": "ux-designer",
+ "scores": [
+  {"id": "AI-1", "impact": 5, "evidence": 5, "feasibility": 4, "safety": 4, "demo": 4, "flags": [],
+   "attack": "'Existing Demam tile escalates with no UI change' holds online only: offline the Escalation shows only for client URGENT tiles (child/[id]/symptoms.tsx:66,106) and Demam is a COMMON tile, so a febrile newborn's mother gets no call buttons; jaundice/cord/cold have no tile and need free text low-literacy mothers rarely type."},
+  {"id": "AI-2", "impact": 5, "evidence": 5, "feasibility": 3, "safety": 4, "demo": 4, "flags": [],
+   "attack": "Gap verified (pregnancy.ts:9-18 tiles after birth, maternal.py:392 filter), but the self-harm sign needs its own referral copy, not 'Segera ke Puskesmas', and without PJ-1's fix a later complaint report clears the nifas danger too (maternal.py:138-141)."},
+  {"id": "AI-3", "impact": 3, "evidence": 5, "feasibility": 4, "safety": 4, "demo": 3, "flags": [],
+   "attack": "Officer 45/45 verified, but the Kader (22 alerts for 23 children) still gets every medium case, so her noise barely drops, and low cases silently leave her 'Tindak lanjut' filter (dashboard.py:218,252); the felt fatigue is a bell with no count and an unsorted list."},
+  {"id": "PM-1", "impact": 5, "evidence": 4, "feasibility": 2, "safety": 4, "demo": 4, "flags": [],
+   "attack": "Misses the real bug: urgency is read from the latest report of any kind (maternal.py:138-141), so a later 'Mual' hides an unhandled bleed even with handled_at; outcome buttons sit on a pregnancy page with no 'Telepon ibu' for the Kader, and fields+outcomes+tile+nifas risk is more than M."},
+  {"id": "PJ-1", "impact": 5, "evidence": 5, "feasibility": 3, "safety": 4, "demo": 4, "flags": [],
+   "attack": "Bug verified; but 'Risiko tinggi until a Kader records outcome' leaves the mother's red card saying 'Periksa ke bidan minggu ini' (PregnancyParts.tsx:23) with no way for her to say she already went, which is wrong advice for an emergency and alarming if the Kader never closes it."},
+  {"id": "PM-2", "impact": 3, "evidence": 4, "feasibility": 3, "safety": 5, "demo": 2, "flags": [],
+   "attack": "A 'due' (not only overdue) chip flags about half the list, so it stops being a priority signal for the Kader, and the D/S tile reads 100% on the demo (all 23 kader.oesapa rows have days_since_measured 0)."},
+  {"id": "PJ-3", "impact": 3, "evidence": 5, "feasibility": 4, "safety": 5, "demo": 4, "flags": [],
+   "attack": "12/23 verified; but a new chip lands in the folded filter panel the Kader never sees on posyandu day (KaderHome.tsx:175), so the row line is the real value, and 'Terlewat' should reuse the reassuring catch-up wording (i18n.ts:1826)."},
+  {"id": "PM-3", "impact": 4, "evidence": 5, "feasibility": 2, "safety": 2, "demo": 4, "flags": [],
+   "attack": "Dead end verified (child/new.tsx:38), but reusing register_mother auto-grants ai_analysis on verbal consent (maternal.py:272) for every family, and bundling registration plus reset as one M is optimistic with no UI location for the reset."},
+  {"id": "PJ-2", "impact": 3, "evidence": 5, "feasibility": 4, "safety": 3, "demo": 4, "flags": [],
+   "attack": "The button lives only on the pregnancy page, and staff have no screen for a non-pregnant mother (mobile/src/app/mother/ has only new.tsx), so mothers of children only, the most common locked-out case, cannot be reset from the app."}
+ ]}
