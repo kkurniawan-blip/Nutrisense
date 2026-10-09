@@ -247,6 +247,16 @@ await feature('B19', 'Anak', 'Hapus data anak', 'Delete a child’s record', 'Ha
   const kid = (await kidsOf(maria)).Fitur; const r = await call('DELETE', `/api/children/${kid.id}`, null, maria);
   expect(r.status === 204, `status ${r.status}`); expect(!(await kidsOf(maria)).Fitur, 'still listed');
 });
+await feature('B20', 'Anak', 'Cek gejala: bayi di bawah 2 bulan', 'Symptom check: baby under 2 months', 'Bayi 20 hari: lihat tanda bahaya bayi, ketuk “Demam”', 'Tanda bahaya bayi muda tampil; demam langsung peringatan merah dengan tombol 119', async () => {
+  const born = new Date(Date.now() - 20 * 864e5).toISOString().slice(0, 10);
+  const r = await call('POST', '/api/children', { name: 'Bayi Fitur Fanggidae', sex: 'female', birth_date: born }, maria); expect(r.status === 201, `create ${r.status}`);
+  try {
+    await M.go(`/child/${r.json.id}/symptoms`);
+    for (const s of ['Kulit / mata kuning', 'Tali pusat merah / bernanah', 'Badan dingin', 'Napas merintih']) expect(await M.has(s), s);
+    await M.text('Demam').click(); await M.wait(600);
+    for (const s of ['🚨 Perlu pertolongan segera', '119']) expect(await M.has(s), s);
+  } finally { await call('DELETE', `/api/children/${r.json.id}`, null, maria); }
+});
 
 // =============== C. Nuri, panduan, notifikasi, privasi, paket ===============
 await feature('C1', 'Nuri', 'Tanya Nuri', 'Ask Nuri', 'Pilih ide “Apa menu untuk anak susah makan?”', 'Jawaban singkat berlabel AI', async () => {
@@ -386,6 +396,18 @@ await M.ctx.close();
 const K = await open('kader.oesapa@nutrisense.id'); current = K;
 await feature('F1', 'Kader', 'Beranda Kader: wilayah dan prioritas', 'Kader home: area and priorities', 'Buka beranda Kader', 'Ringkasan wilayah dan daftar prioritas kunjungan', async () => {
   await K.go('/home'); for (const s of ['Wilayah saya', 'Prioritas kunjungan']) expect(await K.has(s), s);
+});
+await feature('F13', 'Kader', 'Tanda bahaya ibu hamil: tindak lanjut', 'Maternal danger sign: follow-up', 'Kartu merah di beranda; buka; Sudah saya hubungi; Tidak bisa dihubungi; Sudah ke Puskesmas/bidan', 'Kartu tetap ada sampai hasil dicatat; “Tidak bisa dihubungi” tidak menutup; hasil menutup peringatan', async () => {
+  const open = async () => (await call('GET', `/api/pregnancies/${mariaP.id}`, null, maria)).json.open_danger;
+  expect(await open(), 'no open danger report after D6/D7');
+  await K.go('/home'); expect(await K.has('Telepon ibu', true), 'pinned card');
+  await K.page.getByText(/🚨 Ibu Maria Fanggidae/).first().click(); await K.wait(2300);
+  await K.text('Sudah saya hubungi').click(); await K.wait(1500); expect((await open())?.contacted_at, 'contact not recorded');
+  await K.text('Tidak bisa dihubungi').click(); await K.text('Ya, catat').click(); await K.wait(1500);
+  expect(await K.has('belum bisa dihubungi'), 'attempt note'); expect(await open(), 'not reached closed the alert');
+  await K.text('Sudah ke Puskesmas/bidan').click(); await K.text('Ya, catat').click(); await K.wait(1500);
+  expect(!(await open()), 'outcome did not close the alert');
+  const left = (await call('GET', '/api/kader/danger-open', null, kaderT)).json.filter((d) => d.pregnancy_id === mariaP.id); expect(!left.length, 'still on the Kader list');
 });
 await feature('F2', 'Kader', 'Cari dan filter anak', 'Search and filter children', 'Cari “Budi”; filter Risiko tinggi', 'Daftar tersaring, tanpa kode mentah', async () => {
   await K.text('Cari & filter', false).click(); await K.field('Cari nama anak').fill('Budi'); await K.wait(1200); expect(await K.has('Budi Fanggidae'), 'search');

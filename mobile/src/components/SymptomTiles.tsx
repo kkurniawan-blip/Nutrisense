@@ -43,9 +43,7 @@ export function SymptomTile({ emoji, label, on, danger, onPress }: { emoji: stri
  */
 export function Escalation({ phone, facility }: { phone?: string | null; facility?: Facility | null }) {
   const { t, lang } = useAuth();
-  const km = facility?.distance_km;
-  const where = facility ? `${facility.name}${km ? ` · ± ${String(km).replace('.', lang === 'id' ? ',' : '.')} km` : ''}` : null;
-  const spoken = `${t('seekHelpNow')}. ${t('goPuskesmasNow')}. ${where ?? ''}. ${t('urgentExplain')}`;
+  const spoken = `${t('seekHelpNow')}. ${t('goPuskesmasNow')}. ${facilityWhere(facility, lang) ?? ''}. ${t('urgentExplain')}`;
   return (
     <Card tint={statusColor.urgent.bg} style={{ borderColor: colors.danger, borderWidth: 2 }}>
       <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -53,6 +51,24 @@ export function Escalation({ phone, facility }: { phone?: string | null; facilit
         <AudioButton text={spoken} compact />
       </Row>
       <Text style={{ marginTop: 4, fontSize: 15 }}>{t('urgentExplain')}</Text>
+      <EscalationActions phone={phone} facility={facility} />
+      <MoreLink label={t('seeGuide')} color={statusColor.urgent.fg} onPress={() => router.push('/guide')} />
+    </Card>
+  );
+}
+
+function facilityWhere(facility: Facility | null | undefined, lang: string): string | null {
+  const km = facility?.distance_km;
+  return facility ? `${facility.name}${km ? ` · ± ${String(km).replace('.', lang === 'id' ? ',' : '.')} km` : ''}` : null;
+}
+
+/** The Escalation buttons on their own (go to the Puskesmas, call the Puskesmas, 119, the Kader), for a card that
+ * already says why: the mother's red risk card while a danger report is open. */
+export function EscalationActions({ phone, facility }: { phone?: string | null; facility?: Facility | null }) {
+  const { t, lang } = useAuth();
+  const where = facilityWhere(facility, lang);
+  return (
+    <>
       <Button
         variant="danger"
         title={t('goPuskesmasNow')}
@@ -76,7 +92,6 @@ export function Escalation({ phone, facility }: { phone?: string | null; facilit
         </View>
       </Row>
       {phone ? <Button small variant="secondary" title={t('actDiscuss')} icon="chatbubbles" onPress={() => Linking.openURL(`tel:${phone}`)} /> : null}
-      <MoreLink label={t('seeGuide')} color={statusColor.urgent.fg} onPress={() => router.push('/guide')} />
-    </Card>
+    </>
   );
 }

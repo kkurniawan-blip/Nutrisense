@@ -7,6 +7,7 @@ import { NIFAS_LABEL, VISIT_STATUS } from '../lib/pregnancy';
 import type { AncVisit, NifasVisit, Pregnancy } from '../lib/types';
 import { colors, statusColor, tones } from '../theme';
 import { AudioButton } from './AudioButton';
+import { EscalationActions } from './SymptomTiles';
 import { Text } from './Text';
 import { Button, Card, Row, StatusPill } from './ui';
 import { Icon } from './Icon';
@@ -14,33 +15,52 @@ import { Icon } from './Icon';
 /**
  * Risiko sedang / tinggi: the level in large type, why in a few words, and one action: call the midwife
  * (the Puskesmas number). Shown only when the level asks for contact.
+ * While a danger report is open (no staff member has recorded an outcome yet) the card is about that sign:
+ * go to the Puskesmas or call 119 now, with the same buttons as the danger screen. "See the midwife this week"
+ * would be wrong advice for bleeding or a fit.
  */
 export function RiskCard({ p }: { p: Pregnancy }) {
   const { t } = useAuth();
   const r = p.risk;
-  if (!r.contact || p.status !== 'active') return null;
-  const c = statusColor[r.key];
-  const tip = r.key === 'urgent' ? t('riskHighTip') : t('riskMidTip');
+  const danger = p.status === 'active' ? p.open_danger : null;
+  if ((!r.contact && !danger) || p.status !== 'active') return null;
+  const key = danger ? 'urgent' : r.key;
+  const c = statusColor[key];
+  const tip = danger
+    ? danger.contacted_at
+      ? t('riskDangerContacted').replace('{name}', danger.contacted_by_name || t('dangerSomeone'))
+      : t('riskDangerTip')
+    : r.key === 'urgent'
+      ? t('riskHighTip')
+      : t('riskMidTip');
   const phone = p.facility?.phone;
+  const kader = p.care_team.find((m) => m.role === 'kader');
+  const reasons = danger?.sign_labels.length ? danger.sign_labels : r.reasons;
   return (
-    <Card tint={c.bg} style={r.key === 'urgent' ? { borderColor: colors.danger, borderWidth: 2 } : undefined}>
+    <Card tint={c.bg} style={key === 'urgent' ? { borderColor: colors.danger, borderWidth: 2 } : undefined}>
       <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <View style={{ flex: 1, gap: 2 }}>
-          <Text style={{ fontSize: 20, fontWeight: '900', color: c.fg }}>{r.label}</Text>
-          <Text style={{ fontWeight: '700', color: c.fg }}>{r.reasons.join(' · ')}</Text>
+          <Text style={{ fontSize: 20, fontWeight: '900', color: c.fg }}>{danger ? `🚨 ${r.label}` : r.label}</Text>
+          <Text style={{ fontWeight: '700', color: c.fg }}>{reasons.join(' · ')}</Text>
         </View>
-        <AudioButton text={`${r.label}. ${r.reasons.join(', ')}. ${tip}`} compact />
+        <AudioButton text={`${r.label}. ${reasons.join(', ')}. ${tip}`} compact />
       </Row>
-      <Text style={{ marginTop: 6 }}>{tip}</Text>
-      {phone ? (
-        <Button variant={r.key === 'urgent' ? 'danger' : 'primary'} title={t('callMidwife')} icon="call" onPress={() => Linking.openURL(`tel:${phone}`)} />
-      ) : null}
-      {p.facility ? (
-        <Text style={{ color: colors.muted, fontSize: 12.5, textAlign: 'center' }}>
-          {p.facility.name}
-          {phone ? ` · ${phone}` : ''}
-        </Text>
-      ) : null}
+      <Text style={{ marginTop: 6, ...(danger ? { fontSize: 16, fontWeight: '800', color: c.fg } : {}) }}>{tip}</Text>
+      {danger ? (
+        <EscalationActions phone={kader?.phone} facility={p.facility} />
+      ) : (
+        <>
+          {phone ? (
+            <Button variant={r.key === 'urgent' ? 'danger' : 'primary'} title={t('callMidwife')} icon="call" onPress={() => Linking.openURL(`tel:${phone}`)} />
+          ) : null}
+          {p.facility ? (
+            <Text style={{ color: colors.muted, fontSize: 12.5, textAlign: 'center' }}>
+              {p.facility.name}
+              {phone ? ` · ${phone}` : ''}
+            </Text>
+          ) : null}
+        </>
+      )}
     </Card>
   );
 }

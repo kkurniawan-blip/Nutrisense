@@ -2,6 +2,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { Linking, Pressable, View } from 'react-native';
 
+import { DangerFollowUpCard } from '../../../components/DangerAlerts';
 import { FacilityLinkCard, useExamSeen } from '../../../components/FacilityLink';
 import { AncDots, NifasList, RiskCard } from '../../../components/PregnancyParts';
 import { SyncBanner } from '../../../components/SyncBanner';
@@ -43,8 +44,9 @@ function MomTile({ label: title, value, unit, status, word, tone, icon }: { labe
 
 export default function PregnancyDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { t, lang } = useAuth();
+  const { t, lang, user } = useAuth();
   const q = useApi<Pregnancy>(`/api/pregnancies/${id}`);
+  const [dangerSaved, setDangerSaved] = useState(false);
   const link = useApi<FacilityLink>(`/api/pregnancies/${id}/link`);
   const [nifasError, setNifasError] = useState<string | null>(null);
   const { unseen } = useExamSeen(id, link.data?.exams[0]);
@@ -59,11 +61,30 @@ export default function PregnancyDetail() {
   const nxt = p.next_anc;
   const delivered = p.status === 'delivered';
   const plan = p.birth_plan ?? {};
+  const staff = !!user && user.role !== 'caregiver';
 
   return (
     <Screen refreshing={q.loading} onRefresh={() => [q.reload(), link.reload()]}>
       <Stack.Screen options={{ title: t('pregnancy') }} />
       <SyncBanner stale={q.stale || link.stale} />
+      {/* Staff only, first thing on the page: an open danger report and what was done about it. */}
+      {staff && (
+        <DangerFollowUpCard
+          p={p}
+          onSaved={(res) => {
+            q.setData({ ...p, open_danger: res.open_danger });
+            setDangerSaved(res.open_danger === null);
+            void q.reload(); // the risk level and "Untuk hari ini" change with it
+          }}
+        />
+      )}
+      {staff && dangerSaved && !p.open_danger && (
+        <Card tint={statusColor.ok.bg}>
+          <Text accessibilityLiveRegion="polite" style={{ fontWeight: '800', color: statusColor.ok.fg }}>
+            ✓ {t('dangerOutcomeSaved')}
+          </Text>
+        </Card>
+      )}
 
       {/* Who and how she is */}
       <Row style={{ gap: 14, marginBottom: 18 }}>
@@ -80,7 +101,8 @@ export default function PregnancyDetail() {
           {st.reasons && !delivered ? <Text style={{ color: statusColor[st.key].fg, fontSize: 13, fontWeight: '600' }}>{st.reasons}</Text> : null}
         </View>
       </Row>
-      <RiskCard p={p} />
+      {/* For staff the alert above replaces the mother's own advice while a danger report is open. */}
+      {!(staff && p.open_danger) && <RiskCard p={p} />}
       {/* New results from the Puskesmas come right after the risk; otherwise the link sits next to the K visits. */}
       {unseen && !delivered && <FacilityLinkCard p={p} link={link.data} stale={link.stale} unseen={unseen} onChanged={(l) => {
             link.setData(l);

@@ -60,7 +60,8 @@ export default function MotherDanger() {
         {sent.danger && <Escalation phone={sent.kader?.phone ?? kader?.phone} facility={sent.facility ?? q.data?.facility} />}
         <Card tint={sent.danger ? statusColor.info.bg : undefined}>
           <Text style={{ fontWeight: '800', color: sent.danger ? statusColor.info.fg : colors.ok }}>✓ {t('dangerSent')}</Text>
-          {sent.danger && <Text style={{ color: statusColor.info.fg }}>{t('kaderTold')}</Text>}
+          {/* The message has gone, but she must not wait for the Kader's call. */}
+          {sent.danger && <Text style={{ color: statusColor.info.fg, fontWeight: '700' }}>{t('kaderTold')}</Text>}
         </Card>
         {tips.length > 0 && (
           <Card>

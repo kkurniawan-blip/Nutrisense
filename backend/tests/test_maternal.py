@@ -182,7 +182,7 @@ def test_danger_follow_up_permissions_and_closing(client, auth):
     done = client.patch(url, headers=auth("doctor@nutrisense.id"), json={"outcome": "went_to_facility"})
     assert done.status_code == 200 and done.json() == {"open_danger": None, "outcome": "went_to_facility"}
     assert client.patch(url, headers=kader, json={"outcome": "went_to_facility"}).json()["outcome"] == "went_to_facility"
-    assert client.patch(url, headers=kader, json={"outcome": "not_reached"}).status_code == 409
+    assert client.patch(url, headers=kader, json={"outcome": "advised_home"}).status_code == 409
     p = client.get(f"/api/pregnancies/{pid}", headers=h).json()
     assert p["open_danger"] is None and p["risk"]["key"] != "urgent" and all(i["key"] != "danger" for i in p["today"])
     actions = {(a["action"], a["entity_id"]) for a in client.get("/api/audit-logs?entity=pregnancy", headers=auth("admin@nutrisense.id")).json()}
@@ -191,7 +191,12 @@ def test_danger_follow_up_permissions_and_closing(client, auth):
     # An outcome without a recorded contact also sets the contact; a complaint-only report is not followed up.
     client.post(f"/api/pregnancies/{pid}/danger", headers=h, json={"signs": ["less_movement"]})
     rid2 = client.get(f"/api/pregnancies/{pid}", headers=h).json()["open_danger"]["id"]
+    # "Tidak bisa dihubungi" is only a logged attempt: the report stays open and urgent, and no contact is recorded.
     r = client.patch(f"/api/pregnancies/{pid}/danger/{rid2}", headers=auth("officer@nutrisense.id"), json={"outcome": "not_reached"})
+    assert r.status_code == 200 and r.json()["attempt"] == "not_reached" and r.json()["outcome"] is None
+    assert r.json()["open_danger"]["id"] == rid2 and r.json()["open_danger"]["contacted_at"] is None
+    assert client.get(f"/api/pregnancies/{pid}", headers=h).json()["risk"]["key"] == "urgent"
+    r = client.patch(f"/api/pregnancies/{pid}/danger/{rid2}", headers=auth("officer@nutrisense.id"), json={"outcome": "advised_home"})
     assert r.status_code == 200 and r.json()["open_danger"] is None
     client.post(f"/api/pregnancies/{pid}/danger", headers=h, json={"signs": ["nausea"]})
     from app.database import SessionLocal

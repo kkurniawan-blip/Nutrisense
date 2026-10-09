@@ -25,6 +25,8 @@ export const SYMPTOM_EMOJI: Record<string, string> = {
   diarrhea: '🧻', fever: '🌡️', cough: '😷', vomiting: '🤢', poor_appetite: '🍽️', rash: '🔴', convulsions: '⚡',
   unable_to_drink: '🍼', lethargy: '😴', fast_breathing: '🫁', oedema: '🦶', runny_nose: '🤧', worms: '🪱',
   weight_loss: '⚖️', bloody_stool: '🩸', sunken_eyes: '👁️', repeated_illness: '🔁', high_fever: '🔥', vomits_everything: '🤮',
+  // Young-infant danger signs: emoji from before 2019, so they also show on old Android phones.
+  jaundice: '💛', cord_infection: '⭕', hypothermia: '❄️', grunting: '😣',
 };
 
 export const NUTRIENT_EMOJI: Record<string, string> = {
@@ -154,6 +156,17 @@ export function formatDuration(minutes: number, lang: Lang): string {
   const hours = Math.floor(m / 60);
   const rest = m % 60;
   return rest ? `${hours} ${h} ${rest} ${min}` : `${hours} ${h}`;
+}
+
+/** "2 jam lalu" / "2 h ago": how long a report has waited; after two days, the date (an alert keeps at most 14 days). */
+export function timeAgo(iso: string, lang: Lang, now = Date.now()): string {
+  const min = Math.max(0, Math.floor((now - new Date(iso).getTime()) / 60000));
+  const id = lang === 'id';
+  if (min < 1) return id ? 'baru saja' : 'just now';
+  if (min < 60) return id ? `${min} menit lalu` : `${min} min ago`;
+  const h = Math.floor(min / 60);
+  if (h < 48) return id ? `${h} jam lalu` : `${h} h ago`;
+  return formatDate(iso, lang, true);
 }
 
 /** "27 Sep 2026" (optionally with time), independent of the phone's Intl support. */

@@ -7,9 +7,10 @@ import { api, errorText } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { childEmoji, greeting } from '../lib/fun';
 import { KADER_GROUPS, txt } from '../lib/status';
-import type { AreaChildRow, AreaChildren, AreaGroup, Pregnancy, RiskLevel } from '../lib/types';
+import type { AreaChildRow, AreaChildren, AreaGroup, OpenDangerRow, Pregnancy, RiskLevel } from '../lib/types';
 import { useApi } from '../lib/useApi';
 import { colors, radius, shadow, statusColor, tones } from '../theme';
+import { OpenDangerCards } from './DangerAlerts';
 import { SyncBanner } from './SyncBanner';
 import { Text, TextInput } from './Text';
 import { Mascot } from './Mascot';
@@ -70,6 +71,8 @@ export function KaderHome() {
   const query = params.toString();
   const list = useApi<AreaChildren>(`/api/dashboard/children?${query}`);
   const mothers = useApi<Pregnancy[]>('/api/pregnancies');
+  // Cached like every read, so a Kader who opens the app without signal still sees who reported a danger sign.
+  const dangers = useApi<OpenDangerRow[]>('/api/kader/danger-open');
   const active = (mothers.data ?? []).filter((p) => p.status === 'active');
   const topMothers = [...active].sort((a, b) => RISK_ORDER[a.risk.key] - RISK_ORDER[b.risk.key]).slice(0, 2);
 
@@ -102,7 +105,7 @@ export function KaderHome() {
 
   return (
     <ScrollView
-      refreshControl={<RefreshControl refreshing={list.loading} onRefresh={() => [list, mothers].forEach((x) => void x.reload())} tintColor={colors.primary} />}
+      refreshControl={<RefreshControl refreshing={list.loading} onRefresh={() => [list, mothers, dangers].forEach((x) => void x.reload())} tintColor={colors.primary} />}
       contentContainerStyle={{ paddingBottom: 40 }}
       keyboardShouldPersistTaps="handled"
     >
@@ -125,7 +128,10 @@ export function KaderHome() {
       </View>
 
       <View style={{ padding: 16 }}>
-        <SyncBanner stale={list.stale || mothers.stale} />
+        <SyncBanner stale={list.stale || mothers.stale || dangers.stale} />
+
+        {/* 🚨 Mothers who reported a danger sign, until someone records what happened */}
+        <OpenDangerCards rows={dangers.data} error={dangers.error} onRetry={dangers.reload} />
 
         {/* 📊 My area */}
         <Card>

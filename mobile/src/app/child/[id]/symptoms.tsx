@@ -9,20 +9,40 @@ import { Bubble, Button, Card, Chip, ErrorBox, Field, H2, Screen, SourceTag } fr
 import { api, errorText, NetworkError } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 import { SYMPTOM_EMOJI } from '../../../lib/fun';
-import { label, SYMPTOM_LABELS } from '../../../lib/i18n';
+import { localDate } from '../../../lib/dates';
+import { label, SYMPTOM_LABELS, YOUNG_INFANT_SYMPTOM_LABELS } from '../../../lib/i18n';
 import { enqueue, uuid } from '../../../lib/offline';
 import { useSync } from '../../../lib/sync';
-import type { Assessment, Child, SymptomReport } from '../../../lib/types';
+import type { Assessment, Child, Lang, SymptomReport } from '../../../lib/types';
 import { useApi } from '../../../lib/useApi';
 import { colors, statusColor } from '../../../theme';
 
 const COMMON = ['fever', 'cough', 'diarrhea', 'vomiting', 'runny_nose', 'poor_appetite'];
 const URGENT = ['convulsions', 'fast_breathing', 'unable_to_drink', 'lethargy', 'bloody_stool', 'oedema'];
 const OTHER = ['rash', 'worms', 'weight_loss', 'repeated_illness'];
+// WHO IMCI, sick young infant (under 2 months): fever and poor feeding are danger signs too, and four signs only a
+// newborn shows get their own tiles. Same set as the backend's YOUNG_INFANT_DANGER_SIGNS (ai/symptoms.py), so
+// the call buttons appear at once, also offline when the server cannot be asked.
+const YOUNG_INFANT_DAYS = 60;
+const YOUNG_EXTRA = ['jaundice', 'cord_infection', 'hypothermia', 'grunting'];
+const YOUNG_URGENT = [...URGENT, 'fever', 'poor_appetite', ...YOUNG_EXTRA];
+const YOUNG_COMMON = COMMON.filter((k) => !YOUNG_URGENT.includes(k));
 
-function Tile({ k, on, danger, onPress }: { k: string; on: boolean; danger?: boolean; onPress: () => void }) {
+/** Days since birth from the child's record (cached, so it works offline); null while the record is loading. */
+function ageDays(birth: string | undefined): number | null {
+  if (!birth) return null;
+  const [y, m, d] = birth.split('-').map(Number);
+  const [ty, tm, td] = localDate().split('-').map(Number);
+  return Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(y, m - 1, d)) / 86400000);
+}
+
+function symptomLabel(k: string, lang: Lang, young: boolean): string {
+  return label(young && YOUNG_INFANT_SYMPTOM_LABELS[k] ? YOUNG_INFANT_SYMPTOM_LABELS : SYMPTOM_LABELS, k, lang);
+}
+
+function Tile({ k, on, danger, young, onPress }: { k: string; on: boolean; danger?: boolean; young: boolean; onPress: () => void }) {
   const { lang } = useAuth();
-  return <SymptomTile emoji={SYMPTOM_EMOJI[k]} label={label(SYMPTOM_LABELS, k, lang)} on={on} danger={danger} onPress={onPress} />;
+  return <SymptomTile emoji={SYMPTOM_EMOJI[k]} label={symptomLabel(k, lang, young)} on={on} danger={danger} onPress={onPress} />;
 }
 
 export default function Symptoms() {
@@ -40,7 +60,11 @@ export default function Symptoms() {
 
   const kader = child.data?.care_team?.find((m) => m.role === 'kader');
   const name = child.data?.name.split(' ')[0] ?? '';
-  const urgentSelected = selected.some((s) => URGENT.includes(s));
+  const days = ageDays(child.data?.birth_date);
+  const young = days !== null && days >= 0 && days < YOUNG_INFANT_DAYS;
+  const urgentKeys = young ? YOUNG_URGENT : URGENT;
+  const commonKeys = young ? YOUNG_COMMON : COMMON;
+  const urgentSelected = selected.some((s) => urgentKeys.includes(s));
   const toggle = (k: string) => setSelected((s) => (s.includes(k) ? s.filter((x) => x !== k) : [...s, k]));
 
   const submit = async () => {
@@ -76,13 +100,14 @@ export default function Symptoms() {
     const r = result.report;
     return (
       <Screen key="result1">
-        {r.danger_signs.length > 0 && <Escalation phone={kader?.phone} facility={child.data?.facility} />}
+        {/* The server's answer, or what she ticked: a young-infant sign must bring the call buttons either way. */}
+        {(r.danger_signs.length > 0 || urgentSelected) && <Escalation phone={kader?.phone} facility={child.data?.facility} />}
         <Card>
           <SourceTag kind="ai" />
           <H2 emoji="🧠">{t('interpretedAs')}</H2>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
             {r.symptoms.map((s) => (
-              <Chip key={s} emoji={SYMPTOM_EMOJI[s]} label={label(SYMPTOM_LABELS, s, lang)} selected tone={r.danger_signs.includes(s) ? 'danger' : undefined} />
+              <Chip key={s} emoji={SYMPTOM_EMOJI[s]} label={symptomLabel(s, lang, young)} selected tone={r.danger_signs.includes(s) ? 'danger' : undefined} />
             ))}
           </View>
           {r.duration_days ? <Text style={{ color: colors.muted }}>⏳ {r.duration_days} {lang === 'id' ? 'hari' : 'days'}</Text> : null}
@@ -92,7 +117,7 @@ export default function Symptoms() {
             </Text>
           ))}
         </Card>
-        {result.assessment && <AssessmentView a={result.assessment} compact hideEmergency={r.danger_signs.length > 0} />}
+        {result.assessment && <AssessmentView a={result.assessment} compact hideEmergency={r.danger_signs.length > 0 || urgentSelected} />}
         <Button title={t('reportSymptoms')} variant="ghost" onPress={() => setResult(null)} />
       </Screen>
     );
@@ -107,17 +132,19 @@ export default function Symptoms() {
 
       <Card tint={statusColor.urgent.bg}>
         <H2 emoji="🚨">{t('urgentSigns')}</H2>
+        {young && <Text style={{ fontWeight: '700', color: statusColor.urgent.fg, marginBottom: 8 }}>{t('youngInfantNote')}</Text>}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {URGENT.map((k) => (
-            <Tile key={k} k={k} danger on={selected.includes(k)} onPress={() => toggle(k)} />
+          {/* For a young baby, her own signs come first: they are the ones a mother would not think of. */}
+          {(young ? [...YOUNG_EXTRA, 'fever', 'poor_appetite', ...URGENT] : URGENT).map((k) => (
+            <Tile key={k} k={k} danger young={young} on={selected.includes(k)} onPress={() => toggle(k)} />
           ))}
         </View>
       </Card>
 
       <H2 emoji="🤒">{t('commonSymptoms')}</H2>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
-        {COMMON.map((k) => (
-          <Tile key={k} k={k} on={selected.includes(k)} onPress={() => toggle(k)} />
+        {commonKeys.map((k) => (
+          <Tile key={k} k={k} young={young} on={selected.includes(k)} onPress={() => toggle(k)} />
         ))}
       </View>
 
@@ -129,7 +156,7 @@ export default function Symptoms() {
       {showOther && (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
           {OTHER.map((k) => (
-            <Tile key={k} k={k} on={selected.includes(k)} onPress={() => toggle(k)} />
+            <Tile key={k} k={k} young={young} on={selected.includes(k)} onPress={() => toggle(k)} />
           ))}
         </View>
       )}

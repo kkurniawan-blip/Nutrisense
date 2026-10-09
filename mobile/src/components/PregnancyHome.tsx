@@ -14,6 +14,8 @@ import { Text } from './Text';
 import { Bar, Card, QuickAction, Row, Section, StatusPill } from './ui';
 import { Icon } from './Icon';
 
+const STATUS_RANK: Record<string, number> = { urgent: 0, action: 1, monitor: 2, info: 3, ok: 5 };
+
 /** Home when "Bunda" is picked: how the pregnancy is, what to do today, four shortcuts. Same shape as the child's home. */
 export function PregnancyHome({ p }: { p: Pregnancy }) {
   const { t, lang } = useAuth();
@@ -21,6 +23,8 @@ export function PregnancyHome({ p }: { p: Pregnancy }) {
   const delivered = p.status === 'delivered';
   const go = (action: string) =>
     router.push((({ supplements: `/pregnancy/${p.id}/supplements`, anc: `/pregnancy/${p.id}/anc`, measure: `/pregnancy/${p.id}/measure`, danger: `/pregnancy/${p.id}/danger` }) as Record<string, string>)[action] as never);
+  // Most urgent first (a danger sign above the iron tablet), whatever order a cached or older answer has.
+  const today = [...p.today].sort((x, y) => (STATUS_RANK[x.status] ?? 4) - (STATUS_RANK[y.status] ?? 4));
   const nextNifas = p.nifas?.find((v) => v.status === 'due' || v.status === 'overdue');
   const link = useApi<FacilityLink>(`/api/pregnancies/${p.id}/link`);
   const latest = link.data?.exams[0];
@@ -78,7 +82,7 @@ export function PregnancyHome({ p }: { p: Pregnancy }) {
             </Row>
           </Pressable>
         )}
-        {p.today.map((item) => {
+        {today.map((item) => {
           const c = statusColor[item.status];
           const done = item.status === 'ok';
           // At the moment she needs it: the code to show the midwife, under the check-up reminder.

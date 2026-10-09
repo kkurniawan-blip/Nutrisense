@@ -7,9 +7,10 @@ import { Card, ErrorBox, H2, Loading, MoreLink, P, RiskBadge, Row, Screen, Segme
 import { useAuth } from '../../lib/auth';
 import { formatDate } from '../../lib/fun';
 import { FEATURE_LABELS, label } from '../../lib/i18n';
-import type { SourceRef } from '../../lib/types';
+import type { OpenDangerRow, SourceRef } from '../../lib/types';
 import { useApi } from '../../lib/useApi';
 import { colors, fonts, statusColor } from '../../theme';
+import { OpenDangerCards } from '../../components/DangerAlerts';
 import { SyncBanner } from '../../components/SyncBanner';
 import { Text } from '../../components/Text';
 
@@ -183,12 +184,13 @@ export default function Dashboard() {
   const model = useApi<ModelInfo>('/api/dashboard/model');
   const mothers = useApi<Mothers>('/api/dashboard/mothers');
   const flagged = useApi<Flagged>('/api/dashboard/flagged');
+  const dangers = useApi<OpenDangerRow[]>('/api/kader/danger-open');
   const priority = useApi<{ child_id: number; name: string; risk_level: 'low' | 'medium' | 'high'; urgency: string; region: string; top_reason: string }[]>(
     '/api/dashboard/priority?limit=8',
   );
 
   const [tech, setTech] = useState(false);
-  const reload = () => [summary, heat, proj, model, priority, mothers, flagged].forEach((x) => void x.reload());
+  const reload = () => [summary, heat, proj, model, priority, mothers, flagged, dangers].forEach((x) => void x.reload());
   const m = mothers.data;
   const s = summary.data;
 
@@ -197,7 +199,9 @@ export default function Dashboard() {
       <P muted style={{ marginBottom: 8 }}>
         {user?.full_name}
       </P>
-      <SyncBanner stale={[summary, heat, proj, model, priority, mothers, flagged].some((x) => x.stale)} />
+      <SyncBanner stale={[summary, heat, proj, model, priority, mothers, flagged, dangers].some((x) => x.stale)} />
+      {/* Open maternal danger reports first: the doctor is alerted too, in case the Kader has no signal. */}
+      <OpenDangerCards rows={dangers.data} error={dangers.error} onRetry={dangers.reload} />
       {summary.error && <ErrorBox message={summary.error} onRetry={reload} />}
       {!s ? (
         <Loading />

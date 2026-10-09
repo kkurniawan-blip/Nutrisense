@@ -627,7 +627,7 @@ const en = {
   last7Days: "Last 7 days",
   howMom: "How are you today, Mom?",
   reportLbl: "Report",
-  kaderTold: "Your Kader has been told.",
+  kaderTold: "Message sent to the Kader. Do not wait: call the midwife or 119 now.",
   tipsForYou: "Tips for you",
   birthPlace: "Where to give birth",
   transportLbl: "Transport",
@@ -1009,6 +1009,30 @@ const en = {
   permPhotosBlocked: "The gallery is turned off for NutriSense. Open Settings > Permissions > Photos and choose \"Allow\".",
   permOpenSettings: "Open Settings",
   audioNoIndonesianVoice: "This phone has no Indonesian voice yet. Install one in Settings > Language > Text-to-speech.",
+  // Maternal danger report that stays open until staff act ({name} is replaced, with its brackets, by who called)
+  riskDangerTip: "Danger sign: go to the Puskesmas now or call 119.",
+  riskDangerContacted: "{name} has contacted you. Follow the midwife's advice; if it gets worse, call 119.",
+  dangerSomeone: "A health worker",
+  dangerContactedPill: "Contacted",
+  dangerNotContactedPill: "Not contacted yet",
+  callMother: "Call the mother",
+  dangerAlertTitle: "Danger sign reported",
+  dangerContactedBy: "Contacted by",
+  dangerMarkContacted: "I have contacted her",
+  dangerOutcomeAsk: "What happened? Recording it closes the alert.",
+  outcome_went_to_facility: "Went to the Puskesmas/midwife",
+  outcome_advised_home: "Can be watched at home",
+  outcome_not_reached: "Could not be reached",
+  dangerOutcomeConfirm: "Record this? The alert will close.",
+  dangerNotReachedConfirm: "Record this attempt? The alert stays open until the mother is reached.",
+  dangerNotReachedSaved: "Recorded: not reached yet. The alert stays open. Call again, or ask the midwife to visit her.",
+  dangerYesRecord: "Yes, record",
+  dangerNeedsSignal: "Not saved: this needs signal. Call the mother first, then try again when there is signal.",
+  dangerOutcomeTaken: "Someone else already recorded a different outcome. Pull down to reload.",
+  dangerOutcomeSaved: "Recorded. Thank you.",
+  noMotherPhone: "No phone number for the mother yet",
+  // Babies under 2 months (WHO IMCI young infant)
+  youngInfantNote: "Baby under 2 months: each of these signs means go to the Puskesmas now.",
 };
 
 type Dict = typeof en;
@@ -1640,7 +1664,7 @@ const id: Dict = {
   last7Days: "7 hari terakhir",
   howMom: "Bagaimana kondisi Bunda hari ini?",
   reportLbl: "Laporkan",
-  kaderTold: "Kader sudah diberi tahu.",
+  kaderTold: "Pesan terkirim ke Kader. Jangan menunggu: telepon bidan atau 119 sekarang.",
   tipsForYou: "Saran untuk Bunda",
   birthPlace: "Tempat bersalin",
   transportLbl: "Transportasi",
@@ -2022,6 +2046,28 @@ const id: Dict = {
   permPhotosBlocked: "Galeri dimatikan untuk NutriSense. Buka Pengaturan > Izin > Foto, lalu pilih \"Izinkan\".",
   permOpenSettings: "Buka Pengaturan",
   audioNoIndonesianVoice: "Suara bahasa Indonesia belum ada di HP ini. Pasang di Pengaturan > Bahasa > Teks ke ucapan.",
+  riskDangerTip: "Tanda bahaya: segera ke Puskesmas atau telepon 119.",
+  riskDangerContacted: "{name} sudah menghubungi Ibu. Ikuti saran bidan; jika memburuk, telepon 119.",
+  dangerSomeone: "Petugas kesehatan",
+  dangerContactedPill: "Sudah dihubungi",
+  dangerNotContactedPill: "Belum dihubungi",
+  callMother: "Telepon ibu",
+  dangerAlertTitle: "Ada tanda bahaya",
+  dangerContactedBy: "Sudah dihubungi oleh",
+  dangerMarkContacted: "Sudah saya hubungi",
+  dangerOutcomeAsk: "Apa hasilnya? Setelah dicatat, peringatan ditutup.",
+  outcome_went_to_facility: "Sudah ke Puskesmas/bidan",
+  outcome_advised_home: "Cukup dipantau di rumah",
+  outcome_not_reached: "Tidak bisa dihubungi",
+  dangerOutcomeConfirm: "Catat hasil ini? Peringatan akan ditutup.",
+  dangerNotReachedConfirm: "Catat percobaan ini? Peringatan tetap terbuka sampai Ibu bisa dihubungi.",
+  dangerNotReachedSaved: "Dicatat: belum bisa dihubungi. Peringatan tetap terbuka. Telepon lagi, atau minta bidan mendatangi Ibu.",
+  dangerYesRecord: "Ya, catat",
+  dangerNeedsSignal: "Belum tersimpan: perlu sinyal. Telepon ibu dulu, lalu coba lagi saat ada sinyal.",
+  dangerOutcomeTaken: "Petugas lain sudah mencatat hasil yang berbeda. Tarik layar ke bawah untuk memuat ulang.",
+  dangerOutcomeSaved: "Sudah dicatat. Terima kasih.",
+  noMotherPhone: "Nomor HP ibu belum ada",
+  youngInfantNote: "Bayi di bawah 2 bulan: tanda mana pun di sini berarti segera ke Puskesmas.",
 };
 
 export type TKey = keyof Dict;
@@ -2052,6 +2098,16 @@ export const SYMPTOM_LABELS: Record<string, { id: string; en: string }> = {
   rash: { id: 'Ruam', en: 'Rash' },
   worms: { id: 'Cacingan', en: 'Worms' },
   repeated_illness: { id: 'Sering sakit', en: 'Often sick' },
+  // Danger signs for babies under 2 months (WHO IMCI young infant; Buku KIA "tanda bahaya bayi baru lahir")
+  jaundice: { id: 'Kulit / mata kuning', en: 'Yellow skin or eyes' },
+  cord_infection: { id: 'Tali pusat merah / bernanah', en: 'Red or pus-filled cord' },
+  hypothermia: { id: 'Badan dingin', en: 'Body feels cold' },
+  grunting: { id: 'Napas merintih', en: 'Grunting' },
+};
+
+/** For a baby under 2 months the same key reads differently: a newborn is breastfed, not "eating". */
+export const YOUNG_INFANT_SYMPTOM_LABELS: Record<string, { id: string; en: string }> = {
+  poor_appetite: { id: 'Malas menyusu', en: 'Not feeding well' },
 };
 
 export const FEATURE_LABELS: Record<string, { id: string; en: string }> = {

@@ -525,6 +525,32 @@ export interface Pregnancy {
   nifas: NifasVisit[] | null;
   latest_exam: AncExam | null;
   facility_link: { enabled: boolean; facility: string | null; last_sync_at: string | null };
+  /** The latest danger report, while no staff member has recorded an outcome (null after 14 days or once closed). */
+  open_danger?: OpenDanger | null;
+}
+
+export interface OpenDanger {
+  id: number;
+  signs: string[];
+  sign_labels: string[];
+  created_at: string;
+  contacted_at: string | null;
+  contacted_by_name: string | null;
+}
+
+export type DangerOutcome = 'went_to_facility' | 'advised_home' | 'not_reached';
+
+/** One open maternal danger report in the staff member's area (GET /api/kader/danger-open). */
+export interface OpenDangerRow {
+  report_id: number;
+  pregnancy_id: number;
+  mother_name: string;
+  mother_phone: string | null;
+  region_name: string | null;
+  signs: string[];
+  sign_labels: string[];
+  created_at: string;
+  contacted_at: string | null;
 }
 
 /** One antenatal check-up sent by the Puskesmas or hospital system. */

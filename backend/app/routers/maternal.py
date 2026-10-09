@@ -457,7 +457,8 @@ def report_danger(pid: int, body: DangerIn, user: User = Depends(get_current_use
 @router.patch("/pregnancies/{pid}/danger/{rid}")
 def follow_up_danger(pid: int, rid: int, body: DangerFollowUpIn, user: User = Depends(require_roles(*STAFF)), db: Session = Depends(get_db)):
     """Staff record that they reached the mother, then what happened; the outcome closes the report.
-    Replays are safe: the first contact time and the first outcome are kept."""
+    "not_reached" is only a logged attempt: a mother nobody could reach must stay open and urgent, so the report is
+    not closed and no contact is recorded. Replays are safe: the first contact time and the first outcome are kept."""
     p = get_pregnancy(pid, db, user)
     r = db.get(PregnancyDangerReport, rid)
     if r is None or r.pregnancy_id != p.id:
@@ -466,6 +467,10 @@ def follow_up_danger(pid: int, rid: int, body: DangerFollowUpIn, user: User = De
         raise HTTPException(422, "This report has no danger sign to follow up")
     if body.action is None and body.outcome is None:
         raise HTTPException(422, 'Send {"action": "contacted"} or an outcome')
+    if body.outcome == "not_reached":
+        audit(db, user, "danger_not_reached", "pregnancy", p.id, report_id=r.id)
+        db.commit()
+        return {"open_danger": _danger_view(r, lang_of(user)) if _is_open(r) else None, "outcome": r.outcome, "attempt": "not_reached"}
     if body.outcome and r.outcome and body.outcome != r.outcome:
         raise HTTPException(status.HTTP_409_CONFLICT, "An outcome is already recorded for this report")
     now = utcnow()

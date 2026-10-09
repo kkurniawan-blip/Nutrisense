@@ -101,7 +101,20 @@ The dishes are chosen for your child's age and for the nutrients your child has 
 - Tap the symptoms, or type how your child is in your own words, e.g. *"anaknya diare 2 hari, lemas sekali"*.
 - Symptoms are in two groups: **Gejala umum** (common) and **Tanda bahaya** (danger signs).
 - 🚨 If there is a danger sign, the app shows **Perlu pertolongan** (needs help now) with **Hubungi Kader** (call your Kader) and **Lihat panduan** (see the guide). Go to the Puskesmas right away.
+- **Babies under 2 months** get their own danger signs, because a newborn can get very sick very fast (WHO IMCI). The
+  list adds **Kulit / mata kuning** (yellow skin or eyes), **Tali pusat merah / bernanah** (red or pus-filled cord),
+  **Badan dingin** (body feels cold) and **Napas merintih** (grunting). **Demam** (fever) and **Malas menyusu** (not
+  feeding well) also count as danger signs at this age. Any of them shows **Perlu pertolongan** at once, even without
+  signal, and the Kader is alerted.
 - **Panduan kesehatan** (health guide) lists the danger signs and basic care. It works without internet.
+
+### Something feels wrong in pregnancy: Tanda bahaya
+- On Beranda → **Bunda**, tap **Tanda bahaya** (danger signs), tick what you feel, then **Laporkan** (report). The
+  buttons to call the Puskesmas and 119 come first. Without signal the report is saved and sent by itself later.
+- Your Kader and the doctor are told. Don't wait for them: go to the Puskesmas or call 119 now.
+- Until a health worker has followed it up, your pregnancy card stays red and says **Tanda bahaya: segera ke Puskesmas
+  atau telepon 119**, with the call buttons. Once a Kader or doctor has called you, it says who called. Reporting a
+  common complaint later, such as nausea, does not clear a danger report.
 
 ![Growth history, Tanya Nuri, packages and a Kader's recommendation](images/3-mother-more.png)
 
@@ -146,6 +159,15 @@ Tabs: **Beranda** · **Kasus** (cases) · **Tanya Nuri** · **Logistik** · **Pr
 ![Kader home, a child's page, sharing a note and locker pickup](images/4-kader.png)
 
 - **Wilayah saya** (my area) counts the children who need follow-up (red), need attention (orange) or are on track (green). Tap a count to see those children.
+- **🚨 Danger reports from pregnant mothers** are pinned at the very top of Beranda, one red card per mother, with
+  the sign, how long ago it was reported and **Telepon ibu** (call the mother). A card stays until someone records what
+  happened, not just until the notification is read. Tap it to open the mother's pregnancy page, then:
+  1. call her, and tap **Sudah saya hubungi** (I have contacted her);
+  2. record the outcome: **Sudah ke Puskesmas/bidan**, or **Cukup dipantau di rumah** (monitor at home). Either one
+     closes the alert.
+
+  **Tidak bisa dihubungi** (could not be reached) is recorded as an attempt and the alert stays open. Call again, or
+  ask the midwife to visit her. These buttons need signal; the call itself does not.
 - **Prioritas kunjungan** (visit priorities) lists children most urgent first: name, village and status.
   - Search by name.
   - Filter by **Semua** (all), **Prioritas**, **Baru** (new) or **Tindak lanjut** (follow-up).
@@ -162,6 +184,8 @@ Tabs: **Beranda** · **Kasus** (cases) · **Tanya Nuri** · **Logistik** · **Pr
 ![Dashboard, package options and the doctor's dashboard](images/5-officer-doctor.png)
 
 - **Dasbor** (dashboard): children, stunting rate, urgent cases, the village map, the stunting forecast and how well the AI model performs.
+  Open danger reports from pregnant mothers are pinned at the top, as for Kaders. Doctors are notified of each new report
+  and can record the follow-up on the pregnancy page.
 - **Kasus:** results the AI flagged for checking. Set the correct risk level and add a clinical note.
 - **Logistik → Permintaan paket** (package requests): open a request to see every way to deliver it: stock in a nearby locker, or road delivery from a supply hub. The app explains why each one is or isn't possible, then **Setujui** (approve). Doctors approve items that need a prescription.
 - **Logistik → Loker** (lockers): stock in each locker and hub, with a restock button when an item runs low.
