@@ -1,0 +1,21 @@
+{"agent": "data-ai-engineer",
+ "scores": [
+  {"id": "PM-1", "impact": 5, "evidence": 4, "feasibility": 3, "safety": 4, "demo": 4, "flags": [],
+   "attack": "Counts nifas reports in risk, but the only signs a mother can report are pregnancy signs (ai/maternal.py:48, lib/pregnancy.ts:9-18: fetal movement, waters breaking), with no Buku KIA postpartum signs, and RiskCard hides after delivery (PregnancyParts.tsx:21); it also misses the later-complaint-clears-danger bug at maternal.py:138-141."},
+  {"id": "PM-2", "impact": 3, "evidence": 4, "feasibility": 3, "safety": 3, "demo": 4, "flags": [],
+   "attack": "kia.schedule counts 'not ticked in the app' as overdue, with no catch-up window (kia.py:45-55); on the seed, 12 of 22 flagged children have HB0 or BCG as their first overdue item. 'Ditimbang X dari Y' uses registered children as S, not all balita in the village, so D/S is overstated."},
+  {"id": "PM-3", "impact": 3, "evidence": 5, "feasibility": 3, "safety": 3, "demo": 3, "flags": [],
+   "attack": "Reusing register_mother for any caregiver also auto-grants ai_analysis consent from the Kader's verbal consent (maternal.py:273), bundling AI consent with registration; the Kader reset allows account takeover, mitigated but not prevented by coverage limits and audit."},
+  {"id": "PJ-1", "impact": 5, "evidence": 5, "feasibility": 3, "safety": 4, "demo": 4, "flags": [],
+   "attack": "Bug reproduced (bleeding then nausea: urgent goes back to action, maternal.py:138-141), but keeping her 'Risiko tinggi' until an outcome is recorded also keeps the mother on riskHighTip 'Periksa ke bidan minggu ini' (PregnancyParts.tsx:22, i18n.ts:1779), which is wrong advice for a danger sign; the mother-side copy must change too."},
+  {"id": "PJ-2", "impact": 2, "evidence": 5, "feasibility": 4, "safety": 3, "demo": 3, "flags": [],
+   "attack": "The gap is real (auth.py:144 is the only password endpoint), but the outcome benefit is indirect, and a Kader-read temporary password with no forced change at next login leaves the Kader able to sign in as the mother."},
+  {"id": "PJ-3", "impact": 3, "evidence": 4, "feasibility": 4, "safety": 3, "demo": 4, "flags": [],
+   "attack": "'Terlewat: <first item>' is often HB0 or BCG for children over 1 year (7 and 5 of 22 on the seed), because kia.py:45-55 has no catch-up or age cut-off and treats an unrecorded item as missed; it would send a 3-year-old for a birth dose. It needs catch-up windows and 'Belum tercatat' wording."},
+  {"id": "UX-1", "impact": 5, "evidence": 5, "feasibility": 4, "safety": 4, "demo": 5, "flags": [],
+   "attack": "The pinned Kader card is keyed on unread notifications, so opening the bell clears it with no action taken, and the RiskCard change depends on recent_danger, which a later common complaint clears (maternal.py:138-141). The proposed wording is clinically sound (Buku KIA: go to a facility now); 119 reach in NTT is still to verify."},
+  {"id": "UX-2", "impact": 4, "evidence": 5, "feasibility": 4, "safety": 3, "demo": 4, "flags": [],
+   "attack": "Painting doctor_48h with statusColor.urgent blurs it with emergency 'go now'; risk_level high can come from the Random Forest alone, trained on synthetic data (triage.py:52, risk_model.py:475-506), and the 'dalam 2 hari' item never expires after the visit. Use the action colour and expire it with the assessment."},
+  {"id": "UX-3", "impact": 3, "evidence": 5, "feasibility": 4, "safety": 5, "demo": 4, "flags": [],
+   "attack": "Confirmed live (priority&q=Adel gives 0 rows, all gives 1); the effect on D/S cannot be shown in the demo because every seeded child was measured today, and the offline list can be up to 10 minutes old."}
+ ]}
