@@ -1,0 +1,21 @@
+{"agent": "project-manager",
+ "scores": [
+  {"id": "AI-1", "impact": 4, "evidence": 5, "feasibility": 4, "safety": 4, "demo": 4, "flags": [],
+   "attack": "'No UI change' holds only online: offline, symptoms.tsx:42,64 shows Escalation from the fixed URGENT list, so a fever in a newborn queued offline gets no call-now screen. The new keys (jaundice, cord_infection, cold, grunting) also need mobile labels, or the result chips show raw keys (symptoms.tsx:85). The age-aware set must be applied in both consent branches (children.py:390-393)."},
+  {"id": "AI-2", "impact": 5, "evidence": 5, "feasibility": 3, "safety": 4, "demo": 4, "flags": [],
+   "attack": "Risk reads the most recent report, danger or not (routers/maternal.py:138-141), so a common complaint in nifas still clears the danger. After birth, RiskCard returns null (PregnancyParts.tsx:21) and the 'Untuk hari ini' block only builds for active pregnancies (maternal.py:156), so the mother's screens need more work than danger.tsx. It needs three owners plus a clinical sign-off on the mental-health copy."},
+  {"id": "AI-3", "impact": 4, "evidence": 5, "feasibility": 4, "safety": 4, "demo": 4, "flags": [],
+   "attack": "The code change is two lines, but it changes the numbers the demo, the user guide and the 'followup' Kader group rely on (dashboard.py:248-252, open_case). The 33 review-only items then live only in /api/reviews/pending, which the app lists after the cases as 'paperwork' (cases.tsx:20-22), so a Kader can stop seeing incomplete-data children unless the review list is made visible."},
+  {"id": "PM-1", "impact": 5, "evidence": 4, "feasibility": 2, "safety": 4, "demo": 4, "flags": [],
+   "attack": "It misses the real bug that makes reports vanish: urgency comes from the most recent report whatever its danger flag (maternal.py:138-141), so a later common complaint clears it now, not after 3 days. The scope is L, not M: there is no scheduler in backend/app for a 2 h escalation or 'hours waiting', and staff actions need a new offline outbox kind."},
+  {"id": "PM-2", "impact": 3, "evidence": 5, "feasibility": 4, "safety": 5, "demo": 3, "flags": [],
+   "attack": "Its link to stunting is indirect (immunisation and vitamin A coverage), and the D/S tile shows 100% on the demo seed, so half the pitch cannot be shown to judges. Calling kia.schedule for every row needs one batched KiaRecord query, or /api/dashboard/children slows down (child_care.py:22 queries per child)."},
+  {"id": "PM-3", "impact": 3, "evidence": 5, "feasibility": 3, "safety": 3, "demo": 4, "flags": [],
+   "attack": "With a Kader reset the Kader learns the temporary password and can log in as the mother. The proposed 'notify the mother' is an in-app notification she cannot see while locked out. Inline creation copies register_mother, which grants ai_analysis consent by default on verbal consent (maternal.py:272), so the consent gap spreads to a new path."},
+  {"id": "UX-1", "impact": 5, "evidence": 5, "feasibility": 3, "safety": 4, "demo": 5, "flags": [],
+   "attack": "The pinned card depends on an unread mother_danger notification, so it disappears the moment the Kader opens the bell, with no contact recorded. It does not fix maternal.py:138-141, where a later common complaint clears the danger. 'S' undercounts five surfaces plus a backend field, i18n and the feature checks; it is M."},
+  {"id": "UX-2", "impact": 4, "evidence": 5, "feasibility": 5, "safety": 4, "demo": 5, "flags": [],
+   "attack": "There is no way to clear the item: the new top item comes from the latest triage urgency, which changes only at the next measurement, weeks later. So 'dalam 2 hari' stays red after the visit and after 48 h, which teaches mothers to ignore red. It needs a 'sudah ke dokter' state or an age limit on the item."},
+  {"id": "UX-3", "impact": 3, "evidence": 5, "feasibility": 5, "safety": 5, "demo": 4, "flags": [],
+   "attack": "Fix (1) is a one-line bug (filter=priority applied before q in KaderHome.tsx:64-69). For fix (2), the offline fallback reads cached /api/children, whose rows likely lack the group, status and region fields of AreaChildRow (to verify), so it needs a second row renderer. The 'Diukur hari ini' mark is weak on the demo seed, where every child was measured today."}
+ ]}
