@@ -51,6 +51,7 @@ A change is done only when all of these hold:
 | Role (agent) | Owns | Typical work |
 |---|---|---|
 | Product Manager (`product-manager`) | `docs/PRODUCT.md`, the backlog, priorities | Is it useful? User jobs, gaps, success measures, what to build next. |
+| Project Manager (`project-manager`) | `docs/PROJECT_PLAN.md`, scope and schedule | Can it be delivered and shown in time? Effort, order, dependencies, risks, cut list. |
 | UI/UX Designer (`ux-designer`) | Design specs and reviews (no code) | Screen design, usability reviews with screenshots, copy. |
 | Frontend Engineer (`frontend-engineer`) | `mobile/src/` screens and components, the web build | Building screens to spec, web performance, accessibility, i18n. |
 | Backend Engineer (`backend-engineer`) | `backend/app/`, `backend/tests/` | API, data model, security, integrations (FHIR). |
@@ -63,7 +64,10 @@ When work crosses areas, the owner of each file makes the change in it. Roles ha
 editing files they do not own.
 
 ## How the team works on a change
-1. The product-manager states the user, the job and how we will know it worked.
+0. To choose *what* to build, run the feature arena (`.claude/skills/arena/`): the agents pitch, cross-examine and
+   score each other, and only winners are built. If nothing wins, nothing changes.
+1. The product-manager states the user, the job and how we will know it worked. The project-manager sizes it and
+   fits it into the plan.
 2. The ux-designer specifies the screens and the copy.
 3. The engineers build in their areas. The data-ai-engineer covers anything clinical or AI.
 4. The qa-engineer tests it and adds regression cases. The devops-engineer keeps CI and deployment green.
