@@ -1,5 +1,6 @@
 """Ibu hamil: pregnancy profile, antenatal care (K6), LiLA/Hb checks, TTD/PMT, danger signs, birth plan, birth and nifas."""
 from datetime import date, timedelta
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
@@ -8,9 +9,11 @@ from sqlalchemy.orm import Session
 
 from .. import serializers as S
 from ..ai import growth, maternal as M
+from ..ai.assistant import _PREG_LABELS  # the pregnancy danger-sign labels Nuri already uses
 from ..database import get_db
-from ..deps import OVERSIGHT, get_current_user, lang_of, require_roles
-from ..models import AncExam, AncVisit, Child, Consent, HealthFacility, MaternalMeasurement, Pregnancy, PregnancyDailyLog, PregnancyDangerReport, Region, User
+from ..deps import OVERSIGHT, STAFF, get_current_user, lang_of, require_roles
+from ..models import (AncExam, AncVisit, Child, Consent, HealthFacility, MaternalMeasurement, Pregnancy, PregnancyDailyLog, PregnancyDangerReport,
+                      Region, User, utcnow)
 from ..schemas import MeasurementIn, MotherRegisterIn
 from ..security import hash_password
 from ..services.assessment import run_assessment
@@ -21,6 +24,9 @@ from .family import ROLE_LABEL
 
 router = APIRouter(prefix="/api", tags=["ibu hamil"])
 HPHT_MAX_DAYS = 44 * 7  # an HPHT older than this is a typo, not a pregnancy still going on
+# A danger report stays open until staff record an outcome. The cap stops a report nobody closed from keeping
+# the mother red for the rest of her pregnancy.
+DANGER_OPEN_DAYS = 14
 
 
 # ---------- input ----------
@@ -62,6 +68,12 @@ class DailyIn(BaseModel):
 
 class DangerIn(BaseModel):
     signs: list[str] = []
+    client_uuid: str | None = Field(default=None, max_length=64)
+
+
+class DangerFollowUpIn(BaseModel):
+    action: Literal["contacted"] | None = None
+    outcome: Literal["went_to_facility", "advised_home", "not_reached"] | None = None
     client_uuid: str | None = Field(default=None, max_length=64)
 
 
@@ -107,6 +119,39 @@ def _region_kader(db: Session, region_id: int | None) -> User | None:
     return next((k for k in kaders if k.region_id == region_id), None) or next((k for k in kaders if region_id in k.coverage()), None)
 
 
+# ---------- danger follow-up ----------
+def _danger_cutoff():
+    return utcnow() - timedelta(days=DANGER_OPEN_DAYS)
+
+
+def _is_open(r: PregnancyDangerReport) -> bool:
+    return bool(r.danger and r.outcome is None and r.created_at >= _danger_cutoff())
+
+
+def _latest_danger(db: Session, pid: int) -> PregnancyDangerReport | None:
+    """The latest report with a danger sign: a later common complaint (only "Mual") must not hide it."""
+    return db.scalar(select(PregnancyDangerReport).where(PregnancyDangerReport.pregnancy_id == pid, PregnancyDangerReport.danger.is_(True))
+                     .order_by(PregnancyDangerReport.id.desc()))
+
+
+def _sign_label(key: str, L: str) -> str:
+    text = _PREG_LABELS.get(key, (key, key))[0 if L == "id" else 1]
+    return text[:1].upper() + text[1:]  # the labels are written to sit inside Nuri's sentences
+
+
+def _danger_signs(r: PregnancyDangerReport, L: str) -> tuple[list[str], list[str]]:
+    """Only the danger signs: they are what the alert is about (common complaints in the same report are advice only)."""
+    keys = [s for s in r.signs or [] if s in M.DANGER_SIGNS]
+    return keys, [_sign_label(k, L) for k in keys]
+
+
+def _danger_view(r: PregnancyDangerReport, L: str) -> dict:
+    keys, labels = _danger_signs(r, L)
+    return {"id": r.id, "signs": keys, "sign_labels": labels, "created_at": r.created_at.isoformat(),
+            "contacted_at": r.contacted_at.isoformat() if r.contacted_at else None,
+            "contacted_by_name": r.contacted_by.full_name if r.contacted_by else None}
+
+
 # ---------- view ----------
 def _measurement(m: MaternalMeasurement) -> dict:
     return {"id": m.id, "measured_at": m.measured_at.isoformat(), "gestational_weeks": m.gestational_weeks, "muac_cm": m.muac_cm,
@@ -135,12 +180,11 @@ def view(db: Session, p: Pregnancy, lang: str, today: date | None = None) -> dic
     week = [{"day": (today - timedelta(days=i)).isoformat(), "ttd": bool(logs.get(today - timedelta(days=i)) and logs[today - timedelta(days=i)].ttd),
              "pmt": bool(logs.get(today - timedelta(days=i)) and logs[today - timedelta(days=i)].pmt)} for i in range(6, -1, -1)]
     ttd_total = sum(1 for g in logs.values() if g.ttd)
-    last_danger = db.scalar(select(PregnancyDangerReport).where(PregnancyDangerReport.pregnancy_id == p.id)
-                            .order_by(PregnancyDangerReport.id.desc()))
+    last_danger = _latest_danger(db, p.id)
+    open_danger = last_danger if last_danger and _is_open(last_danger) else None
     kek = any(f["code"] == "kek" for f in flags)
-    recent_danger = bool(last_danger and last_danger.danger and (today - last_danger.created_at.date()).days <= 3)
     missed = sum(1 for v in schedule if v["status"] == "overdue") if p.status == "active" else 0
-    risk = M.mother_risk(flags, last_muac is not None or last_hb is not None, missed, recent_danger and p.status == "active", L)
+    risk = M.mother_risk(flags, last_muac is not None or last_hb is not None, missed, open_danger is not None and p.status == "active", L)
 
     team = [{"role": "mother", "emoji": "🤰", "name": p.mother.full_name, "label": {"id": "Ibu hamil", "en": "Mother"}[L], "phone": p.mother.phone}]
     if p.kader:
@@ -154,6 +198,9 @@ def view(db: Session, p: Pregnancy, lang: str, today: date | None = None) -> dic
     today_log = logs.get(today)
     nxt = M.next_anc(schedule) if p.status == "active" else None
     items = []
+    if p.status == "active" and open_danger:  # first, so it is the first line she reads
+        items.append({"key": "danger", "status": "urgent", "action": "danger",
+                      "text": {"id": "Tanda bahaya! Segera ke Puskesmas", "en": "Danger sign! Go to the Puskesmas"}[L]})
     if p.status == "active":
         items.append({"key": "ttd", "status": "ok" if today_log and today_log.ttd else "action", "action": "supplements",
                       "text": {"id": "Tablet tambah darah sudah diminum" if today_log and today_log.ttd else "Minum tablet tambah darah hari ini",
@@ -170,9 +217,6 @@ def view(db: Session, p: Pregnancy, lang: str, today: date | None = None) -> dic
         if not ms or (today - ms[-1].measured_at).days > 30:
             items.append({"key": "measure", "status": "action", "action": "measure",
                           "text": {"id": "Ukur lengan & cek darah bulan ini", "en": "Check LiLA & Hb this month"}[L]})
-        if last_danger and last_danger.danger and (today - last_danger.created_at.date()).days <= 3:
-            items.append({"key": "danger", "status": "urgent", "action": "danger",
-                          "text": {"id": "Tanda bahaya! Segera ke Puskesmas", "en": "Danger sign! Go to the Puskesmas"}[L]})
 
     out = {
         "id": p.id, "mother_id": p.mother_id, "mother_name": p.mother.full_name, "region": S.region(p.region) if p.region else None,
@@ -187,6 +231,7 @@ def view(db: Session, p: Pregnancy, lang: str, today: date | None = None) -> dic
         "delivered_at": p.delivered_at.isoformat() if p.delivered_at else None, "child_id": p.child_id, "birth_info": p.birth_info or {},
         "nifas": M.nifas_schedule(p.delivered_at, p.nifas_done or [], today) if p.delivered_at else None,
         "latest_exam": exam_view(exam) if exam else None,
+        "open_danger": _danger_view(open_danger, L) if open_danger else None,
         "facility_link": {"enabled": bool(p.facility_sync),
                           "facility": (db.get(HealthFacility, p.linked_facility_id).name if p.linked_facility_id else None),
                           "last_sync_at": p.last_sync_at.isoformat() if p.last_sync_at else None},
@@ -396,15 +441,63 @@ def report_danger(pid: int, body: DangerIn, user: User = Depends(get_current_use
     if replay:  # a report queued offline and sent again: answer as before, without a second alert to the Kader
         return {"danger": replay.danger, "signs": replay.signs, "kader": {"name": p.kader.full_name, "phone": p.kader.phone} if p.kader else None,
                 "facility": facility(p.region)}
-    db.add(PregnancyDangerReport(pregnancy_id=p.id, signs=signs, danger=danger, reported_by_id=user.id, client_uuid=body.client_uuid))
-    if danger:
-        notify_roles(db, ["kader"], p.region_id, "mother_danger", {"id": "Tanda bahaya kehamilan", "en": "Pregnancy danger sign"},
+    r = PregnancyDangerReport(pregnancy_id=p.id, signs=signs, danger=danger, reported_by_id=user.id, client_uuid=body.client_uuid)
+    db.add(r)
+    db.flush()
+    if danger:  # the doctor too, as for a child emergency: the Kader may be out of signal
+        notify_roles(db, ["kader", "doctor"], p.region_id, "mother_danger", {"id": "Tanda bahaya kehamilan", "en": "Pregnancy danger sign"},
                      {"id": f"{p.mother.full_name} melaporkan tanda bahaya. Segera hubungi.", "en": f"{p.mother.full_name} reported a danger sign. Contact her now."},
-                     pregnancy_id=p.id)
+                     pregnancy_id=p.id, report_id=r.id)
     audit(db, user, "report_pregnancy_danger", "pregnancy", p.id, signs=signs)
     db.commit()
     return {"danger": danger, "signs": signs, "kader": {"name": p.kader.full_name, "phone": p.kader.phone} if p.kader else None,
             "facility": facility(p.region)}
+
+
+@router.patch("/pregnancies/{pid}/danger/{rid}")
+def follow_up_danger(pid: int, rid: int, body: DangerFollowUpIn, user: User = Depends(require_roles(*STAFF)), db: Session = Depends(get_db)):
+    """Staff record that they reached the mother, then what happened; the outcome closes the report.
+    Replays are safe: the first contact time and the first outcome are kept."""
+    p = get_pregnancy(pid, db, user)
+    r = db.get(PregnancyDangerReport, rid)
+    if r is None or r.pregnancy_id != p.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Danger report not found for this pregnancy")
+    if not r.danger:
+        raise HTTPException(422, "This report has no danger sign to follow up")
+    if body.action is None and body.outcome is None:
+        raise HTTPException(422, 'Send {"action": "contacted"} or an outcome')
+    if body.outcome and r.outcome and body.outcome != r.outcome:
+        raise HTTPException(status.HTTP_409_CONFLICT, "An outcome is already recorded for this report")
+    now = utcnow()
+    if r.contacted_at is None:
+        r.contacted_at, r.contacted_by_id = now, user.id
+        audit(db, user, "danger_contacted", "pregnancy", p.id, report_id=r.id)
+    if body.outcome and r.outcome is None:
+        r.outcome, r.outcome_at, r.outcome_by_id = body.outcome, now, user.id
+        audit(db, user, "danger_outcome", "pregnancy", p.id, report_id=r.id, outcome=body.outcome)
+    db.commit()
+    db.refresh(r)
+    return {"open_danger": _danger_view(r, lang_of(user)) if _is_open(r) else None, "outcome": r.outcome}
+
+
+@router.get("/kader/danger-open")
+def open_danger_reports(user: User = Depends(require_roles(*STAFF)), db: Session = Depends(get_db)):
+    """Danger reports nobody has closed yet, newest first: one per pregnancy (its latest danger report)."""
+    q = (select(PregnancyDangerReport, Pregnancy).join(Pregnancy, Pregnancy.id == PregnancyDangerReport.pregnancy_id)
+         .where(PregnancyDangerReport.danger.is_(True), PregnancyDangerReport.created_at >= _danger_cutoff()))
+    if user.role == "kader":
+        q = q.where((Pregnancy.kader_id == user.id) | (Pregnancy.region_id.in_(user.coverage())))
+    L, seen, out = lang_of(user), set(), []
+    for r, p in db.execute(q.order_by(PregnancyDangerReport.created_at.desc(), PregnancyDangerReport.id.desc())).all():
+        if p.id in seen:
+            continue
+        seen.add(p.id)
+        if r.outcome is None:
+            keys, labels = _danger_signs(r, L)
+            out.append({"report_id": r.id, "pregnancy_id": p.id, "mother_name": p.mother.full_name, "mother_phone": p.mother.phone,
+                        "region_name": p.region.name if p.region else None, "signs": keys, "sign_labels": labels,
+                        "created_at": r.created_at.isoformat(), "contacted_at": r.contacted_at.isoformat() if r.contacted_at else None})
+    return out
 
 
 @router.post("/pregnancies/{pid}/birth", status_code=201)

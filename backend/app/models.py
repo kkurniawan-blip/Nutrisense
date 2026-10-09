@@ -512,6 +512,14 @@ class PregnancyDangerReport(Base):
     reported_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     client_uuid: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)  # offline replay key
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+    # Staff follow-up: a danger report stays open (the mother stays urgent) until someone records what happened.
+    contacted_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    contacted_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    outcome: Mapped[str | None] = mapped_column(String(24), nullable=True)  # went_to_facility | advised_home | not_reached
+    outcome_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    outcome_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+
+    contacted_by: Mapped[User | None] = relationship(foreign_keys=[contacted_by_id])
 
 
 class KiaRecord(Base):

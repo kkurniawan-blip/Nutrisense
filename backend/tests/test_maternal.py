@@ -113,3 +113,130 @@ def test_pregnancy_journey_to_birth_and_nifas(client, auth):
                                                                          "birth_length_cm": 49}).status_code == 409
     # Still listed during nifas, now with the child linked.
     assert client.get("/api/pregnancies", headers=h).json()[0]["child_id"] == cid
+
+
+# ---------- danger report: open until staff record an outcome ----------
+def _pregnant(client, weeks=30):
+    h = _register(client, f"bahaya-{uuid.uuid4().hex[:6]}@test.id")  # region 2: inside kader.oesapa's coverage
+    p = client.post("/api/pregnancies", headers=h, json={"gestational_weeks": weeks})
+    assert p.status_code == 201, p.text
+    return h, p.json()["id"]
+
+
+def _backdate_report(rid, days):
+    from app.database import SessionLocal
+    from app.models import PregnancyDangerReport, utcnow
+
+    with SessionLocal() as db:
+        db.get(PregnancyDangerReport, rid).created_at = utcnow() - timedelta(days=days)
+        db.commit()
+
+
+def test_later_complaint_does_not_clear_danger_and_item_is_first(client, auth):
+    h, pid = _pregnant(client)
+    client.post(f"/api/pregnancies/{pid}/danger", headers=h, json={"signs": ["bleeding", "nausea"]})
+    client.post(f"/api/pregnancies/{pid}/danger", headers=h, json={"signs": ["nausea"]})
+    p = client.get(f"/api/pregnancies/{pid}", headers=h).json()
+    assert p["risk"]["key"] == "urgent"
+    assert p["today"][0]["key"] == "danger" and p["today"][0]["status"] == "urgent"
+    od = p["open_danger"]
+    assert od["signs"] == ["bleeding"] and od["sign_labels"] == ["Perdarahan"]  # the complaint is not the alert
+    assert od["created_at"] and od["contacted_at"] is None and od["contacted_by_name"] is None
+    # The Kader of the area sees the same open report on the pregnancy page.
+    assert client.get(f"/api/pregnancies/{pid}", headers=auth("kader.oesapa@nutrisense.id")).json()["open_danger"]["id"] == od["id"]
+
+
+def test_danger_report_notifies_kader_and_doctor(client, auth):
+    h, pid = _pregnant(client)
+    client.post(f"/api/pregnancies/{pid}/danger", headers=h, json={"signs": ["convulsions"]})
+    rid = client.get(f"/api/pregnancies/{pid}", headers=h).json()["open_danger"]["id"]
+    for email in ("kader.oesapa@nutrisense.id", "doctor@nutrisense.id"):
+        notes = client.get("/api/notifications", headers=auth(email)).json()
+        assert any(n["kind"] == "mother_danger" and n["data"].get("report_id") == rid for n in notes), email
+    assert not any(n["data"].get("report_id") == rid for n in client.get("/api/notifications", headers=auth("kader.baa@nutrisense.id")).json())
+
+
+def test_danger_follow_up_permissions_and_closing(client, auth):
+    h, pid = _pregnant(client)
+    client.post(f"/api/pregnancies/{pid}/danger", headers=h, json={"signs": ["bleeding"]})
+    rid = client.get(f"/api/pregnancies/{pid}", headers=h).json()["open_danger"]["id"]
+    url = f"/api/pregnancies/{pid}/danger/{rid}"
+    kader = auth("kader.oesapa@nutrisense.id")
+    assert client.patch(url, headers=h, json={"action": "contacted"}).status_code == 403  # not the mother
+    assert client.patch(url, headers=auth("kader.baa@nutrisense.id"), json={"action": "contacted"}).status_code == 403  # outside her area
+    assert client.patch(f"/api/pregnancies/{pid}/danger/999999", headers=kader, json={"action": "contacted"}).status_code == 404
+    assert client.patch(url, headers=kader, json={"outcome": "maybe"}).status_code == 422
+    assert client.patch(url, headers=kader, json={}).status_code == 422
+
+    # "Sudah saya hubungi": still open (still urgent), and a replay keeps the first time.
+    first = client.patch(url, headers=kader, json={"action": "contacted", "client_uuid": "c-1"})
+    assert first.status_code == 200, first.text
+    od = first.json()["open_danger"]
+    assert first.json()["outcome"] is None and od["contacted_at"] and od["contacted_by_name"] == "Kader Martha Lay"
+    again = client.patch(url, headers=auth("doctor@nutrisense.id"), json={"action": "contacted", "client_uuid": "c-1"}).json()
+    assert again["open_danger"]["contacted_at"] == od["contacted_at"] and again["open_danger"]["contacted_by_name"] == "Kader Martha Lay"
+    p = client.get(f"/api/pregnancies/{pid}", headers=h).json()
+    assert p["risk"]["key"] == "urgent" and p["open_danger"]["contacted_at"] == od["contacted_at"]
+
+    # The outcome closes it; the same outcome again is a no-op, a different one is refused.
+    done = client.patch(url, headers=auth("doctor@nutrisense.id"), json={"outcome": "went_to_facility"})
+    assert done.status_code == 200 and done.json() == {"open_danger": None, "outcome": "went_to_facility"}
+    assert client.patch(url, headers=kader, json={"outcome": "went_to_facility"}).json()["outcome"] == "went_to_facility"
+    assert client.patch(url, headers=kader, json={"outcome": "not_reached"}).status_code == 409
+    p = client.get(f"/api/pregnancies/{pid}", headers=h).json()
+    assert p["open_danger"] is None and p["risk"]["key"] != "urgent" and all(i["key"] != "danger" for i in p["today"])
+    actions = {(a["action"], a["entity_id"]) for a in client.get("/api/audit-logs?entity=pregnancy", headers=auth("admin@nutrisense.id")).json()}
+    assert {("danger_contacted", pid), ("danger_outcome", pid)} <= actions
+
+    # An outcome without a recorded contact also sets the contact; a complaint-only report is not followed up.
+    client.post(f"/api/pregnancies/{pid}/danger", headers=h, json={"signs": ["less_movement"]})
+    rid2 = client.get(f"/api/pregnancies/{pid}", headers=h).json()["open_danger"]["id"]
+    r = client.patch(f"/api/pregnancies/{pid}/danger/{rid2}", headers=auth("officer@nutrisense.id"), json={"outcome": "not_reached"})
+    assert r.status_code == 200 and r.json()["open_danger"] is None
+    client.post(f"/api/pregnancies/{pid}/danger", headers=h, json={"signs": ["nausea"]})
+    from app.database import SessionLocal
+    from app.models import PregnancyDangerReport
+    from sqlalchemy import select
+
+    with SessionLocal() as db:
+        closed = db.get(PregnancyDangerReport, rid2)
+        assert closed.contacted_at and closed.outcome_at and closed.outcome_by_id == closed.contacted_by_id
+        mild = db.scalar(select(PregnancyDangerReport).where(PregnancyDangerReport.pregnancy_id == pid).order_by(PregnancyDangerReport.id.desc()))
+    assert client.patch(f"/api/pregnancies/{pid}/danger/{mild.id}", headers=kader, json={"action": "contacted"}).status_code == 422
+    # Another pregnancy's report is not found under this one.
+    h2, pid2 = _pregnant(client)
+    assert client.patch(f"/api/pregnancies/{pid2}/danger/{rid}", headers=kader, json={"action": "contacted"}).status_code == 404
+
+
+def test_danger_stays_open_at_most_14_days(client, auth):
+    h, pid = _pregnant(client)
+    client.post(f"/api/pregnancies/{pid}/danger", headers=h, json={"signs": ["waters_break"]})
+    rid = client.get(f"/api/pregnancies/{pid}", headers=h).json()["open_danger"]["id"]
+    _backdate_report(rid, 13)  # the old 3-day window would have dropped it already
+    p = client.get(f"/api/pregnancies/{pid}", headers=h).json()
+    assert p["open_danger"]["id"] == rid and p["risk"]["key"] == "urgent"
+    _backdate_report(rid, 15)
+    p = client.get(f"/api/pregnancies/{pid}", headers=h).json()
+    assert p["open_danger"] is None and all(i["key"] != "danger" for i in p["today"])
+    assert all(x["report_id"] != rid for x in client.get("/api/kader/danger-open", headers=auth("kader.oesapa@nutrisense.id")).json())
+
+
+def test_open_danger_list_is_scoped(client, auth):
+    h, pid = _pregnant(client)
+    client.post(f"/api/pregnancies/{pid}/danger", headers=h, json={"signs": ["bleeding"]})
+    client.post(f"/api/pregnancies/{pid}/danger", headers=h, json={"signs": ["high_fever"]})  # one card per mother: the latest
+    mine = client.get("/api/kader/danger-open", headers=auth("kader.oesapa@nutrisense.id"))
+    assert mine.status_code == 200
+    rows = [x for x in mine.json() if x["pregnancy_id"] == pid]
+    assert len(rows) == 1
+    row = rows[0]
+    assert set(row) == {"report_id", "pregnancy_id", "mother_name", "mother_phone", "region_name", "signs", "sign_labels", "created_at",
+                        "contacted_at"}
+    assert row["signs"] == ["high_fever"] and row["mother_name"] == "Ibu Hamil Test" and row["region_name"] and row["contacted_at"] is None
+    created = [x["created_at"] for x in mine.json()]
+    assert created == sorted(created, reverse=True)
+    assert all(x["pregnancy_id"] != pid for x in client.get("/api/kader/danger-open", headers=auth("kader.baa@nutrisense.id")).json())
+    assert any(x["pregnancy_id"] == pid for x in client.get("/api/kader/danger-open", headers=auth("doctor@nutrisense.id")).json())
+    assert client.get("/api/kader/danger-open", headers=h).status_code == 403
+    client.patch(f"/api/pregnancies/{pid}/danger/{row['report_id']}", headers=auth("kader.oesapa@nutrisense.id"), json={"outcome": "advised_home"})
+    assert all(x["pregnancy_id"] != pid for x in client.get("/api/kader/danger-open", headers=auth("officer@nutrisense.id")).json())
