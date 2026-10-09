@@ -260,24 +260,34 @@ This is the overfitting risk Appendix B already flags as future work.
 ---
 
 ## Team
-NutriSense is built with a core team of specialist agents: Product Manager, UI/UX Designer, Frontend Engineer,
-Backend Engineer, Mobile Developer, QA / Test Engineer, DevOps / Cloud Engineer and Data / AI Engineer. Each is defined
-in `.claude/agents/`. Their shared context, the definition of done and who owns which files are in
-**[docs/TEAM.md](docs/TEAM.md)**.
+NutriSense is built with a core team of specialist agents: Product Manager, Project Manager, UI/UX Designer,
+Frontend Engineer, Backend Engineer, Mobile Developer, QA / Test Engineer, DevOps / Cloud Engineer and Data / AI
+Engineer. Each is defined in `.claude/agents/`. Their shared context, the definition of done and who owns which files
+are in **[docs/TEAM.md](docs/TEAM.md)**.
+
+What to build next is decided in the **feature arena** (`.claude/skills/arena/`):
+1. The agents pitch features, each with evidence from the code.
+2. They cross-examine and score each other's pitches.
+3. A script totals the scores. Only winners are built, and if nothing wins, nothing changes.
+
+The first round, its scores and the verdict are in [docs/arena/2026-10-09](docs/arena/2026-10-09/VERDICT.md).
 
 ## Tests and checks
 
 ```bash
-cd backend && pytest -q            # 180+ tests: WHO z-scores vs published tables, model quality, triage,
+cd backend && pytest -q            # 420 tests: WHO z-scores vs published tables, model quality, triage,
                                    # symptom lexicon, the full caregiver→Kader→officer→locker workflow,
-                                   # RBAC, consent, encryption at rest, FHIR (out and in), offline sync
+                                   # RBAC, consent, encryption at rest, FHIR (out and in), offline sync,
+                                   # maternal danger follow-up, young-infant danger signs
 cd mobile && npx tsc --noEmit && npx expo lint
 cd e2e && npm test                 # 48-step browser walkthrough for every role (see e2e/README.md)
+cd e2e && npm run qa               # 37 QA cases for release
+cd e2e && npm run features         # every feature once, black-box: 83 features (docs/PENGUJIAN-FITUR.md)
 ```
 
 The test suite runs on SQLite by default. Set `NUTRISENSE_TEST_DATABASE_URL` to an empty PostgreSQL database to run it there.
 
-**CI** (`.github/workflows/ci.yml`) runs on every push and pull request: backend tests on SQLite and on PostgreSQL 16, mobile typecheck, lint and web export, the browser walkthrough and QA pass on a fresh demo database, a Docker build with a smoke test, and a dependency audit (report-only for now).
+**CI** (`.github/workflows/ci.yml`) runs on every push and pull request: backend tests on SQLite and on PostgreSQL 16, mobile typecheck, lint and web export, the browser walkthrough, the QA pass and the feature check, each on a fresh demo database, a Docker build with a smoke test, and a dependency audit (report-only for now).
 
 Useful commands: `python -m app.cli train` (retrain and activate a new model run), `python -m app.cli seed`.
 

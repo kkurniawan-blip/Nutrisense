@@ -65,11 +65,11 @@ It prints PASS or FAIL per case, writes `qa-results.json`, saves screenshots to 
 | Area | Features |
 |---|---|
 | A. Accounts | log in by phone and by email, wrong-password message, 2-step sign-up and its checks, edit profile, English and back, large text, change password, log out (the phone is cleared), login attempt limit |
-| B. Child | home and today's tasks, child profile, guided measurement, impossible values blocked, growth chart, risk analysis, nutrition plan, recipes, development, meal log and menu ideas, NutriScan photo and ingredients, symptom check (danger tap and free text), KIA mark and undo, ASI log, add a child, FHIR export, delete a child |
+| B. Child | home and today's tasks, child profile, guided measurement, impossible values blocked, growth chart, risk analysis, nutrition plan, recipes, development, meal log and menu ideas, NutriScan photo and ingredients, symptom check (danger tap and free text, and the extra danger signs for babies under 2 months), KIA mark and undo, ASI log, add a child, FHIR export, delete a child |
 | C. Nuri and more | ask Nuri, danger answers, chat history, health guide, notifications, consent settings, package pickup code, profile and care team |
 | D. Pregnancy | profile, K1–K6 mark and undo, LiLA and Hb, iron tablet, birth plan, danger report online and with no signal, sync status, add a pregnancy, record the birth, postnatal visits (KF/KN) |
 | E. Puskesmas | mother's code and QR, the demo portal, HL7 FHIR from a Puskesmas system (201, resend 200, wrong key 401), switch the link off and on |
-| F. Kader | home, search and filters, pregnant mothers, add a mother (4 steps), add a child by phone, measure a child, cases, case status, note to the family, SATUSEHAT, locker handover, notifications |
+| F. Kader | home, danger reports from pregnant mothers that stay pinned until followed up (call, contacted, outcome), search and filters, pregnant mothers, add a mother (4 steps), add a child by phone, measure a child, cases, case status, note to the family, SATUSEHAT, locker handover, notifications |
 | G. Officer, doctor, admin | dashboard, AI model card, projection and map, review an AI result, approve and reject packages, logistics, case review, doctor's clinical note and referral, admin creates staff, audit log and models |
 | H. Security and quality | one family cannot see another's child, a Kader only sees their area, inner pages need login, complete English, no page or server errors |
 
