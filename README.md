@@ -7,7 +7,7 @@ An AI-driven health and logistics ecosystem for early stunting prevention in Ind
 | `backend/` | FastAPI + SQLAlchemy API, AI engine (WHO z-scores, scikit-learn risk model, triage, nutrition, Claude integration), N.E.X.U.S. logistics simulation, SATUSEHAT/FHIR mapping |
 | `mobile/` | Expo (React Native) app for Android and iOS (also runs in a browser). One app, role-based screens for caregivers, Kaders, health officers and doctors |
 | `e2e/` | Browser test that walks through the app for every role ([how to run](e2e/README.md)) |
-| `docs/` | **[User guide](docs/USER_GUIDE.md)**: how to use the app, with screenshots |
+| `docs/` | **[User guide](docs/USER_GUIDE.md)**: how to use the app, with screenshots · **[PRD](docs/PRD.md)**: product requirements, with IDs and status · **[ERD](docs/ERD.md)**: the data model, 30 tables |
 
 AI output is decision support, not a medical diagnosis. The app says so on every result screen, and a clinician can confirm or override any assessment.
 
