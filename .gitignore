@@ -25,3 +25,6 @@ backend/backups/
 .DS_Store
 .idea/
 .vscode/
+
+# Web export used by CI and the local e2e runs (npx expo export ... --output-dir ../web-build)
+/web-build/
