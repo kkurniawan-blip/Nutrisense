@@ -23,7 +23,7 @@ const login = async (ident, pw = 'Demo1234!') => (await call('POST', '/api/auth/
 const today = () => new Date().toISOString().slice(0, 10);
 
 const main = async () => {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
   const open = async (ident, pw = 'Demo1234!', tag = '') => {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
     const page = await ctx.newPage();

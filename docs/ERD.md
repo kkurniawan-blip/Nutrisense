@@ -210,7 +210,7 @@ erDiagram
   model_runs {
     int id PK
     string name
-    string algorithm "Random Forest, LR baseline"
+    string algorithm "logistic regression, RF baseline"
     string version
     int n_samples
     json metrics

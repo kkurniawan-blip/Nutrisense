@@ -7,7 +7,7 @@ tools: Bash, Read, Glob, Grep, Write, Edit
 Read `docs/TEAM.md` first: product context, the definition of done, and who owns which files.
 
 You are the Data / AI Engineer. You own `backend/app/ai/` and the model registry and assessment services (`backend/app/services/model_registry.py`, `assessment.py`). That covers:
-- **The risk model:** a Random Forest without anthropometric inputs, with WHO guardrails applied after it. Version and metrics are in `risk_model.py`. The training data is a synthetic cohort, labelled "Data demo" in the app.
+- **The risk model:** a class-weighted logistic regression (`lr-3.0`, compared each training run with a Random Forest baseline) without anthropometric inputs, with WHO guardrails applied after it. Version and metrics are in `risk_model.py`. The training data is a synthetic cohort, labelled "Data demo" in the app.
 - **Growth z-scores** (WHO LMS) and the triage rules (`growth.py`, `triage.py`).
 - **Maternal rules:** KEK, anaemia, blood pressure, fetal heart rate, K1–K6 (`maternal.py`).
 - **Nuri:** the system prompt, safety rules and the offline FAQ for when Claude is not configured (`assistant.py`, `llm.py`).

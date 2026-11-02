@@ -9,6 +9,8 @@ An AI-driven health and logistics ecosystem for early stunting prevention in Ind
 | `e2e/` | Browser test that walks through the app for every role ([how to run](e2e/README.md)) |
 | `docs/` | **[User guide](docs/USER_GUIDE.md)**: how to use the app, with screenshots · **[PRD](docs/PRD.md)**: product requirements, with IDs and status · **[ERD](docs/ERD.md)**: the data model, 30 tables · **[Business Model Canvas](docs/BUSINESS_MODEL_CANVAS.md)** |
 
+**Scope: the first 1,000 days.** Stunting starts before birth, so NutriSense follows the pregnancy (*ibu hamil*: antenatal visits, LiLA, Hb, iron tablets, danger signs, birth and nifas) as well as the child under five, in line with Indonesia's *1000 Hari Pertama Kehidupan* approach and the national strategy for accelerating stunting reduction (Perpres 72/2021).
+
 AI output is decision support, not a medical diagnosis. The app says so on every result screen, and a clinician can confirm or override any assessment.
 
 ---
@@ -123,7 +125,7 @@ The image runs as a non-root user (uid 1000). Only `/app/data` is writable: the 
 
 **Intelligence layer** (`backend/app/ai/`)
 - `computeZScore()`: `growth.py` uses the official WHO 2006 LMS tables, the length/height switch at 24 months with the 0.7 cm correction, and WHO implausibility flags.
-- `classify()`: `risk_model.py` is a Random Forest with a logistic-regression baseline that predicts stunting risk from 19 factors known before the child's size: birth (low birth weight, premature), ASI eksklusif, weight gain against the KBM (T/2T), illness, diet, immunisation, the mother (height < 150 cm, KEK in pregnancy) and the household. The child's height and z-scores are **not** inputs (stunting is defined by height-for-age, so the model would only re-read the answer), and neither is the area's stunting prevalence. The WHO status is shown separately; WHO cut-offs, oedema and IMCI danger signs can raise the level after the model but never lower it. Explanations come from perturbation-based feature contributions. Low-confidence results are flagged for human review. All model metrics are demo metrics on a synthetic cohort and are labelled "Data demo" in the dashboard.
+- `classify()`: `risk_model.py` is a multinomial logistic regression (class-weighted, version `lr-3.0`) that predicts stunting risk from 19 factors known before the child's size: birth (low birth weight, premature), ASI eksklusif, weight gain against the KBM (T/2T), illness, diet, immunisation, the mother (height < 150 cm, KEK in pregnancy) and the household. The child's height and z-scores are **not** inputs (stunting is defined by height-for-age, so the model would only re-read the answer), and neither is the area's stunting prevalence. The WHO status is shown separately; WHO cut-offs, oedema and IMCI danger signs can raise the level after the model but never lower it. Explanations come from perturbation-based feature contributions. Low-confidence results are flagged for human review. All model metrics are demo metrics on a synthetic cohort and are labelled "Data demo" in the dashboard. **Model choice:** every training run compares it with a Random Forest (the earlier model, `rf-2.0`) in stratified 5-fold cross-validation repeated 3 times, and ships the model with the higher macro F1 *and* the lower high-risk miss rate, if it is calibrated (ECE < 0.05). On the current cohort the logistic regression wins (macro F1 0.73 vs 0.72, calibration error 0.03 vs 0.10), so it is shipped and the Random Forest is reported as the baseline.
 - Buku KIA for the child: `kia.py` holds the immunisation / vitamin A / deworming schedule, the minimum weight gain (KBM) behind the 2T badge, and the ASI eksklusif window.
 - Ibu hamil: `maternal.py` holds HPL, trimesters, ANC K1–K6, KEK (LiLA < 23.5 cm), anaemia (Hb < 11 g/dL), nifas visits and one risk level for the mother (Belum dicek … Risiko tinggi; missed visits lower it).
 - Predictive growth tracker: `trend.py` computes HAZ velocity and projects 3 and 6 months ahead, so a child sliding toward −2 SD is flagged before stunting is visible.
@@ -244,7 +246,7 @@ The guide for facility IT staff and SIMPUS vendors covers the message format, co
 
 | Evaluation measure (Ch. III) | Where to get it |
 |---|---|
-| Accuracy, precision, recall, F1, false-negative rate, confusion matrix | `GET /api/dashboard/model`, or `python -m app.cli metrics` (5-fold CV and a logistic-regression baseline included) |
+| Accuracy, precision, recall, F1, false-negative rate, confusion matrix | `GET /api/dashboard/model`, or `python -m app.cli metrics` (repeated 5-fold CV of the shipped logistic regression against a Random Forest baseline, plus results per group: rural/urban, boys/girls, age) |
 | Workflow efficiency: time to recommendation, approval-to-ready, ready-to-pickup, case resolution | `GET /api/dashboard/evaluation` |
 | Decision clarity: human review rate, human–AI agreement | `GET /api/dashboard/evaluation` |
 | Low / moderate / high-risk and end-to-end workflows (4.9) | Demo children: Adel (low), Budi (moderate→high, declining), Yosef/Kevin (high); report danger signs for an emergency |
@@ -275,7 +277,7 @@ The first round, its scores and the verdict are in [docs/arena/2026-10-09](docs/
 ## Tests and checks
 
 ```bash
-cd backend && pytest -q            # 420 tests: WHO z-scores vs published tables, model quality, triage,
+cd backend && pytest -q            # 422 tests: WHO z-scores vs published tables, model quality, triage,
                                    # symptom lexicon, the full caregiver→Kader→officer→locker workflow,
                                    # RBAC, consent, encryption at rest, FHIR (out and in), offline sync,
                                    # maternal danger follow-up, young-infant danger signs

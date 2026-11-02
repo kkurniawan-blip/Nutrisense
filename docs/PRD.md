@@ -4,8 +4,8 @@
 |---|---|
 | **Product** | NutriSense (health app) and N.E.X.U.S. (nutrition-package logistics) |
 | **Owner** | Kenneth Kurniawan, BINUS International (thesis project, 2026) |
-| **Version** | 1.0, 17 October 2026 |
-| **Status** | Describes the working prototype at commit `90d64d9`. Every requirement marked **Built** exists in the code and is covered by the tests listed in [Tests](#12-verification). |
+| **Version** | 1.1, 2 November 2026 (1.0: 17 October 2026) |
+| **Status** | Describes the working prototype as of 2 November 2026. Every requirement marked **Built** exists in the code and is covered by the tests listed in [Tests](#12-verification). |
 | **Related** | [Product review and backlog](PRODUCT.md) · [Data model (ERD)](ERD.md) · [User guide](USER_GUIDE.md) · [Facility integration](FACILITY_INTEGRATION.md) · [Feature checks](PENGUJIAN-FITUR.md) |
 
 How to read this document:
@@ -38,7 +38,10 @@ the internet.
 - **Danger signs get lost.** A sick baby, or a pregnant mother who starts bleeding, depends on someone noticing and
   calling. A report written down, or sent once, can be missed, and many villages have weak or no signal.
 - **Pregnancy risk starts the cycle.** Chronic energy deficiency (**KEK**), anaemia and missed antenatal visits lead to
-  small babies, who are more likely to become stunted.
+  small babies, who are more likely to become stunted. This is why the app covers pregnancy as well as children: stunting
+  prevention works in the **first 1,000 days** (*1000 Hari Pertama Kehidupan*, from conception to age two), and
+  Indonesia's national strategy for accelerating stunting reduction (Perpres 72/2021) targets pregnant mothers as well as
+  children under five.
 - **Help is hard to reach.** The Puskesmas can be hours away, and supplementary food reaches families irregularly.
 - **Information sits in separate places**: the mother's Buku KIA, the Kader's register, the Puskesmas system and the
   Dinkes report. Nobody sees the whole picture of a family or a district.
@@ -151,14 +154,14 @@ Personas used throughout this document and the demo:
 
 | ID | Requirement | Priority | Status | Evidence |
 |---|---|---|---|---|
-| RSK-01 | Every measurement produces a risk assessment (low, medium, high) from a Random Forest with a logistic-regression baseline, using 19 factors known **before** the child's size (birth, ASI, weight gain, illness, diet, immunisation, the mother, the household). Height and z-scores are **not** inputs. | M | Built | `ai/risk_model.py`, `services/assessment.py` |
+| RSK-01 | Every measurement produces a risk assessment (low, medium, high) from a class-weighted logistic regression (`lr-3.0`), using 19 factors known **before** the child's size (birth, ASI, weight gain, illness, diet, immunisation, the mother, the household). Height and z-scores are **not** inputs. | M | Built | `ai/risk_model.py`, `services/assessment.py` |
 | RSK-02 | Safety guardrails can **raise** the level after the model but never lower it: WHO cut-offs (HAZ, WHZ, MUAC), oedema, 2T and IMCI danger signs. | M | Built | `ai/risk_model.py` |
 | RSK-03 | Each result explains itself: the factors that pushed the risk up or down, and human-readable reasons. | M | Built | `RiskAssessment.explanation`, `.reasons` |
 | RSK-04 | A result with confidence below 0.6, or where a guardrail overrode the model, is marked for human review. | M | Built | `config.review_confidence_threshold`, `GET /api/reviews/pending` |
 | RSK-05 | A doctor or officer can confirm or change the level, with a note. | M | Built | `POST /api/assessments/{id}/review` |
 | RSK-06 | Triage turns the result into one of four urgency tiers (`emergency`, `doctor_48h`, `kader_7d`, `routine`) with next steps and supply needs. For `doctor_48h`, "Bawa ke dokter/Puskesmas dalam 2 hari" is the first action. | M | Built | `ai/triage.py` |
 | RSK-07 | Safety does not depend on the optional AI-analysis consent: WHO rules, triage, cases and Kader alerts always run. | M | Built | `routers/children.py` |
-| RSK-08 | Model versions are registered with their metrics and feature importances; an admin can retrain. | S | Built | `ModelRun`, `GET /api/models`, `POST /api/models/retrain` |
+| RSK-08 | Model versions are registered with their metrics and feature importances; an admin can retrain. Every training run compares the logistic regression with a Random Forest baseline (repeated 5-fold cross-validation) and ships by a fixed rule: higher macro F1 and lower high-risk miss rate, if calibrated (ECE < 0.05). | S | Built | `ModelRun`, `GET /api/models`, `POST /api/models/retrain`, `ai/risk_model.py` |
 
 ### 6.4 Symptom checker (SYM)
 
@@ -397,9 +400,9 @@ Measured per village and per Kader, monthly, unless noted. The full list, with h
 
 ## 12. Verification
 
-| Suite | What it checks | Result at `90d64d9` |
+| Suite | What it checks | Result on 2 November 2026 |
 |---|---|---|
-| Backend tests (`backend/tests`, pytest) | API, AI rules, security, FHIR, logistics | 420 passed |
+| Backend tests (`backend/tests`, pytest) | API, AI rules, security, FHIR, logistics, ERD document | 422 passed |
 | End-to-end (`e2e/app.e2e.mjs`) | Every role's main flows in a browser | 48/48 steps |
 | QA cases (`e2e/qa.e2e.mjs`) | Edge cases and regressions | 37/37 |
 | Feature checks (`e2e/features.e2e.mjs`, [PENGUJIAN-FITUR.md](PENGUJIAN-FITUR.md)) | One check per feature, including B20 (newborn danger signs) and F13 (maternal danger follow-up) | 83/83 |

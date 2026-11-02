@@ -1,6 +1,6 @@
 # Pengujian fitur NutriSense (black-box)
 
-Tanggal: 2026-10-09 · Hasil: **83 dari 83 fitur berhasil**
+Tanggal: 2026-11-02 · Hasil: **83 dari 83 fitur berhasil**
 
 | No | Area | Fitur | Skenario | Hasil yang diharapkan | Hasil | Keterangan |
 |---|---|---|---|---|---|---|
